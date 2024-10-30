@@ -1,4 +1,15 @@
+# Para ignorar una carpete no archivos con su mismo nombre poner "/" al final
+
+# Ignorar dependencias y build
+node_modules/
+build/
+
+# Ignorar archivos de entorno
 .env
-node_modules
+
+# Ignorar los certificados
+certificates/
+
+# Ignorar archivps mios
 ESTRUCT_*
-* - copia *
+copia*

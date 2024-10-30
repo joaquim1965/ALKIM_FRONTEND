@@ -1,27 +1,34 @@
+// src/App.jsx
 import React from 'react';
-
-import {BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import Login from './components/Login';
-import Register from './components/Register';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import ThemeProvider from './context/ThemeProvider';
+import LanguageProvider from './context/LanguageProvider';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Tests from './pages/Tests';
+import Usuarios from './pages/Usuarios';
 import PrivateRoute from './components/PrivateRoute';
-import ProtectedPage from './components/ProtectedPage';
-import Tests from './components/Tests';
-import Menu from './components/Menu'; // Importar el nuevo componente del menú
 
 function App() {
   return (
-    <Router>
-      <div>
-        <Menu /> {/* Incluir el menú */}
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/protected" element={<PrivateRoute><ProtectedPage /></PrivateRoute>} />
-          <Route path="/tests" element={<Tests />} />
-        </Routes>
-      </div>
-    </Router>
+    <ThemeProvider>
+      <LanguageProvider>
+        <Router>
+          <Navbar />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/tests" element={<Tests />} />
+    
+            {/* Ruta protegida para la página de Usuarios */}
+	      <Route path="/usuarios" element={<PrivateRoute component={Usuarios} />} /> {/* Ruta protegida */}
+          </Routes>
+        </Router>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }
 
