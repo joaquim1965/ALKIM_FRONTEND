@@ -1,0 +1,4 @@
+los ACVHIVOS key y crt son iguales a los del mismo nombre .pen cambiando soolo la etension el archivo.
+Los certificados end evelopment se obtuvieron con OpenSSL con 10 años antes de caducar
+
+Los certificados se llaman en .\vite-config.js

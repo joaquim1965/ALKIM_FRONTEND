@@ -1,0 +1,15 @@
+/*
+   INDEX.CSS - Entry Point
+   Importa todos los estilos en el orden correcto
+*/
+
+@import "tailwindcss";
+
+/* 1. Definición de la fuente JetBrains Mono y variables de fuente */
+@import "./fonts.css";
+
+/* 2. Paleta de colores por tema (CSS Variables) */
+@import "./colors.css";
+
+/* 3. Estilos base globales + Clases de componentes */
+@import "./utilities.css";

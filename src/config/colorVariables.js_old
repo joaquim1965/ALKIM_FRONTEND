@@ -1,0 +1,586 @@
+/**
+ * colorVariables.js
+ *
+ * Configuración completa de todas las variables CSS editables
+ * con descripciones de usuario en español
+ *
+ * ORDEN: Sigue el mismo orden que App.css
+ */
+
+export const colorVariablesConfig = {
+  '1. Global y Layout': {
+    description: 'Colores base de la aplicación',
+    variables: {
+      '--color-background-primary': {
+        label: 'Fondo principal',
+        description: 'Color de fondo principal de toda la aplicación',
+        type: 'color',
+        category: 'background'
+      },
+      '--color-background-secondary': {
+        label: 'Fondo secundario',
+        description: 'Color de fondo secundario para secciones alternativas',
+        type: 'color',
+        category: 'background'
+      },
+      '--color-text-primary': {
+        label: 'Texto principal',
+        description: 'Color del texto principal (títulos, párrafos importantes)',
+        type: 'color',
+        category: 'text'
+      },
+      '--color-text-secondary': {
+        label: 'Texto secundario',
+        description: 'Color del texto secundario (descripciones, subtítulos)',
+        type: 'color',
+        category: 'text'
+      },
+      '--color-border-color': {
+        label: 'Color de bordes',
+        description: 'Color de bordes generales en la aplicación',
+        type: 'color',
+        category: 'border'
+      },
+      '--color-accent': {
+        label: 'Color de acento',
+        description: 'Color de marca principal (acento cromático)',
+        type: 'color',
+        category: 'brand'
+      },
+      '--color-accent-foreground': {
+        label: 'Texto sobre acento',
+        description: 'Color de texto cuando está sobre el color de acento',
+        type: 'color',
+        category: 'brand'
+      },
+      '--color-accent-muted': {
+        label: 'Acento atenuado',
+        description: 'Versión más suave del color de acento',
+        type: 'color',
+        category: 'brand'
+      }
+    }
+  },
+
+  '2. Barra de navegación': {
+    description: 'Barra de navegación',
+    variables: {
+      '--color-navbar-bg': {
+        label: 'Navbar - fondo',
+        description: 'Color de fondo de la barra de navegación',
+        type: 'color',
+        category: 'navbar'
+      },
+      '--color-navbar-text': {
+        label: 'Navbar - texto',
+        description: 'Color del texto en la navbar',
+        type: 'color',
+        category: 'navbar'
+      },
+      '--color-navbar-link-active-text': {
+        label: 'Navbar - link activo',
+        description: 'Color del enlace activo en la navbar',
+        type: 'color',
+        category: 'navbar'
+      }
+    }
+  },
+
+  '3. Botones': {
+    description: 'Botones primarios y secundarios',
+    variables: {
+      '--color-primary-bg': {
+        label: 'Botón primario - fondo',
+        description: 'Color de fondo del botón primario (principal)',
+        type: 'color',
+        category: 'button'
+      },
+      '--color-primary-text': {
+        label: 'Botón primario - texto',
+        description: 'Color de texto del botón primario',
+        type: 'color',
+        category: 'button'
+      },
+      '--color-secondary-bg': {
+        label: 'Botón secundario - fondo',
+        description: 'Color de fondo del botón secundario',
+        type: 'color',
+        category: 'button'
+      },
+      '--color-secondary-text': {
+        label: 'Botón secundario - texto',
+        description: 'Color de texto del botón secundario',
+        type: 'color',
+        category: 'button'
+      },
+      '--color-secondary-border': {
+        label: 'Botón secundario - borde',
+        description: 'Color de borde del botón secundario',
+        type: 'color',
+        category: 'button'
+      }
+    }
+  },
+
+  '4. Formularios': {
+    description: 'Inputs, formularios y campos de texto',
+    variables: {
+      '--color-input-bg': {
+        label: 'Input - fondo',
+        description: 'Color de fondo de campos de texto (inputs)',
+        type: 'color',
+        category: 'form'
+      },
+      '--color-input-text': {
+        label: 'Input - texto',
+        description: 'Color del texto dentro de inputs',
+        type: 'color',
+        category: 'form'
+      },
+      '--color-input-border': {
+        label: 'Input - borde',
+        description: 'Color de borde de inputs en estado normal',
+        type: 'color',
+        category: 'form'
+      },
+      '--color-input-focus-border': {
+        label: 'Input - borde al enfocar',
+        description: 'Color de borde cuando el input está enfocado (focus)',
+        type: 'color',
+        category: 'form'
+      },
+      '--color-input-invalid-border': {
+        label: 'Input - borde con error',
+        description: 'Color de borde cuando el input tiene un error de validación',
+        type: 'color',
+        category: 'form'
+      },
+      '--color-input-focus-ring': {
+        label: 'Input - anillo de enfoque',
+        description: 'Color del anillo (ring) al enfocar un input',
+        type: 'color',
+        category: 'form'
+      },
+      '--color-disabled-bg': {
+        label: 'Input - fondo deshabilitado',
+        description: 'Color de fondo de inputs deshabilitados',
+        type: 'color',
+        category: 'form'
+      },
+      '--color-disabled-text': {
+        label: 'Input - texto deshabilitado',
+        description: 'Color de texto de inputs deshabilitados',
+        type: 'color',
+        category: 'form'
+      }
+    }
+  },
+
+  '5. Tarjetas y Enlaces': {
+    description: 'Tarjetas y componentes genéricos',
+    variables: {
+      '--color-card-bg': {
+        label: 'Fondo de tarjeta',
+        description: 'Color de fondo de tarjetas (cards)',
+        type: 'color',
+        category: 'component'
+      },
+      '--color-card-border': {
+        label: 'Borde de tarjeta',
+        description: 'Color de borde de tarjetas',
+        type: 'color',
+        category: 'component'
+      },
+      '--color-link-text': {
+        label: 'Color de enlaces',
+        description: 'Color de los enlaces (links) en estado normal',
+        type: 'color',
+        category: 'component'
+      },
+      '--color-link-hover-text': {
+        label: 'Enlaces al pasar mouse',
+        description: 'Color de enlaces cuando pasas el mouse sobre ellos',
+        type: 'color',
+        category: 'component'
+      }
+    }
+  },
+
+  '6. Tablas': {
+    description: 'Tablas de datos',
+    variables: {
+      '--color-table-header-bg': {
+        label: 'Tabla - fondo de cabecera',
+        description: 'Color de fondo de la cabecera (thead) de tablas',
+        type: 'color',
+        category: 'table'
+      },
+      '--color-table-header-text': {
+        label: 'Tabla - texto de cabecera',
+        description: 'Color del texto en la cabecera de tablas',
+        type: 'color',
+        category: 'table'
+      },
+      '--color-table-row-selected-bg': {
+        label: 'Tabla - fila seleccionada',
+        description: 'Color de fondo de una fila seleccionada',
+        type: 'color',
+        category: 'table'
+      },
+      '--color-table-row-selected-text': {
+        label: 'Tabla - texto fila seleccionada',
+        description: 'Color de texto en una fila seleccionada',
+        type: 'color',
+        category: 'table'
+      },
+      '--color-table-row-striped-bg': {
+        label: 'Tabla - fila alternada',
+        description: 'Color de fondo de filas alternas (striped)',
+        type: 'color',
+        category: 'table'
+      }
+    }
+  },
+
+  '7. Pestañas': {
+    description: 'Pestañas de navegación',
+    variables: {
+      '--color-tab-bg': {
+        label: 'Tab - fondo',
+        description: 'Color de fondo de tabs inactivos',
+        type: 'color',
+        category: 'tab'
+      },
+      '--color-tab-text': {
+        label: 'Tab - texto inactivo',
+        description: 'Color del texto en tabs inactivos',
+        type: 'color',
+        category: 'tab'
+      },
+      '--color-tab-active-text': {
+        label: 'Tab - texto activo',
+        description: 'Color del texto en el tab activo',
+        type: 'color',
+        category: 'tab'
+      },
+      '--color-tab-indicator': {
+        label: 'Tab - indicador',
+        description: 'Color de la línea indicadora del tab activo',
+        type: 'color',
+        category: 'tab'
+      },
+      '--color-tab-content-bg': {
+        label: 'Tab - fondo de contenido',
+        description: 'Color de fondo del contenido del tab',
+        type: 'color',
+        category: 'tab'
+      },
+      '--color-tab-border': {
+        label: 'Tab - borde',
+        description: 'Color de borde de los tabs',
+        type: 'color',
+        category: 'tab'
+      }
+    }
+  },
+
+  '8. Modales': {
+    description: 'Ventanas modales',
+    variables: {
+      '--color-modal-backdrop-bg': {
+        label: 'Modal - fondo oscurecido',
+        description: 'Color del fondo oscuro detrás del modal (backdrop)',
+        type: 'color',
+        category: 'modal'
+      },
+      '--color-modal-bg': {
+        label: 'Modal - fondo',
+        description: 'Color de fondo del modal',
+        type: 'color',
+        category: 'modal'
+      },
+      '--color-modal-text': {
+        label: 'Modal - texto',
+        description: 'Color del texto dentro del modal',
+        type: 'color',
+        category: 'modal'
+      }
+    }
+  },
+
+  '9. Estados': {
+    description: 'Estados de alerta y notificaciones',
+    variables: {
+      '--color-success-bg': {
+        label: 'Success - fondo',
+        description: 'Color de fondo para mensajes de éxito',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-success-text': {
+        label: 'Success - texto',
+        description: 'Color de texto para mensajes de éxito',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-success-border': {
+        label: 'Success - borde',
+        description: 'Color de borde para mensajes de éxito',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-error-bg': {
+        label: 'Error - fondo',
+        description: 'Color de fondo para mensajes de error',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-error-text': {
+        label: 'Error - texto',
+        description: 'Color de texto para mensajes de error',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-error-border': {
+        label: 'Error - borde',
+        description: 'Color de borde para mensajes de error',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-warning-bg': {
+        label: 'Warning - fondo',
+        description: 'Color de fondo para mensajes de advertencia',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-warning-text': {
+        label: 'Warning - texto',
+        description: 'Color de texto para mensajes de advertencia',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-warning-border': {
+        label: 'Warning - borde',
+        description: 'Color de borde para mensajes de advertencia',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-info-bg': {
+        label: 'Info - fondo',
+        description: 'Color de fondo para mensajes informativos',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-info-text': {
+        label: 'Info - texto',
+        description: 'Color de texto para mensajes informativos',
+        type: 'color',
+        category: 'state'
+      },
+      '--color-info-border': {
+        label: 'Info - borde',
+        description: 'Color de borde para mensajes informativos',
+        type: 'color',
+        category: 'state'
+      }
+    }
+  },
+
+  '10. Superficies': {
+    description: 'Superficies y fondos semánticos',
+    variables: {
+      '--color-surface-1-bg': {
+        label: 'Superficie nivel 1',
+        description: 'Superficie base para componentes (nivel de elevación 1)',
+        type: 'color',
+        category: 'surface'
+      },
+      '--color-surface-2-bg': {
+        label: 'Superficie nivel 2',
+        description: 'Superficie elevada para componentes (nivel de elevación 2)',
+        type: 'color',
+        category: 'surface'
+      }
+    }
+  }
+};
+
+/**
+ * Valores por defecto para cada tema
+ */
+export const defaultThemeValues = {
+  light: {
+    '--color-background-primary': '#f0f9ff',
+    '--color-background-secondary': '#e0f2fe',
+    '--color-text-primary': '#0c4a6e',
+    '--color-text-secondary': '#0369a1',
+    '--color-border-color': '#bae6fd',
+    '--color-accent': '#0284c7',
+    '--color-accent-foreground': '#ffffff',
+    '--color-accent-muted': '#38bdf8',
+    '--color-surface-1-bg': '#f0f9ff',
+    '--color-surface-2-bg': '#e0f2fe',
+    '--color-card-bg': '#ffffff',
+    '--color-card-border': '#bae6fd',
+    '--color-link-text': '#0284c7',
+    '--color-link-hover-text': '#0369a1',
+    '--color-primary-bg': '#0284c7',
+    '--color-primary-text': '#ffffff',
+    '--color-secondary-bg': '#ffffff',
+    '--color-secondary-text': '#0c4a6e',
+    '--color-secondary-border': '#7dd3fc',
+    '--color-input-bg': '#ffffff',
+    '--color-input-text': '#0c4a6e',
+    '--color-input-border': '#7dd3fc',
+    '--color-input-focus-border': '#0284c7',
+    '--color-input-invalid-border': '#ef4444',
+    '--color-input-focus-ring': '#0284c7',
+    '--color-disabled-bg': '#e0f2fe',
+    '--color-disabled-text': '#94a3b8',
+    '--color-navbar-bg': '#ffffff',
+    '--color-navbar-text': '#0c4a6e',
+    '--color-navbar-link-active-text': '#0284c7',
+    '--color-table-header-bg': '#e0f2fe',
+    '--color-table-header-text': '#0c4a6e',
+    '--color-table-row-selected-bg': '#bae6fd',
+    '--color-table-row-selected-text': '#0c4a6e',
+    '--color-table-row-striped-bg': '#f0f9ff',
+    '--color-tab-bg': 'transparent',
+    '--color-tab-text': '#0369a1',
+    '--color-tab-active-text': '#0c4a6e',
+    '--color-tab-indicator': '#0284c7',
+    '--color-tab-content-bg': '#ffffff',
+    '--color-tab-border': '#bae6fd',
+    '--color-modal-backdrop-bg': 'rgba(12, 74, 110, 0.45)',
+    '--color-modal-bg': '#ffffff',
+    '--color-modal-text': '#0c4a6e',
+    '--color-success-bg': '#ecfdf5',
+    '--color-success-text': '#065f46',
+    '--color-success-border': '#34d399',
+    '--color-error-bg': '#fef2f2',
+    '--color-error-text': '#991b1b',
+    '--color-error-border': '#fca5a5',
+    '--color-warning-bg': '#fffbeb',
+    '--color-warning-text': '#92400e',
+    '--color-warning-border': '#fcd34d',
+    '--color-info-bg': '#eff6ff',
+    '--color-info-text': '#1e40af',
+    '--color-info-border': '#93c5fd'
+  },
+  dark: {
+    '--color-background-primary': '#0f172a',
+    '--color-background-secondary': '#1f2937',
+    '--color-text-primary': '#f8fafc',
+    '--color-text-secondary': '#94a3b8',
+    '--color-border-color': '#334155',
+    '--color-accent': '#7c83ff',
+    '--color-accent-foreground': '#f8fafc',
+    '--color-accent-muted': '#9aa7ff',
+    '--color-surface-1-bg': '#1f2937',
+    '--color-surface-2-bg': '#1f2937',
+    '--color-card-bg': '#1f2937',
+    '--color-card-border': '#334155',
+    '--color-link-text': '#93c5fd',
+    '--color-link-hover-text': '#bfdbfe',
+    '--color-primary-bg': '#3b82f6',
+    '--color-primary-text': '#f8fafc',
+    '--color-secondary-bg': '#1f2937',
+    '--color-secondary-text': '#f8fafc',
+    '--color-secondary-border': '#475569',
+    '--color-input-bg': '#1f2937',
+    '--color-input-text': '#f8fafc',
+    '--color-input-border': '#475569',
+    '--color-input-focus-border': '#7c83ff',
+    '--color-input-invalid-border': '#ef4444',
+    '--color-input-focus-ring': '#7c83ff',
+    '--color-disabled-bg': '#1f2937',
+    '--color-disabled-text': '#64748b',
+    '--color-navbar-bg': '#0f172a',
+    '--color-navbar-text': '#f8fafc',
+    '--color-navbar-link-active-text': '#93c5fd',
+    '--color-table-header-bg': '#1f2937',
+    '--color-table-header-text': '#f8fafc',
+    '--color-table-row-selected-bg': '#334155',
+    '--color-table-row-selected-text': '#f8fafc',
+    '--color-table-row-striped-bg': '#0e1324',
+    '--color-tab-bg': 'transparent',
+    '--color-tab-text': '#94a3b8',
+    '--color-tab-active-text': '#f8fafc',
+    '--color-tab-indicator': '#7c83ff',
+    '--color-tab-content-bg': '#1f2937',
+    '--color-tab-border': '#334155',
+    '--color-modal-backdrop-bg': 'rgba(0, 0, 0, 0.6)',
+    '--color-modal-bg': '#1f2937',
+    '--color-modal-text': '#f8fafc',
+    '--color-success-bg': '#073b2a',
+    '--color-success-text': '#a7f3d0',
+    '--color-success-border': '#10b981',
+    '--color-error-bg': '#3a0d0d',
+    '--color-error-text': '#fecaca',
+    '--color-error-border': '#f87171',
+    '--color-warning-bg': '#3b2a07',
+    '--color-warning-text': '#fde68a',
+    '--color-warning-border': '#fbbf24',
+    '--color-info-bg': '#0a2249',
+    '--color-info-text': '#bfdbfe',
+    '--color-info-border': '#60a5fa'
+  },
+  'high-contrast': {
+    '--color-background-primary': '#000000',
+    '--color-background-secondary': '#000000',
+    '--color-text-primary': '#ffffff',
+    '--color-text-secondary': '#e6e6e6',
+    '--color-border-color': '#ffffff',
+    '--color-accent': '#00ffff',
+    '--color-accent-foreground': '#000000',
+    '--color-accent-muted': '#66ffff',
+    '--color-surface-1-bg': '#000000',
+    '--color-surface-2-bg': '#000000',
+    '--color-card-bg': '#000000',
+    '--color-card-border': '#ffffff',
+    '--color-link-text': '#00ffff',
+    '--color-link-hover-text': '#00ffff',
+    '--color-primary-bg': '#ffff00',
+    '--color-primary-text': '#000000',
+    '--color-secondary-bg': '#000000',
+    '--color-secondary-text': '#ffffff',
+    '--color-secondary-border': '#ffffff',
+    '--color-input-bg': '#000000',
+    '--color-input-text': '#ffffff',
+    '--color-input-border': '#ffffff',
+    '--color-input-focus-border': '#00ffff',
+    '--color-input-invalid-border': '#ff0000',
+    '--color-input-focus-ring': '#00ffff',
+    '--color-disabled-bg': '#1a1a1a',
+    '--color-disabled-text': '#b3b3b3',
+    '--color-navbar-bg': '#000000',
+    '--color-navbar-text': '#ffffff',
+    '--color-navbar-link-active-text': '#00ffff',
+    '--color-table-header-bg': '#000000',
+    '--color-table-header-text': '#ffffff',
+    '--color-table-row-selected-bg': '#ffffff',
+    '--color-table-row-selected-text': '#000000',
+    '--color-table-row-striped-bg': '#0d0d0d',
+    '--color-tab-bg': 'transparent',
+    '--color-tab-text': '#e6e6e6',
+    '--color-tab-active-text': '#ffffff',
+    '--color-tab-indicator': '#ffffff',
+    '--color-tab-content-bg': '#000000',
+    '--color-tab-border': '#ffffff',
+    '--color-modal-backdrop-bg': 'rgba(0, 0, 0, 0.85)',
+    '--color-modal-bg': '#000000',
+    '--color-modal-text': '#ffffff',
+    '--color-success-bg': '#008000',
+    '--color-success-text': '#ffffff',
+    '--color-success-border': '#00ff00',
+    '--color-error-bg': '#ff0000',
+    '--color-error-text': '#000000',
+    '--color-error-border': '#ff7f7f',
+    '--color-warning-bg': '#ffbf00',
+    '--color-warning-text': '#000000',
+    '--color-warning-border': '#ffd166',
+    '--color-info-bg': '#00ffff',
+    '--color-info-text': '#000000',
+    '--color-info-border': '#66ffff'
+  }
+};

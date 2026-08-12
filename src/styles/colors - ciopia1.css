@@ -1,0 +1,498 @@
+/**
+ * themes.css - Definiciones de temas
+ *
+ * Contiene las variables de color para los 3 temas de la aplicación:
+ * - Light (tema por defecto)
+ * - Dark
+ * - High-Contrast
+ *
+ * Sistema de nomenclatura: primary/on-primary
+ * - Ejemplo: --color-primary (fondo) / --color-on-primary (texto sobre ese fondo)
+ */
+
+/* ───────────────────────────────────────────────────────────
+   1) TEMA BASE (LIGHT por defecto)
+   ─────────────────────────────────────────────────────────── */
+@theme {
+  /* 1. Global y Layout */
+  /* Fondo Principal */
+  --color-background: #e2e8f0;
+  /* Texto sobre Fondo */
+  --color-on-background: #020617;
+  /* Superficie 1 */
+  --color-surface1: #cbd5e1;
+  /* Texto sobre Superficie 1 */
+  --color-on-surface1: #020617;
+  /* Superficie 2 */
+  --color-surface2: #93c5fd;
+  /* Texto sobre Superficie 2 */
+  --color-on-surface2: #020617;
+  /* Superficie Hover */
+  --color-surface-hover: #c4b5fd;
+  /* Texto Superficie Hover */
+  --color-on-surface-hover: #020617;
+  /* Color de Bordes */
+  --color-border: #1e40af;
+
+  /* 2. Barra de Navegación */
+  /* Fondo Navbar */
+  --color-navbar: #3730a3;
+  /* Texto Navbar */
+  --color-on-navbar: #ffffff;
+  /* Navbar Hover */
+  --color-navbar-hover: #020617;
+  /* Texto Navbar Hover */
+  --color-on-navbar-hover: #fcd34d;
+
+  /* 3. Botones */
+  /* Botón Primario */
+  --color-primary: #1e40af;
+  /* Texto Primario */
+  --color-on-primary: #ffffff;
+  /* Primary Hover */
+  --color-primary-hover: #1a35a0;
+  /* Texto Primary Hover */
+  --color-on-primary-hover: #ffffff;
+  /* Borde Primario */
+  --color-primary-border: #1e40af;
+  /* Botón Secundario */
+  --color-secondary: #e2e8f0;
+  /* Texto Secundario */
+  --color-on-secondary: #0f172a;
+  /* Secondary Hover */
+  --color-secondary-hover: #cbd5e1;
+  /* Texto Secondary Hover */
+  --color-on-secondary-hover: #0f172a;
+  /* Borde Secundario */
+  --color-secondary-border: #475569;
+
+  /* 4. Formularios */
+  /* Fondo Input */
+  --color-input: #ffffff;
+  /* Texto Input */
+  --color-on-input: #000000;
+  /* Borde Input */
+  --color-input-border: #1e293b;
+  /* Input Focus */
+  --color-input-focus: #0f172a;
+  /* Borde Input Focus */
+  --color-input-focus-border: #1e40af;
+  /* Borde Inválido */
+  --color-input-invalid-border: #ef4444;
+  /* Ring General */
+  --color-ring: #2563eb;
+  /* Focus Outline (Accesibilidad) */
+  --color-focus-outline: #2563eb;
+  /* Deshabilitado */
+  --color-disabled: #e2e8f0;
+  /* Texto Deshabilitado */
+  --color-on-disabled: #000000;
+
+  /* 5. Enlaces */
+  /* Enlace */
+  --color-link: #1e40af;
+  /* Enlace Hover */
+  --color-link-hover: #1e3a8a;
+
+  /* 6. Tablas */
+  /* Cabecera Tabla */
+  --color-table-header: #78350f;
+  /* Texto Cabecera */
+  --color-on-table-header: #ffffff;
+  /* Fila Normal */
+  --color-table-row: #ffffff;
+  /* Texto Fila Normal */
+  --color-on-table-row: #0f172a;
+  /* Fila Hover */
+  --color-table-row-hover: #71717a;
+  /* Texto Fila Hover */
+  --color-on-table-row-hover: #0f172a;
+  /* Fila Seleccionada */
+  --color-table-row-selected: #e0e7ff;
+  /* Texto Seleccionada */
+  --color-on-table-row-selected: #0f172a;
+  /* Fila Rayada */
+  --color-table-row-striped: #cbd5e1;
+  /* Texto Rayada */
+  --color-on-table-row-striped: #64748b;
+
+  /* 7. Pestañas */
+  /* Fondo Tab */
+  --color-tab: transparent;
+  /* Texto Tab */
+  --color-on-tab: #475569;
+  /* Tab Hover */
+  --color-tab-hover: #334155;
+  /* Texto Tab Hover */
+  --color-on-tab-hover: #ffffff;
+  /* Indicador Tab */
+  --color-tab-indicator: #92400e;
+  /* Contenido Tab */
+  --color-tab-content: #94a3b8;
+  /* Texto Contenido */
+  --color-on-tab-content: #020617;
+
+  /* 8. Estados */
+  /* Success */
+  --color-success: #d1fae5;
+  /* Texto Success */
+  --color-on-success: #000000;
+  /* Borde Success */
+  --color-success-border: #059669;
+  /* Error/Destructive */
+  --color-destructive: #fee2e2;
+  /* Texto Error */
+  --color-on-destructive: #000000;
+  /* Borde Error */
+  --color-destructive-border: #ef4444;
+  /* Warning */
+  --color-warning: #fef3c7;
+  /* Texto Warning */
+  --color-on-warning: #000000;
+  /* Borde Warning */
+  --color-warning-border: #f59e0b;
+  /* Info */
+  --color-info: #eff6ff;
+  /* Texto Info */
+  --color-on-info: #000000;
+  /* Borde Info */
+  --color-info-border: #334155;
+  /* Neutral */
+  --color-neutral: #f1f5f9;
+  /* Texto Neutral */
+  --color-on-neutral: #1e293b;
+  /* Borde Neutral */
+  --color-neutral-border: #475569;
+
+  /* 9. Fondo difuso y sombra */
+  /* Fondo difuso */
+  --color-modal-backdrop: #334155;
+  /* Color de Sombras */
+  --color-shadow: #000000;
+}
+
+/* ───────────────────────────────────────────────────────────
+   2) OVERRIDES — DARK THEME
+   ─────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  /* 1. Global y Layout */
+  /* Fondo Principal */
+  --color-background: #020617;
+  /* Texto sobre Fondo */
+  --color-on-background: #ffffff;
+  /* Superficie 1 */
+  --color-surface1: #334155;
+  /* Texto sobre Superficie 1 */
+  --color-on-surface1: #ffffff;
+  /* Superficie 2 */
+  --color-surface2: #1e3a8a;
+  /* Texto sobre Superficie 2 */
+  --color-on-surface2: #ffffff;
+  /* Superficie Hover */
+  --color-surface-hover: #1d4ed8;
+  /* Texto Superficie Hover */
+  --color-on-surface-hover: #ffffff;
+  /* Color de Bordes */
+  --color-border: #2563eb;
+
+  /* 2. Barra de Navegación */
+  /* Fondo Navbar */
+  --color-navbar: #1d4ed8;
+  /* Texto Navbar */
+  --color-on-navbar: #ffffff;
+  /* Navbar Hover */
+  --color-navbar-hover: #2563eb;
+  /* Texto Navbar Hover */
+  --color-on-navbar-hover: #000000;
+
+  /* 3. Botones */
+  /* Botón Primario */
+  --color-primary: #1e40af;
+  /* Texto Primario */
+  --color-on-primary: #ffffff;
+  /* Primary Hover */
+  --color-primary-hover: #2563eb;
+  /* Texto Primary Hover */
+  --color-on-primary-hover: #ffffff;
+  /* Borde Primario */
+  --color-primary-border: #1e40af;
+  /* Botón Secundario */
+  --color-secondary: #94a3b8;
+  /* Texto Secundario */
+  --color-on-secondary: #ffffff;
+  /* Secondary Hover */
+  --color-secondary-hover: #334155;
+  /* Texto Secondary Hover */
+  --color-on-secondary-hover: #ffffff;
+  /* Borde Secundario */
+  --color-secondary-border: #334155;
+
+  /* 4. Formularios */
+  /* Fondo Input */
+  --color-input: #1e293b;
+  /* Texto Input */
+  --color-on-input: #ffffff;
+  /* Borde Input */
+  --color-input-border: #1e40af;
+  /* Input Focus */
+  --color-input-focus: #000000;
+  /* Borde Input Focus */
+  --color-input-focus-border: #ffffff;
+  /* Borde Inválido */
+  --color-input-invalid-border: #ffffff;
+  /* Ring General */
+  --color-ring: #2563eb;
+  /* Focus Outline (Accesibilidad) */
+  --color-focus-outline: #2563eb;
+  /* Deshabilitado */
+  --color-disabled: #e2e8f0;
+  /* Texto Deshabilitado */
+  --color-on-disabled: #000000;
+
+  /* 5. Enlaces */
+  /* Enlace */
+  --color-link: #ffffff;
+  /* Enlace Hover */
+  --color-link-hover: #fcd34d;
+
+  /* 6. Tablas */
+  /* Cabecera Tabla */
+  --color-table-header: #1e40af;
+  /* Texto Cabecera */
+  --color-on-table-header: #ffffff;
+  /* Fila Normal */
+  --color-table-row: #cbd5e1;
+  /* Texto Fila Normal */
+  --color-on-table-row: #000000;
+  /* Fila Hover */
+  --color-table-row-hover: #1e293b;
+  /* Texto Fila Hover */
+  --color-on-table-row-hover: #ffffff;
+  /* Fila Seleccionada */
+  --color-table-row-selected: #6ee7b7;
+  /* Texto Seleccionada */
+  --color-on-table-row-selected: #000000;
+  /* Fila Rayada */
+  --color-table-row-striped: #64748b;
+  /* Texto Rayada */
+  --color-on-table-row-striped: #000000;
+
+  /* 7. Pestañas */
+  /* Fondo Tab */
+  --color-tab: #1e40af;
+  /* Texto Tab */
+  --color-on-tab: #ffffff;
+  /* Tab Hover */
+  --color-tab-hover: #000000;
+  /* Texto Tab Hover */
+  --color-on-tab-hover: #ffffff;
+  /* Indicador Tab */
+  --color-tab-indicator: #f97316;
+  /* Contenido Tab */
+  --color-tab-content: #000000;
+  /* Texto Contenido */
+  --color-on-tab-content: #ffffff;
+
+  /* 8. Estados */
+  /* Success */
+  --color-success: #065f46;
+  /* Texto Success */
+  --color-on-success: #ffffff;
+  /* Borde Success */
+  --color-success-border: #34d399;
+  /* Error/Destructive */
+  --color-destructive: #991b1b;
+  /* Texto Error */
+  --color-on-destructive: #ffffff;
+  /* Borde Error */
+  --color-destructive-border: #fca5a5;
+  /* Warning */
+  --color-warning: #d97706;
+  /* Texto Warning */
+  --color-on-warning: #000000;
+  /* Borde Warning */
+  --color-warning-border: #fef3c7;
+  /* Info */
+  --color-info: #1e3a8a;
+  /* Texto Info */
+  --color-on-info: #ffffff;
+  /* Borde Info */
+  --color-info-border: #93c5fd;
+  /* Neutral */
+  --color-neutral: #1e293b;
+  /* Texto Neutral */
+  --color-on-neutral: #ffffff;
+  /* Borde Neutral */
+  --color-neutral-border: #cbd5e1;
+
+  /* 9. Fondo difuso y sombra */
+  /* Fondo difuso */
+  --color-modal-backdrop: #3f3f46;
+  /* Color de Sombras */
+  --color-shadow: #ffffff;
+}
+
+/* ───────────────────────────────────────────────────────────
+   3) OVERRIDES — HIGH CONTRAST THEME
+   ─────────────────────────────────────────────────────────── */
+:root[data-theme="high-contrast"] {
+  /* 1. Global y Layout */
+  /* Fondo Principal */
+  --color-background: #000000;
+  /* Texto sobre Fondo */
+  --color-on-background: #ffffff;
+  /* Superficie 1 */
+  --color-surface1: #1e293b;
+  /* Texto sobre Superficie 1 */
+  --color-on-surface1: #ffffff;
+  /* Superficie 2 */
+  --color-surface2: #7f1d1d;
+  /* Texto sobre Superficie 2 */
+  --color-on-surface2: #ffffff;
+  /* Superficie Hover */
+  --color-surface-hover: #312e81;
+  /* Texto Superficie Hover */
+  --color-on-surface-hover: #ffffff;
+  /* Color de Bordes */
+  --color-border: #bfdbfe;
+
+  /* 2. Barra de Navegación */
+  /* Fondo Navbar */
+  --color-navbar: #1e3a8a;
+  /* Texto Navbar */
+  --color-on-navbar: #ffffff;
+  /* Navbar Hover */
+  --color-navbar-hover: #0369a1;
+  /* Texto Navbar Hover */
+  --color-on-navbar-hover: #fbbf24;
+
+  /* 3. Botones */
+  /* Botón Primario */
+  --color-primary: #ffff00;
+  /* Texto Primario */
+  --color-on-primary: #000000;
+  /* Primary Hover */
+  --color-primary-hover: #0284c7;
+  /* Texto Primary Hover */
+  --color-on-primary-hover: #000000;
+  /* Borde Primario */
+  --color-primary-border: #ffff00;
+  /* Botón Secundario */
+  --color-secondary: #713f12;
+  /* Texto Secundario */
+  --color-on-secondary: #ffffff;
+  /* Secondary Hover */
+  --color-secondary-hover: #52525b;
+  /* Texto Secondary Hover */
+  --color-on-secondary-hover: #ffffff;
+  /* Borde Secundario */
+  --color-secondary-border: #ffffff;
+
+  /* 4. Formularios */
+  /* Fondo Input */
+  --color-input: #000000;
+  /* Texto Input */
+  --color-on-input: #ffffff;
+  /* Borde Input */
+  --color-input-border: #ffffff;
+  /* Input Focus */
+  --color-input-focus: #262626;
+  /* Borde Input Focus */
+  --color-input-focus-border: #00ffff;
+  /* Borde Inválido */
+  --color-input-invalid-border: #ff0000;
+  /* Ring General */
+  --color-ring: #cbd5e1;
+  /* Focus Outline (Accesibilidad) */
+  --color-focus-outline: #00ffff;
+  /* Deshabilitado */
+  --color-disabled: #1e293b;
+  /* Texto Deshabilitado */
+  --color-on-disabled: #ffffff;
+
+  /* 5. Enlaces */
+  /* Enlace */
+  --color-link: #00ffff;
+  /* Enlace Hover */
+  --color-link-hover: #00ffff;
+
+  /* 6. Tablas */
+  /* Cabecera Tabla */
+  --color-table-header: #450a0a;
+  /* Texto Cabecera */
+  --color-on-table-header: #ffffff;
+  /* Fila Normal */
+  --color-table-row: #d4d4d8;
+  /* Texto Fila Normal */
+  --color-on-table-row: #000000;
+  /* Fila Hover */
+  --color-table-row-hover: #262626;
+  /* Texto Fila Hover */
+  --color-on-table-row-hover: #ffffff;
+  /* Fila Seleccionada */
+  --color-table-row-selected: #1a2e05;
+  /* Texto Seleccionada */
+  --color-on-table-row-selected: #a7f3d0;
+  /* Fila Rayada */
+  --color-table-row-striped: #3b0764;
+  /* Texto Rayada */
+  --color-on-table-row-striped: #ffffff;
+
+  /* 7. Pestañas */
+  /* Fondo Tab */
+  --color-tab: #0c4a6e;
+  /* Texto Tab */
+  --color-on-tab: #e6e6e6;
+  /* Tab Hover */
+  --color-tab-hover: #000000;
+  /* Texto Tab Hover */
+  --color-on-tab-hover: #ffffff;
+  /* Indicador Tab */
+  --color-tab-indicator: #ffffff;
+  /* Contenido Tab */
+  --color-tab-content: #000000;
+  /* Texto Contenido */
+  --color-on-tab-content: #ffffff;
+
+  /* 8. Estados */
+  /* Success */
+  --color-success: #008000;
+  /* Texto Success */
+  --color-on-success: #ffffff;
+  /* Borde Success */
+  --color-success-border: #00ff00;
+  /* Error/Destructive */
+  --color-destructive: #ff0000;
+  /* Texto Error */
+  --color-on-destructive: #000000;
+  /* Borde Error */
+  --color-destructive-border: #ff7f7f;
+  /* Warning */
+  --color-warning: #ffbf00;
+  /* Texto Warning */
+  --color-on-warning: #000000;
+  /* Borde Warning */
+  --color-warning-border: #ffd166;
+  /* Info */
+  --color-info: #00ffff;
+  /* Texto Info */
+  --color-on-info: #000000;
+  /* Borde Info */
+  --color-info-border: #1d4ed8;
+  /* Neutral */
+  --color-neutral: #333333;
+  /* Texto Neutral */
+  --color-on-neutral: #ffffff;
+  /* Borde Neutral */
+  --color-neutral-border: #ffffff;
+
+  /* 9. Fondo difuso y sombra */
+  /* Fondo difuso */
+  --color-modal-backdrop: rgb(0 0 0 / 0.85);
+  /* Color de Sombras */
+  --color-shadow: #ffffff;
+}
+
+
+
+

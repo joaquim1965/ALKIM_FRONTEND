@@ -1,0 +1,53 @@
+export const themes = {
+  light: {
+    primary: '#3b82f6',
+    secondary: '#64748b',
+    background: '#f8fafc',
+    text: '#1e293b',
+    navbar: '#ffffff',
+    accent: '#f59e0b',
+    border: '#e2e8f0',
+    hover: '#dbeafe',
+    success: '#10b981',
+    error: '#ef4444',
+    warning: '#f59e0b',
+    info: '#3b82f6',
+    muted: '#94a3b8',
+    surface: '#ffffff',
+    card: '#ffffff'
+  },
+  dark: {
+    primary: '#60a5fa',
+    secondary: '#94a3b8',
+    background: '#0f172a',
+    text: '#e2e8f0',
+    navbar: '#1e293b',
+    accent: '#fbbf24',
+    border: '#334155',
+    hover: '#1e3a8a',
+    success: '#059669',
+    error: '#dc2626',
+    warning: '#d97706',
+    info: '#2563eb',
+    muted: '#64748b',
+    surface: '#1e293b',
+    card: '#1e293b'
+  },
+  'high-contrast': {
+    primary: '#ffff00',
+    secondary: '#00ffff',
+    background: '#000000',
+    text: '#ffffff',
+    navbar: '#0000ff',
+    accent: '#ff00ff',
+    border: '#ffffff',
+    hover: '#ffff00',
+    success: '#00ff00',
+    error: '#ff0000',
+    warning: '#ffa500',
+    info: '#00ffff',
+    muted: '#c0c0c0',
+    surface: '#000080',
+    card: '#000080'
+  }
+};

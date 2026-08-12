@@ -1,0 +1,43 @@
+node_modules/
+.vite/
+.claude/
+
+# Todo lo que no debe llegar a producción / GitHub vive movido aquí
+NO_PROD/
+
+# Variables de entorno (contienen claves)
+.env
+.env.local
+.env.development
+.env.production
+
+# Archivos temporales y de depuración
+build_debug.txt
+build_err.json
+build_error.txt
+build_output.txt
+en_dict.json
+extracted_keys.txt
+extracted_translations.txt
+final_generated_keys.txt
+preview.txt
+preview_casing.txt
+preview_new_logic.js
+preview_renamed_keys.txt
+new_preview.txt
+output_preview.txt
+translation_list.txt
+tmp/
+
+# Scripts de utilidad temporales
+apply_and_translate.js
+apply_nomenclature.js
+apply_to_jsx.js
+extract_context.js
+extract_keys.cjs
+extract_keys.js
+fix.js
+generate_casing_preview.js
+generate_keys.js
+preview_rename.js
+regen_etiquetas.js
