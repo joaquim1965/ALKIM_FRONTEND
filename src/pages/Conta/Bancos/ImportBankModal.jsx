@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Papa from 'papaparse';
 import { UploadCloud, X, AlertCircle } from 'lucide-react';
 import Button from '../../../components/UI/Button';
+import { formatImporte } from '../../../utils/format';
 
 const ImportBankModal = ({ isOpen, onClose, onImport, cuentas }) => {
     const [file, setFile] = useState(null);
@@ -137,11 +138,11 @@ const ImportBankModal = ({ isOpen, onClose, onImport, cuentas }) => {
                             <table className="w-full text-xs font-mono">
                                 <tbody>
                                     {preview.map((r, i) => (
-                                        <tr key={i} className="border-b border-border/50 last:border-0 hover:bg-surface2/50">
+                                        <tr key={i} className="bg-table-row text-on-table-row transition-colors duration-100 hover:bg-table-row-hover hover:text-on-table-row-hover">
                                             <td className="p-2 truncate max-w-[100px]">{r.fecha}</td>
                                             <td className="p-2 truncate max-w-[200px]">{r.concepto || r.descripcion}</td>
-                                            <td className={`p-2 text-right ${parseFloat(r.importe) < 0 ? 'text-destructive-text' : 'text-on-surface1'}`}>
-                                                {parseFloat(r.importe).toFixed(2)}€
+                                            <td className="p-2 text-right">
+                                                {formatImporte(r.importe)}
                                             </td>
                                         </tr>
                                     ))}

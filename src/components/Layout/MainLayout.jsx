@@ -16,7 +16,7 @@ import {
     LayoutDashboard, Briefcase, FileText, Wallet, CalendarClock, 
     Settings2, History, Building2, Warehouse, Users, ScrollText,
     Receipt, Landmark, PiggyBank, Calendar, Contact2, Key,
-    ReceiptEuro, HelpCircle, Cpu
+    ReceiptEuro, HelpCircle, Cpu, Scale, FileCheck
 } from 'lucide-react';
 import { useStore } from '../../hooks/useStore';
 import { useTmTr } from '../../contexts/TmTrContext';
@@ -49,7 +49,7 @@ export const MainLayout = ({ children }) => {
     // Visibilidad de grupos: ocultos si no queda ningún sub-ítem visible
     const verGrupoContabilidad = verIngresos || verGastos || verBancos;
     const verGrupoProcesos = verConciliacion;
-    const verGrupoTesoreria = verExtractos || verHistorialExtractos || verMovimientos;
+    const verGrupoTesoreria = verExtractos || verHistorialExtractos || verMovimientos || verBancos;
     
     // Estado PERSISTENTE del sidebar
     const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -84,7 +84,8 @@ export const MainLayout = ({ children }) => {
                 <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar}>
                     <div className="flex flex-col gap-1 w-full h-full">
                         
-                        {/* 1. Panel de Control */}
+                        {/* 1. Panel de control: lo primero al entrar, cómo están
+                            las cuentas de un vistazo (26/08/2026). */}
                         <SidebarItem 
                             to="/consola" 
                             icon={<LayoutDashboard size={18} />} 
@@ -92,7 +93,18 @@ export const MainLayout = ({ children }) => {
                             collapsed={!sidebarOpen} 
                         />
 
-                        {/* 2. Cartera */}
+                        {/* 2. Gestión: el punto de partida es crear la empresa. */}
+                        <SidebarGroup
+                            icon={<Building2 size={18} />}
+                            label="Gestión"
+                            collapsed={!sidebarOpen}
+                        >
+                            <SidebarSubItem to="/gestion/empresas" icon={<Building2 size={13}/>} label="Empresas" />
+                            <SidebarSubItem to="/gestion/calendario" icon={<Calendar size={13}/>} label="Calendario" />
+                            <SidebarSubItem to="/gestion/impuestos" icon={<ReceiptEuro size={13}/>} label="Impuestos (Saldo/Recibos)" />
+                        </SidebarGroup>
+
+                        {/* 3. Cartera */}
                         <SidebarGroup 
                             icon={<Briefcase size={18} />} 
                             label="Cartera" 
@@ -105,7 +117,7 @@ export const MainLayout = ({ children }) => {
                             <SidebarSubItem to="/cartera/historial" icon={<History size={13}/>} label="Historial" />
                         </SidebarGroup>
 
-                        {/* 3. Documentación */}
+                        {/* 4. Documentación */}
                         <SidebarGroup 
                             icon={<FileText size={18} />} 
                             label="Documentación" 
@@ -117,7 +129,7 @@ export const MainLayout = ({ children }) => {
                             <SidebarSubItem to="/documentacion" label="Archivos" />
                         </SidebarGroup>
 
-                        {/* 4. Contabilidad (filtrado por permisos) */}
+                        {/* 5. Contabilidad (filtrado por permisos) */}
                         {verGrupoContabilidad && (
                             <SidebarGroup
                                 icon={<Wallet size={18} />}
@@ -126,24 +138,37 @@ export const MainLayout = ({ children }) => {
                             >
                                 {verIngresos && <SidebarSubItem to="/conta/ingresos" icon={<PiggyBank size={13}/>} label="Ingresos" />}
                                 {verGastos && <SidebarSubItem to="/conta/gastos" icon={<Receipt size={13}/>} label="Gastos" />}
-                                {verBancos && <SidebarSubItem to="/conta/bancos" icon={<Landmark size={13}/>} label="Bancos" />}
+                                {verBancos && <SidebarSubItem to="/conta/bancos" icon={<Landmark size={13}/>} label="Contactos y préstamos" />}
                             </SidebarGroup>
                         )}
 
-                        {/* 5. Tesorería (filtrado por permisos) */}
+                        {/* 6. Tesorería (filtrado por permisos) */}
                         {verGrupoTesoreria && (
                             <SidebarGroup
                                 icon={<Landmark size={18} />}
                                 label="Tesorería"
                                 collapsed={!sidebarOpen}
                             >
+                                {verBancos && <SidebarSubItem to="/tesoreria/bancos" icon={<Landmark size={13}/>} label="Bancos, cuentas y tarjetas" />}
                                 {verExtractos && <SidebarSubItem to="/tesoreria/extractos" icon={<Receipt size={13}/>} label="Extractos" />}
                                 {verMovimientos && <SidebarSubItem to="/tesoreria/movimientos" icon={<ReceiptEuro size={13}/>} label="Movimientos" />}
+                                {verExtractos && <SidebarSubItem to="/tesoreria/extractos/programacion" icon={<CalendarClock size={13}/>} label="Descargas programadas" />}
                                 {verHistorialExtractos && <SidebarSubItem to="/tesoreria/extractos/logs" icon={<History size={13}/>} label="Historial de extractos" />}
                             </SidebarGroup>
                         )}
 
-                        {/* 6. Procesos (filtrado por permisos) */}
+                        {/* Fiscalidad: lo que se entrega a Hacienda (25/09/2026) */}
+                        {verHistorialExtractos && (
+                            <SidebarGroup
+                                icon={<Scale size={18} />}
+                                label="Fiscalidad"
+                                collapsed={!sidebarOpen}
+                            >
+                                <SidebarSubItem to="/fiscalidad/extractos" icon={<FileCheck size={13}/>} label="Extractos bancarios" />
+                            </SidebarGroup>
+                        )}
+
+                        {/* 7. Procesos (filtrado por permisos) */}
                         {verGrupoProcesos && (
                             <SidebarGroup
                                 icon={<Cpu size={18} />}
@@ -153,16 +178,6 @@ export const MainLayout = ({ children }) => {
                                 {verConciliacion && <SidebarSubItem to="/procesos/conciliacion" icon={<Landmark size={13}/>} label="Conciliación Bancaria" />}
                             </SidebarGroup>
                         )}
-
-                        {/* 7. Gestión */}
-                        <SidebarGroup 
-                            icon={<CalendarClock size={18} />} 
-                            label="Gestión" 
-                            collapsed={!sidebarOpen}
-                        >
-                            <SidebarSubItem to="/gestion/calendario" icon={<Calendar size={13}/>} label="Calendario" />
-                            <SidebarSubItem to="/gestion/impuestos" icon={<ReceiptEuro size={13}/>} label="Impuestos (Saldo/Recibos)" />
-                        </SidebarGroup>
 
                         {/* 8. Auxiliares (Contactos filtrado por permisos) */}
                         <SidebarGroup

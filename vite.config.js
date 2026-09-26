@@ -28,7 +28,15 @@ export default defineConfig(({ mode }) => {
       port,
       host,
       strictPort: true, // Fija el puerto para evitar cambios automáticos
+      // ⚠ Cada familia de rutas del backend necesita SU línea aquí.
+      //
+      // Lo que no esté en esta lista no llega al backend: se lo queda el
+      // servidor de desarrollo y devuelve el index.html de la aplicación. Como
+      // eso no es JSON, la pantalla que llamaba se queda sin datos y sin poder
+      // decir por qué — que es lo que pasó con `/situacion`, y costó tres
+      // diagnósticos equivocados (26/08/2026).
       proxy: {
+        '^/situacion(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         '^/auth(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         '^/i18n(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         '^/api(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
@@ -41,7 +49,10 @@ export default defineConfig(({ mode }) => {
         '^/permissions(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         '^/crawler(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         '^/health(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
-        '^/files(/|\\?|$)':  { target: 'https://localhost:3000', secure: false, changeOrigin: true }
+        '^/companies(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        '^/files(/|\\?|$)':  { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        // API de Fiscalidad. No «/fiscalidad»: esa es la ruta de la pantalla.
+        '^/fiscal(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
       }
     },
     build: {

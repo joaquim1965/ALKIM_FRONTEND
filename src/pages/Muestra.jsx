@@ -56,22 +56,22 @@ const Muestra = () => {
         </thead>
         <tbody>
           <tr className="bg-background">
-            <td className="py-2 px-4 text-on-background border-border border-b">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background border-border border-b">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background border-border border-b">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background border-border border-b">{t('Parrafo1')}</td>
+            <td className="py-2 px-4 border-border border-b">{t('Parrafo1')}</td>
+            <td className="py-2 px-4 border-border border-b">{t('Parrafo1')}</td>
+            <td className="py-2 px-4 border-border border-b">{t('Parrafo1')}</td>
+            <td className="py-2 px-4 border-border border-b">{t('Parrafo1')}</td>
           </tr>
           <tr className="bg-table-row-striped">
-            <td className="py-2 px-4 text-on-background border-border border-b">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background border-border border-b">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background border-border border-b">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background border-border border-b">{t('Parrafo1')}</td>
+            <td className="py-2 px-4 border-border border-b">{t('Parrafo1')}</td>
+            <td className="py-2 px-4 border-border border-b">{t('Parrafo1')}</td>
+            <td className="py-2 px-4 border-border border-b">{t('Parrafo1')}</td>
+            <td className="py-2 px-4 border-border border-b">{t('Parrafo1')}</td>
           </tr>
           <tr className="bg-background">
-            <td className="py-2 px-4 text-on-background">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background">{t('Parrafo1')}</td>
-            <td className="py-2 px-4 text-on-background">{t('Parrafo1')}</td>
+            <td className="py-2 px-4">{t('Parrafo1')}</td>
+            <td className="py-2 px-4">{t('Parrafo1')}</td>
+            <td className="py-2 px-4">{t('Parrafo1')}</td>
+            <td className="py-2 px-4">{t('Parrafo1')}</td>
           </tr>
         </tbody>
       </table>

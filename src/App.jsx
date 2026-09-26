@@ -42,8 +42,12 @@ import ConciliacionPage from './pages/Procesos/ConciliacionPage'; // Nueva pági
 import GestionBancos from "./pages/Conta/Bancos/GestionBancos";
 import ExtractosPage from "./pages/Tesoreria/Extractos/ExtractosPage";
 import ExtractosLog from "./pages/Tesoreria/Extractos/ExtractosLog";
+import ProgramacionPage from "./pages/Tesoreria/Extractos/ProgramacionPage";
+import ExtractosBancariosPage from "./pages/Fiscalidad/ExtractosBancariosPage";
+import BancosCuentasPage from "./pages/Tesoreria/BancosCuentas/BancosCuentasPage";
 import MovimientosPage from "./pages/Tesoreria/MovimientosPage";
 import DocumentacionPage from "./pages/Documentacion/DocumentacionPage";
+import EmpresasPage from "./pages/Gestion/EmpresasPage";
 
 /**
  * ProtectedRoute (Fase 1)
@@ -93,7 +97,7 @@ function AppContent() {
           <Route path="/mockup-user" element={<MockupUserView />} />
           <Route path="/colorslist" element={<ColorsList />} />
           <Route path="/cssvars" element={<CssVarsDemo />} />
-          
+
           {/* Contabilidad / Bancos */}
           <Route
             path="/conta/ingresos"
@@ -119,6 +123,9 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          {/* Bancos y cuentas se mudó a Tesorería el 21/08/2026. La ruta vieja
+              se conserva redirigida: estaba en enlaces y marcadores. */}
+          <Route path="/conta/bancos/cuentas" element={<Navigate to="/tesoreria/bancos" replace />} />
           <Route
             path="/procesos/conciliacion"
             element={
@@ -128,7 +135,15 @@ function AppContent() {
             }
           />
 
-          {/* Tesorería / Extractos */}
+          {/* Tesorería */}
+          <Route
+            path="/tesoreria/bancos"
+            element={
+              <ProtectedRoute table="ban_account">
+                <BancosCuentasPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/tesoreria/extractos"
             element={
@@ -145,7 +160,32 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/tesoreria/extractos/programacion"
+            element={
+              <ProtectedRoute table="ban_crawler">
+                <ProgramacionPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Fiscalidad */}
+          <Route
+            path="/fiscalidad/extractos"
+            element={
+              <ProtectedRoute table="ban_crawler_log">
+                <ExtractosBancariosPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/themeeditor" element={<ThemeEditor />} />
+          <Route
+            path="/gestion/empresas"
+            element={
+              <ProtectedRoute table="m_company">
+                <EmpresasPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/coloreditor" element={<ThemeEditor />} />
           <Route path="/sql-console" element={<SQLConsole />} />
           <Route
@@ -156,6 +196,10 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          {/* Los paneles de saldo viven en «Panel de control» (/consola).
+              Estas dos puertas llevan allí en vez de repetir la pantalla. */}
+          <Route path="/panel" element={<Navigate to="/consola" replace />} />
+          <Route path="/tesoreria" element={<Navigate to="/consola" replace />} />
           <Route
             path="/tesoreria/movimientos"
             element={
@@ -170,7 +214,7 @@ function AppContent() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
-          
+
           <Route
             path="/verify-phone"
             element={

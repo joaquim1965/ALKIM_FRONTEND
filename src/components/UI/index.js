@@ -11,5 +11,6 @@ export { Card } from './Card';
 export { Table } from './Table';
 export { Badge } from './Badge';
 export { Spinner } from './Spinner';
+export { default as Tooltip } from './Tooltip';
 export { default as FileUpload } from './FileUpload';
 export { default as FilesList } from './FilesList';

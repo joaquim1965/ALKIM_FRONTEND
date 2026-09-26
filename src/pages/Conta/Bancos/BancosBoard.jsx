@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Landmark, UploadCloud, RefreshCw, AlertCircle, Settings2 } from 'lucide-react';
 import Button from '../../../components/UI/Button';
 import bancosService from '../../../services/bancosService';
+import { formatSaldoConFecha } from '../../../utils/format';
 import ImportBankModal from './ImportBankModal';
 import ReconciliationView from './ReconciliationView';
 
@@ -85,7 +86,8 @@ const BancosBoard = () => {
                                 <div className="text-right">
                                     <p className="text-[11px] uppercase tracking-wide text-on-surface2">Saldo extracto</p>
                                     <p className="font-mono font-bold text-lg text-on-surface1">
-                                        {new Intl.NumberFormat('es-ES', { style: 'currency', currency: c.moneda || 'EUR' }).format(Number(c.saldo_actual || 0))}
+                                        {formatSaldoConFecha(c.saldo_ultima_consulta, c.fecha_ultima_consulta)
+                                            || <span className="font-sans text-sm font-normal text-on-surface2">Sin datos</span>}
                                     </p>
                                 </div>
                             </div>

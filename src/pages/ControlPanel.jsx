@@ -7,8 +7,9 @@ import authService from "../services/authService";
 import { useStore } from "../hooks/useStore";
 import { changePasswordSchema, updateProfileSchema } from "../validations/authSchemas";
 import { useTmTr } from "../contexts/TmTrContext";
-import { Lock, User, Shield, Sun, Moon, Zap, Globe, Save, KeyRound } from "lucide-react";
+import { Lock, User, Shield, Sun, Moon, Zap, Globe, Save, KeyRound, Volume2, VolumeX } from "lucide-react";
 import PermissionsMatrix from "../components/User/PermissionsMatrix";
+import { sonidosHabilitados, habilitarSonidos, EVENTO_SONIDOS } from "../hooks/useMenuSpeech";
 
 /**
  * ControlPanel: Vista unificada de gestión de perfil, apariencia y seguridad.
@@ -34,6 +35,16 @@ const ControlPanel = () => {
         newPassword: "",
         newPasswordConfirm: "",
     });
+
+    // El interruptor de sonidos. Se lee del navegador al abrir la pantalla, que
+    // es donde se guarda (ver useMenuSpeech).
+    const [conSonido, setConSonido] = useState(() => sonidosHabilitados());
+    // Si se cambia desde el altavoz de la barra superior, este interruptor lo refleja.
+    useEffect(() => {
+        const alCambiar = (e) => setConSonido(Boolean(e.detail));
+        window.addEventListener(EVENTO_SONIDOS, alCambiar);
+        return () => window.removeEventListener(EVENTO_SONIDOS, alCambiar);
+    }, []);
 
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
@@ -159,6 +170,31 @@ const ControlPanel = () => {
                     </button>
                 ))}
             </div>
+            {/* Sonidos: la interfaz lee en voz alta el rótulo de lo que se
+                señala. Ayuda a quien ve mal y estorba a quien no lo necesita,
+                así que se puede apagar (27/08/2026). */}
+            <div className="p-6 bg-surface2 rounded-2xl border border-border">
+                <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
+                    {conSonido ? <Volume2 size={18} className="text-primary" /> : <VolumeX size={18} className="text-on-surface2" />}
+                    {t('Sonidos') || 'Habilitar sonidos'}
+                </h3>
+                <p className="text-sm text-on-surface2 mb-4">
+                    {t('SonidosAyuda') || 'Cuando está activado, la aplicación lee en voz alta el rótulo del botón o del menú que señalas.'}
+                </p>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={conSonido}
+                    onClick={() => { const nuevo = !conSonido; setConSonido(nuevo); habilitarSonidos(nuevo); }}
+                    className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3 font-bold transition-colors ${conSonido ? 'border-primary bg-primary text-on-primary' : 'border-border bg-surface1 text-on-surface1'}`}
+                >
+                    <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${conSonido ? 'bg-on-primary' : 'bg-border'}`}>
+                        <span className={`absolute top-1 h-5 w-5 rounded-full transition-all ${conSonido ? 'left-6 bg-primary' : 'left-1 bg-on-surface2'}`} />
+                    </span>
+                    {conSonido ? (t('Si') || 'Sí') : (t('No') || 'No')}
+                </button>
+            </div>
+
             <div className="p-6 bg-surface2 rounded-2xl border border-border">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                     <Globe size={18} className="text-primary" /> {t('Idioma') || 'Idioma de la Interfaz'}

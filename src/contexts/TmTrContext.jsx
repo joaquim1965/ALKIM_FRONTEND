@@ -1,6 +1,15 @@
 import { createContext, useContext, useEffect } from 'react';
 import { useStore } from '../hooks/useStore';
 import { ExtractosTranslations } from '../translations/Extractos';
+import { ExtractosLogTranslations } from '../translations/ExtractosLog';
+import { ProgramacionTranslations } from '../translations/Programacion';
+import { EditorSecuenciaTranslations } from '../translations/EditorSecuencia';
+import { AltaCuentaTranslations } from '../translations/AltaCuenta';
+import { VisorExtractosTranslations } from '../translations/VisorExtractos';
+import { BancosCuentasTranslations } from '../translations/BancosCuentas';
+import { MovimientosTranslations } from '../translations/Movimientos';
+import { SaldoTranslations } from '../translations/Saldo';
+import { LoginTranslations } from '../translations/Login';
 
 // ══════════════════════════════════════════════════
 // 📦 CREAR CONTEXTO
@@ -8,8 +17,22 @@ import { ExtractosTranslations } from '../translations/Extractos';
 
 const TmTrContext = createContext(undefined);
 
+// Traducciones que viajan con el código. Son la red de seguridad de cada
+// pantalla: si una clave todavía no está en `s_dictionary` —o la base de datos
+// no responde— el texto sale igualmente en el idioma elegido, en vez de
+// enseñar el nombre de la clave. La base de datos, cuando tiene la clave,
+// manda: así se puede corregir una traducción sin tocar el código.
 const STATIC_PAGE_TRANSLATIONS = {
   Extractos: ExtractosTranslations,
+  ExtractosLog: ExtractosLogTranslations,
+  Programacion: ProgramacionTranslations,
+  EditorSecuencia: EditorSecuenciaTranslations,
+  AltaCuenta: AltaCuentaTranslations,
+  VisorExtractos: VisorExtractosTranslations,
+  BancosCuentas: BancosCuentasTranslations,
+  Movimientos: MovimientosTranslations,
+  Saldo: SaldoTranslations,
+  Login: LoginTranslations,
 };
 
 const LANGUAGE_FIELD = {

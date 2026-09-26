@@ -1,5 +1,5 @@
 import React from 'react';
-import { Landmark, CreditCard, Users, BadgeEuro, Building2 } from 'lucide-react';
+import { Landmark, Users, BadgeEuro } from 'lucide-react';
 import Tabs from '../../../components/UI/Tabs';
 import GestionBancos from './GestionBancos'; // Still useful for the entities part or we can split it
 import PrestamosTab from './PrestamosTab';
@@ -11,30 +11,16 @@ import PrestamosTab from './PrestamosTab';
 const BancosPage = () => {
     // Note: We use GestionBancos but we could also split it if we want flatter tabs.
     // For now, to fulfill the "4 tabs" requirement and keep it simple:
+    // Entidades y cuentas se mudaron el 21/08/2026, y las tarjetas el 22/08, a
+    // Tesorería ▸ Bancos, cuentas y tarjetas, donde se ven encadenadas: banco,
+    // sus cuentas, y las tarjetas de la cuenta elegida. Duplicarlas aquí solo
+    // servía para que las dos pantallas se desincronizaran.
     const tabs = [
-        {
-            id: 'entidades',
-            label: 'Entidades Bancarias',
-            icon: <Building2 size={18} />,
-            content: <GestionBancos defaultSubTab="entidades" hideTabs={true} />
-        },
-        {
-            id: 'cuentas',
-            label: 'Cuentas Corrientes',
-            icon: <Landmark size={18} />,
-            content: <GestionBancos defaultSubTab="cuentas" hideTabs={true} />
-        },
         {
             id: 'contactos',
             label: 'Contactos / Gestores',
             icon: <Users size={18} />,
             content: <GestionBancos defaultSubTab="contactos" hideTabs={true} />
-        },
-        {
-            id: 'tarjetas',
-            label: 'Tarjetas Comerciales',
-            icon: <CreditCard size={18} />,
-            content: <GestionBancos defaultSubTab="tarjetas" hideTabs={true} />
         },
         {
             id: 'prestamos',
@@ -51,17 +37,17 @@ const BancosPage = () => {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
                         <Landmark className="text-primary" size={32} />
-                        Gestión Bancaria
+                        Contactos y préstamos
                     </h1>
                     <p className="text-on-surface2 mt-1">
-                        Fichas de entidades, cuentas operativas y seguimiento de financiación.
+                        Gestores del banco y seguimiento de la financiación. Las entidades, sus cuentas y las tarjetas viven en Tesorería ▸ Bancos, cuentas y tarjetas.
                     </p>
                 </div>
             </div>
 
             {/* Contenedor Principal con Tabs */}
             <div className="flex-1 bg-surface1/30 border border-border rounded-2xl overflow-hidden shadow-sm flex flex-col p-1">
-                <Tabs tabs={tabs} defaultTab="entidades" className="h-full" />
+                <Tabs tabs={tabs} defaultTab="contactos" className="h-full" />
             </div>
         </div>
     );

@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/comprobar-tema-tablas.cjs && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tema": "node scripts/comprobar-tema-tablas.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

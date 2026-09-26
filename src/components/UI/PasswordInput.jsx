@@ -42,13 +42,29 @@ export function PasswordInput({
     setShowPassword(!showPassword);
   };
 
+  /**
+   * ⚠ `value` y `onChange` solo se pasan si quien usa el componente los ha
+   * puesto (uso controlado).
+   *
+   * Antes se pasaban siempre. Cuando el campo venía de React Hook Form nadie
+   * los pasaba, así que valían `undefined` y PISABAN el `onChange` que trae
+   * `register(...)`: el formulario no se enteraba de lo que se escribía en la
+   * contraseña y solo recogía el valor cuando el campo perdía el foco. Si la
+   * contraseña la rellenaba el gestor de contraseñas del navegador, ese foco
+   * no se perdía nunca antes de pulsar «Iniciar sesión»: el primer clic se
+   * quedaba en «La contraseña es obligatoria» sin llamar al servidor, y solo
+   * el segundo entraba. De ahí el «tengo que pulsar dos veces» (11/09/2026).
+   */
+  const controlledProps = {};
+  if (onChange !== undefined) controlledProps.onChange = onChange;
+  if (value !== undefined) controlledProps.value = value;
+
   return (
     <InputRaw
       {...register}
+      {...controlledProps}
       type={showPassword ? 'text' : 'password'}
       name={name}
-      value={value}
-      onChange={onChange}
       label={label}
       placeholder={placeholder}
       error={currentError}

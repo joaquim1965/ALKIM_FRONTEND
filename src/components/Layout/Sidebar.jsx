@@ -13,8 +13,8 @@ import {
     Calculator,
     Settings,
     X,
-    Database
-    ,BookOpen
+    Database,
+    BookOpen,
 } from 'lucide-react';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { useStore } from '../../hooks/useStore';

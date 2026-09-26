@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ArrowRightLeft, CheckCircle, Search, AlertCircle } from 'lucide-react';
 import Button from '../../../components/UI/Button';
 import bancosService from '../../../services/bancosService';
+import { formatImporte } from '../../../utils/format';
 
 export const ReconciliationView = ({ movements, ingresos, gastos, onRefresh }) => {
     const [selectedMovement, setSelectedMovement] = useState(null);
@@ -98,7 +99,7 @@ export const ReconciliationView = ({ movements, ingresos, gastos, onRefresh }) =
                                     </div>
                                 </div>
                                 <div className={`font-mono font-bold text-lg ${m.importe > 0 ? 'text-on-surface1' : 'text-destructive-text'}`}>
-                                    {parseFloat(m.importe).toFixed(2)}€
+                                    {formatImporte(m.importe)}
                                 </div>
                             </div>
                         ))
@@ -189,7 +190,7 @@ export const ReconciliationView = ({ movements, ingresos, gastos, onRefresh }) =
                                                 <div className="font-semibold text-on-surface1 mt-1">{r.concepto}</div>
                                             </div>
                                             <div className="font-mono font-bold text-lg text-on-surface1">
-                                                {parseFloat(r.importe).toFixed(2)}€
+                                                {formatImporte(r.importe)}
                                             </div>
                                         </div>
                                     </div>

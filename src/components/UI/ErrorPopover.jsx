@@ -76,7 +76,7 @@ export function ErrorPopover({
         }}
       >
         <div className="flex items-center justify-center p-1 bg-white rounded-full">
-            <XCircle size={48} className="text-red-500" />
+            <XCircle size={48} className="text-destructive-border" />
         </div>
       </div>
       <div className="text-center w-full">

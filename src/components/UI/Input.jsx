@@ -167,12 +167,25 @@ export const InputRaw = React.forwardRef((props, ref) => {
         )}
       </div>
 
-      {showError && error && (
-        <p id={`${inputId}-error`} className="mt-1 text-sm text-on-destructive" role="alert">{error}</p>
-      )}
-      {!error && helperText && (
-        <p id={`${inputId}-helper`} className="mt-1 text-sm text-secondary">{helperText}</p>
-      )}
+      {/* El hueco del mensaje está SIEMPRE, tenga texto o no.
+          
+          Antes el `<p>` se creaba y se destruía según hubiera error, y eso mueve
+          todo lo que hay debajo. Al pulsar «Entrar», el campo de la contraseña
+          pierde el foco, se valida, aparece o desaparece esa línea, y el botón
+          se desplaza justo entre que se aprieta el ratón y se suelta: el clic
+          no llega a ninguna parte. De ahí el «siempre tengo que pulsar dos
+          veces para entrar» (26/08/2026).
+          
+          Reservar la altura cuesta unos píxeles y hace que ningún formulario de
+          la aplicación se mueva bajo el dedo. */}
+      <div className="mt-1 min-h-[1.25rem]">
+        {showError && error && (
+          <p id={`${inputId}-error`} className="text-sm text-on-destructive" role="alert">{error}</p>
+        )}
+        {!error && helperText && (
+          <p id={`${inputId}-helper`} className="text-sm text-secondary">{helperText}</p>
+        )}
+      </div>
     </div>
   );
 });

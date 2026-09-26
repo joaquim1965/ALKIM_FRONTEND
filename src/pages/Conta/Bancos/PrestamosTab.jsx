@@ -3,6 +3,7 @@ import { BadgeEuro, Plus, Trash2, Calendar, Percent, CreditCard, Landmark, Alert
 import Button from '../../../components/UI/Button';
 import { useTmTr } from '../../../contexts/TmTrContext';
 import bancosService from '../../../services/bancosService';
+import { formatImporte } from '../../../utils/format';
 
 const PrestamosTab = () => {
     const [prestamos, setPrestamos] = useState([]);
@@ -115,7 +116,23 @@ const PrestamosTab = () => {
                             <label className="text-sm font-bold">Cuenta Pago</label>
                             <select required className="input-base w-full mt-1" value={form.cuenta_id} onChange={e=>setForm({...form, cuenta_id: e.target.value})}>
                                 <option value="">Selecciona...</option>
-                                {cuentas.map(cu => <option key={cu.id} value={cu.id}>{cu.alias}</option>)}
+                                {/* Agrupadas por banco: hay cuentas que se llaman igual en
+                                    entidades distintas y en una lista plana se elige la que no
+                                    es sin enterarse (26/08/2026). Ver MovimientosPage. */}
+                                {[...cuentas.reduce((grupos, cu) => {
+                                  const banco = cu.banco_nombre || 'Sin banco';
+                                  if (!grupos.has(banco)) grupos.set(banco, []);
+                                  grupos.get(banco).push(cu);
+                                  return grupos;
+                                }, new Map()).entries()]
+                                  .sort((a, b) => a[0].localeCompare(b[0], 'es'))
+                                  .map(([banco, delBanco]) => (
+                                    <optgroup key={banco} label={banco}>
+                                      {delBanco
+                                        .sort((x, y) => String(x.alias || '').localeCompare(String(y.alias || ''), 'es'))
+                                        .map(cu => <option key={cu.id} value={cu.id}>{cu.alias}</option>)}
+                                    </optgroup>
+                                  ))}
                             </select>
                         </div>
                     </div>
@@ -194,11 +211,11 @@ const PrestamosTab = () => {
                                         <div className="grid grid-cols-2 gap-4 mt-4">
                                             <div>
                                                 <p className="text-[10px] text-on-surface2 uppercase font-bold tracking-wider">Pendiente</p>
-                                                <p className="text-lg font-mono font-bold">{parseFloat(p.importe_pendiente).toLocaleString()}€</p>
+                                                <p className="text-lg font-mono font-bold">{formatImporte(p.importe_pendiente)}</p>
                                             </div>
                                             <div>
                                                 <p className="text-[10px] text-on-surface2 uppercase font-bold tracking-wider">Cuota</p>
-                                                <p className="text-lg font-mono font-bold text-primary">{parseFloat(p.cuota_mensual).toLocaleString()}€</p>
+                                                <p className="text-lg font-mono font-bold text-primary">{formatImporte(p.cuota_mensual)}</p>
                                             </div>
                                         </div>
 

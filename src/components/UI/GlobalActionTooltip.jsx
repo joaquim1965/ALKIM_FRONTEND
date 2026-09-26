@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { speakMenuLabel } from '../../hooks/useMenuSpeech';
 
-const selector = '[data-speech-label], button[title], a[title], [role="button"][title], button[aria-label], a[aria-label], [role="button"][aria-label]';
+// Cualquier elemento con `title` entra (26/09/2026): los contadores del Panel
+// (■ 3, ● 9, ◆ 1) son <div title=…>, no botones, y su tooltip ni se dibujaba
+// con este sistema ni se leía en voz alta.
+const selector = '[data-speech-label], [title], button[aria-label], a[aria-label], [role="button"][aria-label]';
 
 export default function GlobalActionTooltip() {
   const [tooltip, setTooltip] = useState(null);
@@ -9,7 +12,14 @@ export default function GlobalActionTooltip() {
   useEffect(() => {
     let activeTarget = null;
 
-    const getTarget = (node) => node instanceof Element ? node.closest(selector) : null;
+    // Si el control ya va envuelto en <Tooltip>, ese se encarga: dibuja y lee.
+    // Sin esta salida se pintaban DOS tooltips a la vez, uno de cada sistema, y
+    // la voz decia el texto largo del aria-label ademas del corto.
+    const getTarget = (node) => {
+      if (!(node instanceof Element)) return null;
+      if (node.closest('[data-alkim-tooltip]')) return null;
+      return node.closest(selector);
+    };
     const getText = (target) => target?.dataset.globalTooltipTitle || target?.dataset.tooltip || target?.getAttribute('title') || target?.getAttribute('aria-label');
     const restoreTitle = () => {
       if (activeTarget?.dataset.globalTooltipTitle) {

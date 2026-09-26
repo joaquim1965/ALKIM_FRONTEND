@@ -9,7 +9,6 @@ import Menu from "./UI/Menu";
 const UserMenu = () => {
     const navigate = useNavigate();
     const { logout, user } = useStore();
-    console.log('[UserMenu:Debug] user:', user, 'isSysadmin?', user && (user.rol === 'sysadmin' || parseInt(user.rol) >= 3));
     const { tr } = useTmTr();
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef(null);

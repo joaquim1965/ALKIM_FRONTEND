@@ -119,6 +119,24 @@ export const LoginTranslations = {
     spanish: "¿No tienes una cuenta?",
     english: "Don't have an account?"
   },
+  // Claves que usa Login.jsx para los avisos de error. Llevan nombre propio a
+  // proposito: "Parrafo8/9/10" chocaban con las claves globales de ColorsList
+  // y el usuario veia "Total de colores:" al equivocarse de contraseña.
+  ErrorCredenciales: {
+    label: "Error credenciales",
+    spanish: "Email/usuario o contraseña incorrectos",
+    english: "Invalid email/username or password"
+  },
+  ErrorBloqueada: {
+    label: "Error cuenta bloqueada",
+    spanish: "Cuenta bloqueada temporalmente",
+    english: "Account temporarily locked"
+  },
+  ErrorGenerico: {
+    label: "Error genérico al iniciar sesión",
+    spanish: "Error al iniciar sesión",
+    english: "Error signing in"
+  },
   parrafo8: {
     label: "Error genérico",
     spanish: "Error al iniciar sesión",

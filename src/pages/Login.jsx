@@ -76,7 +76,16 @@ const Login = () => {
           ? `Demasiados intentos. Espera ${minutes} minutos antes de volver a intentarlo.`
           : (error.message || 'Demasiados intentos. Espera antes de volver a intentarlo.'));
       } else if (error.message.includes('Credenciales invalidas')) {
-        setServerError(t('Parrafo9') || "Email/usuario o contraseña incorrectos");
+        // ⚠ Claves propias de esta pantalla, no "ParrafoN".
+        //
+        // "Parrafo9" no existe como "Login:Parrafo9" en el diccionario, asi que
+        // t() acababa cayendo en la clave global del mismo nombre, que es la de
+        // ColorsList: el aviso de contraseña incorrecta salia como "Total de
+        // colores:". Igual de mal estaban Parrafo8 ("como variables CSS") y
+        // Parrafo10 ("Total de variables:"). El segundo argumento de t() es el
+        // texto que se usa cuando la clave no esta en el diccionario, asi que
+        // el mensaje sale bien aunque la base de datos no la tenga (11/09/2026).
+        setServerError(t('ErrorCredenciales', 'Email/usuario o contraseña incorrectos'));
 
         // Extraer intentos restantes si están en el mensaje
         const remaining = error.details?.intentosRestantes;
@@ -87,9 +96,9 @@ const Login = () => {
         error.message.includes('Cuenta bloqueada') ||
         error.message.includes('bloqueada temporalmente')
       ) {
-        setServerError(t('Parrafo10') || "Cuenta bloqueada temporalmente");
+        setServerError(t('ErrorBloqueada', 'Cuenta bloqueada temporalmente'));
       } else {
-        setServerError(error.message || t('Parrafo8') || "Error al iniciar sesión");
+        setServerError(error.message || t('ErrorGenerico', 'Error al iniciar sesión'));
       }
     } finally {
       setIsSubmitting(false);
@@ -104,8 +113,14 @@ const Login = () => {
           <h1 className="text-4xl font-bold text-on-background">
             {t('IniciarSesion')}
           </h1>
+          {/* Los textos de esta pantalla usan claves propias.
+              Con "ParrafoN" salian bien de pura casualidad: esas claves
+              globales son las de ColorsList, que copio los textos del login.
+              Quien editase ColorsList cambiaba, sin saberlo, la pantalla de
+              entrada. El segundo argumento de t() es el texto de respaldo si la
+              clave todavia no esta en el diccionario (11/09/2026). */}
           <p className="mt-2 text-lg text-on-surface1">
-            {t('Parrafo1')}
+            {t('Subtitulo', 'Introduce tus datos para acceder a tu panel de control')}
           </p>
         </div>
 
@@ -127,8 +142,8 @@ const Login = () => {
             {/* Email o Usuario */}
             <FormInput
               name="emailOrUsername"
-              label={t('Parrafo2')}
-              placeholder={t('Parrafo3')}
+              label={t('EmailOUsuario', 'Email o nombre de usuario')}
+              placeholder={t('EmailPlaceholder', 'ej: usuario@alkim.ia')}
               leftIcon={<Mail size={18} />}
               autoComplete="username"
               register={register}
@@ -154,7 +169,7 @@ const Login = () => {
                   to="/forgot-password"
                   className="text-sm text-link hover:text-link-hover"
                 >
-                  {t('Parrafo5')}
+                  {t('OlvidoContraseña', '¿Has olvidado tu contraseña?')}
                 </Link>
               </div>
             </div>
@@ -184,7 +199,7 @@ const Login = () => {
           {/* Link a registro */}
           <div className="mt-6 text-center text-sm">
             <span className="text-on-surface1">
-              {t('Parrafo6')}{' '}
+              {t('SinCuenta', '¿Todavía no tienes una cuenta?')}{' '}
             </span>
             <Link
               to="/register"

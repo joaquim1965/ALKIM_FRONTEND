@@ -8,7 +8,10 @@ import { useTmTr } from "../contexts/TmTrContext";
 import Button from "./UI/Button";
 import LanguageDropdown from "./LanguageDropdown";
 import ThemeDropdown from "./ThemeDropdown";
+import AvisosBadge from "./AvisosBadge";
 import UserMenu from "./UserMenu";
+import CompanyDropdown from "./CompanyDropdown";
+import SoundToggle from "./SoundToggle";
 import { Database } from "lucide-react";
 
 const Navbar = () => {
@@ -74,8 +77,14 @@ const Navbar = () => {
             </Button>
           </div>
         ) : (
-          <UserMenu />
+          <>
+            <CompanyDropdown />
+            <UserMenu />
+          </>
         )}
+        <AvisosBadge />
+        {/* Oír o no los rótulos: solo con sesión iniciada, antes del idioma. */}
+        {isAuthenticated && <SoundToggle />}
         <LanguageDropdown />
         <ThemeDropdown />
       </div>

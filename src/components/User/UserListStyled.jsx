@@ -22,8 +22,10 @@ import UserSettings from '../../pages/UserSettings';
 // --- CONSTANTES ---
 const ROL_MAP = { 0: 'Invitado', 1: 'Usuario', 2: 'Admin', 3: 'SuperAdmin' };
 const STATUS_CFG = {
-    0: { label: 'Activo', color: 'bg-green-500', icon: <CheckCircle size={14} /> },
-    1: { label: 'Inactivo', color: 'bg-gray-400', icon: <Ban size={14} /> },
+    // Puntos de estado con los tokens del tema, no con la paleta de Tailwind:
+    // un gris fijo de la paleta es invisible en alto contraste. Ver CRITERIOS_UI_LISTADOS.md.
+    0: { label: 'Activo', color: 'bg-success-border', icon: <CheckCircle size={14} /> },
+    1: { label: 'Inactivo', color: 'bg-disabled', icon: <Ban size={14} /> },
 };
 
 const fmtDate = (d) => d ? new Date(d).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -83,7 +85,7 @@ const UserListStyled = ({
                 const s = STATUS_CFG[u.estatus] || STATUS_CFG[0];
                 return (
                     <span className="flex items-center gap-1 text-xs">
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isBlocked ? 'bg-red-500' : s.color}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isBlocked ? 'bg-destructive-border' : s.color}`} />
                         {isBlocked ? 'Bloqueado' : (u.estatus_label || s.label)}
                     </span>
                 );
@@ -95,10 +97,10 @@ const UserListStyled = ({
             sortField: null,
             render: (u) => (
                 <div className="flex items-center gap-1 text-xs">
-                    <Mail size={11} className={u.verif_eml ? 'text-green-400' : 'text-disabled'} />
-                    <Phone size={11} className={u.verif_tel ? 'text-green-400' : 'text-disabled'} />
+                    <Mail size={11} className={u.verif_eml ? 'text-success-border' : 'text-disabled'} />
+                    <Phone size={11} className={u.verif_tel ? 'text-success-border' : 'text-disabled'} />
                     {u.intentos_fallidos > 0 && (
-                        <span className="px-1 bg-orange-500 text-white rounded text-xs font-bold">
+                        <span className="px-1 bg-warning text-on-warning rounded text-xs font-bold">
                             {u.intentos_fallidos}✗
                         </span>
                     )}
@@ -200,7 +202,7 @@ const UserListStyled = ({
                     <div className="bg-surface1 border border-border rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
                         <button 
                             onClick={() => setEditUser(null)} 
-                            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/20 text-white hover:bg-black/50 transition-colors"
+                            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-surface2 text-on-surface2 hover:bg-surface-hover transition-colors"
                         >
                             <CloseIcon size={20} />
                         </button>

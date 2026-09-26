@@ -8,7 +8,7 @@
  *   • Button     → Componente estilizado que envuelve ButtonRaw con variantes Tailwind/CSS Variables.
  *
  * CARACTERÍSTICAS:
- * ✅ Variantes: primary, secondary, success, danger, warning, ghost, link
+ * ✅ Variantes: primary, secondary, success, danger, warning, outline, ghost, link
  * ✅ Tamaños: xs, sm, md, lg, xl
  * ✅ Estados: disabled, loading, active
  * ✅ Iconos: leftIcon, rightIcon, isIconOnly
@@ -40,8 +40,27 @@ const variantClasses = {
   danger: 'btn-destructive',
   destructive: 'btn-destructive',
   warning: 'btn-warning',
+  outline: 'btn-outline',
   ghost: 'btn-ghost',
   link: 'btn-link',
+};
+
+/**
+ * Una variante desconocida caía silenciosamente en `primary`, de modo que un
+ * botón secundario terminaba pintado como la acción principal de la pantalla
+ * sin que nadie se enterara. Ahora se avisa en desarrollo: el estilo sigue
+ * siendo el mismo (no rompemos nada en producción), pero el fallo se ve.
+ */
+const resolveVariant = (variant) => {
+  const resolved = variantClasses[variant];
+  if (resolved) return resolved;
+  if (import.meta.env?.DEV) {
+    console.warn(
+      `[Button] Variante desconocida: "${variant}". Se usa "primary". `
+      + `Disponibles: ${Object.keys(variantClasses).join(', ')}.`
+    );
+  }
+  return variantClasses.primary;
 };
 
 /** Tamaños — consumen clases utility de utilities.css */
@@ -224,7 +243,7 @@ export function Button({
     disableElevation ? 'shadow-none' : 'shadow-sm',
 
     // Variante
-    (variantClasses[variant] || variantClasses.primary),
+    resolveVariant(variant),
 
     // Estado disabled/loading
     (disabled || loading ? 'is-disabled' : ''),

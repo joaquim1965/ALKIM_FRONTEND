@@ -504,7 +504,7 @@ export function TableDataEditor({ tableName, mode, onClose }) {
                             })}
                             {data.length === 0 && !showInsertRow && (
                                 <tr>
-                                    <td colSpan={columns.length + 1} className="px-4 py-12 text-center text-sm text-on-surface2">
+                                    <td colSpan={columns.length + 1} className="px-4 py-12 text-center text-sm">
                                         <div className="flex flex-col items-center gap-2">
                                             <AlertCircle size={24} className="text-secondary" />
                                             <span>No hay datos en esta tabla</span>

@@ -13,6 +13,7 @@ const ROUTE_BREADCRUMBS = {
   '/conta/bancos': [{ label: 'Contabilidad' }, { label: 'Bancos' }],
   '/procesos/conciliacion': [{ label: 'Procesos' }, { label: 'Conciliación bancaria' }],
   '/tesoreria/extractos': [{ label: 'Tesorería' }, { label: 'Extractos' }],
+  '/fiscalidad/extractos': [{ label: 'Fiscalidad' }, { label: 'Extractos bancarios' }],
   '/tesoreria/extractos/logs': [{ label: 'Tesorería' }, { label: 'Extractos', path: '/tesoreria/extractos' }, { label: 'Historial' }],
   '/documentacion': [{ label: 'Documentación' }, { label: 'Archivos' }],
   '/sql-console': [{ label: 'Administración' }, { label: 'Consola SQL' }],

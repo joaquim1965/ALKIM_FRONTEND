@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Landmark, CreditCard, Contact2, Wallet } from 'lucide-react';
+import { Landmark, CreditCard, Contact2, Wallet, Pencil, X } from 'lucide-react';
 import Button from '../../../components/UI/Button';
+import Tooltip from '../../../components/UI/Tooltip';
 import gestionBancosService from '../../../services/gestionBancosService';
 
 const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
@@ -19,8 +20,17 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
     const [tarjetas, setTarjetas] = useState([]);
 
     // Forms
-    const [formEntidad, setFormEntidad] = useState({ nombre: '', bic_swift: '', pais: 'ES' });
-    const [formCuenta, setFormCuenta] = useState({ alias: '', entidad_id: '', iban: '', moneda: 'EUR', saldo_actual: '0' });
+    // El mismo formulario sirve para alta y para edición: cuando `editandoX`
+    // tiene un id, el submit va al PUT y el panel cambia de título. Un editor
+    // aparte —modal o pantalla— obligaría a mantener dos formularios en
+    // paralelo, que es como se acaban desincronizando los campos nuevos.
+    const VACIO_ENTIDAD = { nombre: '', bic_swift: '', pais: 'ES' };
+    const VACIO_CUENTA = { alias: '', entidad_id: '', iban: '', moneda: 'EUR', saldo_actual: '0', titulares: '', autorizado: '' };
+
+    const [formEntidad, setFormEntidad] = useState(VACIO_ENTIDAD);
+    const [formCuenta, setFormCuenta] = useState(VACIO_CUENTA);
+    const [editandoEntidad, setEditandoEntidad] = useState(null);
+    const [editandoCuenta, setEditandoCuenta] = useState(null);
     const [formContacto, setFormContacto] = useState({ entidad_id: '', nombre: '', cargo: '', telefono: '', email: '' });
     const [formTarjeta, setFormTarjeta] = useState({ cuenta_id: '', ultimos_digitos: '', titular: '', fecha_caducidad: '', tipo_tarjeta: 'DEBITO' });
 
@@ -47,10 +57,28 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
     const handleCrearEntidad = async (e) => {
         e.preventDefault();
         try {
-             await gestionBancosService.createEntidad(formEntidad);
-             setFormEntidad({ nombre: '', bic_swift: '', pais: 'ES' });
+             if (editandoEntidad) {
+                 await gestionBancosService.updateEntidad(editandoEntidad, formEntidad);
+             } else {
+                 await gestionBancosService.createEntidad(formEntidad);
+             }
+             cancelarEdicionEntidad();
              fetchData();
-        } catch (error) { alert("Error al crear la entidad"); }
+        } catch (error) { alert(editandoEntidad ? "Error al guardar la entidad" : "Error al crear la entidad"); }
+    };
+
+    const editarEntidad = (entidad) => {
+        setEditandoEntidad(entidad.id);
+        setFormEntidad({
+            nombre: entidad.nombre || '',
+            bic_swift: entidad.bic_swift || '',
+            pais: entidad.pais || 'ES',
+        });
+    };
+
+    const cancelarEdicionEntidad = () => {
+        setEditandoEntidad(null);
+        setFormEntidad(VACIO_ENTIDAD);
     };
     
     const handleDeleteEntidad = async (id) => {
@@ -63,10 +91,45 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
     const handleCrearCuenta = async (e) => {
         e.preventDefault();
         try {
-            await gestionBancosService.createCuenta(formCuenta);
-            setFormCuenta({ alias: '', entidad_id: '', iban: '', moneda: 'EUR', saldo_actual: '0' });
+            if (editandoCuenta) {
+                await gestionBancosService.updateCuenta(editandoCuenta, formCuenta);
+            } else {
+                await gestionBancosService.createCuenta(formCuenta);
+            }
+            cancelarEdicionCuenta();
             fetchData();
-        } catch (error) { alert("Error al crear cuenta"); }
+        } catch (error) { alert(editandoCuenta ? "Error al guardar la cuenta" : "Error al crear cuenta"); }
+    };
+
+    const editarCuenta = (cuenta) => {
+        setEditandoCuenta(cuenta.id);
+        setFormCuenta({
+            alias: cuenta.alias || '',
+            entidad_id: cuenta.entidad_id || '',
+            iban: cuenta.iban || '',
+            moneda: cuenta.moneda || 'EUR',
+            saldo_actual: cuenta.saldo_actual ?? '0',
+            titulares: cuenta.titulares || '',
+            autorizado: cuenta.autorizado || '',
+        });
+    };
+
+    const cancelarEdicionCuenta = () => {
+        setEditandoCuenta(null);
+        setFormCuenta(VACIO_CUENTA);
+    };
+
+    // Tres renglones fijos: el hueco se reserva aunque falte el dato, para que
+    // las filas de la tabla no bailen de alto. La ausencia se escribe, no se
+    // deja en blanco (criterio de CRITERIOS_UI_LISTADOS.md).
+    const lineasPersonas = (valor) => {
+        const lineas = String(valor || '').split('\n').map((l) => l.trim()).filter(Boolean);
+        if (!lineas.length) {
+            return <span className="text-[11px] font-bold uppercase tracking-widest text-on-surface2">Sin datos</span>;
+        }
+        return lineas.slice(0, 3).map((linea, i) => (
+            <span key={i} className="block text-xs font-bold text-on-surface1 leading-tight">{linea}</span>
+        ));
     };
     const handleDeleteCuenta = async (id) => {
         if(window.confirm('¿Borrar esta cuenta y sus transacciones / tarjetas asociadas?')) {
@@ -142,22 +205,37 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
                     {activeTab === 'entidades' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-1 bg-surface2/50 p-6 rounded-xl border border-border h-fit">
-                                <h3 className="font-bold text-lg mb-4">Nueva Entidad</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-bold text-lg">{editandoEntidad ? 'Editar Entidad' : 'Nueva Entidad'}</h3>
+                                    {editandoEntidad && (
+                                        <Tooltip texto="Descartar los cambios y volver al alta">
+                                            <button type="button" onClick={cancelarEdicionEntidad} aria-label="Cancelar edición de la entidad"
+                                                className="text-on-surface2 hover:text-on-surface1 transition-colors"><X size={18} /></button>
+                                        </Tooltip>
+                                    )}
+                                </div>
                                 <form onSubmit={handleCrearEntidad} className="space-y-4">
                                     <div><label className="text-sm font-bold">Nombre del Banco</label><input required className="input-base w-full mt-1" value={formEntidad.nombre} onChange={e=>setFormEntidad({...formEntidad, nombre: e.target.value})} placeholder="Ej: CaixaBank"/></div>
                                     <div><label className="text-sm font-bold">BIC / SWIFT</label><input className="input-base w-full mt-1" value={formEntidad.bic_swift} onChange={e=>setFormEntidad({...formEntidad, bic_swift: e.target.value})} /></div>
                                     <div><label className="text-sm font-bold">País (ISO)</label><input maxLength="2" className="input-base w-full mt-1" value={formEntidad.pais} onChange={e=>setFormEntidad({...formEntidad, pais: e.target.value})} /></div>
-                                    <Button type="submit" variant="primary" fullWidth loading={loading}>Dar de Alta</Button>
+                                    <Button type="submit" variant="primary" fullWidth loading={loading}>{editandoEntidad ? 'Guardar Cambios' : 'Dar de Alta'}</Button>
                                 </form>
                             </div>
                             <div className="lg:col-span-2">
                                 <table className="w-full text-left font-mono text-sm border-collapse">
-                                    <thead><tr className="border-b-2 border-border text-on-surface2 uppercase tracking-wider text-xs"><th className="p-3">Banco</th><th className="p-3">SWIFT</th><th className="p-3">País</th><th className="p-3 text-right">Acciones</th></tr></thead>
+                                    <thead><tr className="bg-table-header text-on-table-header uppercase tracking-wider text-xs"><th className="p-3">Acciones</th><th className="p-3">Banco</th><th className="p-3">SWIFT</th><th className="p-3">País</th></tr></thead>
                                     <tbody>
                                         {entidades.map(e => (
-                                            <tr key={e.id} className="border-b border-border/50 hover:bg-surface2/30">
-                                                <td className="p-3 font-medium text-on-surface1">{e.nombre}</td><td className="p-3">{e.bic_swift}</td><td className="p-3">{e.pais}</td>
-                                                <td className="p-3 text-right"><Button size="xs" variant="destructive" onClick={()=>handleDeleteEntidad(e.id)}>Borrar</Button></td>
+                                            <tr key={e.id} className="bg-table-row text-on-table-row transition-colors duration-100 hover:bg-table-row-hover hover:text-on-table-row-hover">
+                                                <td className="p-3">
+                                                    <div className="flex gap-1.5">
+                                                        <Tooltip texto="Editar esta entidad">
+                                                            <Button size="xs" variant="outline" onClick={()=>editarEntidad(e)} aria-label={`Editar la entidad ${e.nombre}`}><Pencil size={13} /></Button>
+                                                        </Tooltip>
+                                                        <Button size="xs" variant="destructive" onClick={()=>handleDeleteEntidad(e.id)}>Borrar</Button>
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 font-medium">{e.nombre}</td><td className="p-3">{e.bic_swift}</td><td className="p-3">{e.pais}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -170,7 +248,15 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
                     {activeTab === 'cuentas' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-1 bg-surface2/50 p-6 rounded-xl border border-border h-fit">
-                                <h3 className="font-bold text-lg mb-4">Nueva Cuenta</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-bold text-lg">{editandoCuenta ? 'Editar Cuenta' : 'Nueva Cuenta'}</h3>
+                                    {editandoCuenta && (
+                                        <Tooltip texto="Descartar los cambios y volver al alta">
+                                            <button type="button" onClick={cancelarEdicionCuenta} aria-label="Cancelar edición de la cuenta"
+                                                className="text-on-surface2 hover:text-on-surface1 transition-colors"><X size={18} /></button>
+                                        </Tooltip>
+                                    )}
+                                </div>
                                 <form onSubmit={handleCrearCuenta} className="space-y-4">
                                     <div><label className="text-sm font-bold">Alias Interno</label><input required className="input-base w-full mt-1" value={formCuenta.alias} onChange={e=>setFormCuenta({...formCuenta, alias: e.target.value})} placeholder="Cuenta Nóminas Principal" /></div>
                                     <div><label className="text-sm font-bold">Entidad Bancaria</label>
@@ -180,17 +266,40 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
                                         </select>
                                     </div>
                                     <div><label className="text-sm font-bold">IBAN</label><input required className="input-base w-full mt-1" value={formCuenta.iban} onChange={e=>setFormCuenta({...formCuenta, iban: e.target.value})} /></div>
-                                    <Button type="submit" variant="primary" fullWidth loading={loading}>Dar de Alta Cuenta</Button>
+                                    <div>
+                                        <label className="text-sm font-bold" htmlFor="cuenta-titulares">Titulares</label>
+                                        <textarea id="cuenta-titulares" rows={3} className="input-base w-full mt-1 resize-none leading-snug"
+                                            value={formCuenta.titulares}
+                                            onChange={e=>setFormCuenta({...formCuenta, titulares: e.target.value})}
+                                            placeholder={"Un nombre por línea\n(hasta 3)"} />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-bold" htmlFor="cuenta-autorizado">Autorizados</label>
+                                        <textarea id="cuenta-autorizado" rows={3} className="input-base w-full mt-1 resize-none leading-snug"
+                                            value={formCuenta.autorizado}
+                                            onChange={e=>setFormCuenta({...formCuenta, autorizado: e.target.value})}
+                                            placeholder={"Un nombre por línea\n(hasta 3)"} />
+                                    </div>
+                                    <Button type="submit" variant="primary" fullWidth loading={loading}>{editandoCuenta ? 'Guardar Cambios' : 'Dar de Alta Cuenta'}</Button>
                                 </form>
                             </div>
                             <div className="lg:col-span-2">
                                 <table className="w-full text-left font-mono text-sm border-collapse">
-                                    <thead><tr className="border-b-2 border-border text-on-surface2 uppercase tracking-wider text-xs"><th className="p-3">Alias</th><th className="p-3">Entidad</th><th className="p-3">IBAN</th><th className="p-3 text-right">Acciones</th></tr></thead>
+                                    <thead><tr className="bg-table-header text-on-table-header uppercase tracking-wider text-xs"><th className="p-3">Acciones</th><th className="p-3">Alias</th><th className="p-3">Entidad</th><th className="p-3">IBAN</th><th className="p-3">Titulares</th><th className="p-3">Autorizados</th></tr></thead>
                                     <tbody>
                                         {cuentas.map(c => (
-                                            <tr key={c.id} className="border-b border-border/50 hover:bg-surface2/30">
-                                                <td className="p-3 font-medium">{c.alias}</td><td className="p-3">{c.entidad_nombre}</td><td className="p-3 truncate max-w-[200px]">{c.iban}</td>
-                                                <td className="p-3 text-right"><Button size="xs" variant="destructive" onClick={()=>handleDeleteCuenta(c.id)}>Borrar</Button></td>
+                                            <tr key={c.id} className="bg-table-row text-on-table-row transition-colors duration-100 hover:bg-table-row-hover hover:text-on-table-row-hover">
+                                                <td className="p-3 align-top">
+                                                    <div className="flex gap-1.5">
+                                                        <Tooltip texto="Editar esta cuenta">
+                                                            <Button size="xs" variant="outline" onClick={()=>editarCuenta(c)} aria-label={`Editar la cuenta ${c.alias}`}><Pencil size={13} /></Button>
+                                                        </Tooltip>
+                                                        <Button size="xs" variant="destructive" onClick={()=>handleDeleteCuenta(c.id)}>Borrar</Button>
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 font-medium align-top">{c.alias}</td><td className="p-3 align-top">{c.entidad_nombre}</td><td className="p-3 truncate max-w-[200px] align-top">{c.iban}</td>
+                                                <td className="p-3 align-top font-sans">{lineasPersonas(c.titulares)}</td>
+                                                <td className="p-3 align-top font-sans">{lineasPersonas(c.autorizado)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -286,7 +395,7 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
                                                 <p className="font-mono text-sm">{t.fecha_caducidad}</p>
                                             </div>
                                         </div>
-                                        <button onClick={() => handleDeleteTarjeta(t.id)} className="absolute top-4 right-[70px] text-red-400 hover:text-red-300 bg-black/20 px-2 py-1 rounded text-xs font-bold backdrop-blur-md transition-colors">BORRAR</button>
+                                        <button onClick={() => handleDeleteTarjeta(t.id)} className="absolute top-4 right-[70px] text-destructive-border hover:text-destructive-border bg-black/20 px-2 py-1 rounded text-xs font-bold backdrop-blur-md transition-colors">BORRAR</button>
                                     </div>
                                 ))}
                             </div>
