@@ -26,6 +26,7 @@ import CssVarsDemo from "./pages/CssVarsDemo";
 import ThemeEditor from "./pages/ThemeEditor";
 import SQLConsole from "./pages/SQLConsole";
 import TareasPage from "./pages/Sistema/TareasPage";
+import PantallaRemotaPage from "./pages/Tesoreria/Extractos/PantallaRemotaPage";
 import Consola from "./pages/Consola";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -190,6 +191,8 @@ function AppContent() {
           <Route path="/coloreditor" element={<ThemeEditor />} />
           <Route path="/sql-console" element={<SQLConsole />} />
           <Route path="/sistema/tareas" element={<TareasPage />} />
+          {/* Navegador del servidor al grabar guiones, en ventana aparte (27/09/2026) */}
+          <Route path="/pantalla-remota" element={<ProtectedRoute><PantallaRemotaPage /></ProtectedRoute>} />
           <Route
             path="/documentacion"
             element={

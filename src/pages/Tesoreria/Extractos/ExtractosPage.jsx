@@ -14,7 +14,7 @@ import EditorSecuencia from './EditorSecuencia';
 import VisorExtractos from './VisorExtractos';
 import ComparadorPasos from './ComparadorPasos';
 import AltaCuenta from './AltaCuenta';
-import PantallaRemota from './PantallaRemota';
+import { abrirPantallaRemota } from './PantallaRemota';
 import useEmpresaActiva, { esDeLaEmpresa } from '../../../hooks/useEmpresaActiva';
 
 /**
@@ -60,9 +60,6 @@ const ExtractosPage = () => {
   // exigía el campo. **No son solo cifras**: el código de ING trae letras.
   const LARGO_MINIMO = 4;
   const [grabacion, setGrabacion] = useState(null);
-  // Lista de pasos junto a la pantalla remota: cerrada, para que el navegador
-  // del servidor ocupe todo el sitio (27/09/2026).
-  const [verPasos, setVerPasos] = useState(false);
   // Antes de grabar se elige QUÉ guion: movimientos o justificante fiscal.
   const [eligeGuion, setEligeGuion] = useState(null);
   const [guionGuardado, setGuionGuardado] = useState(null);
@@ -454,6 +451,9 @@ const ExtractosPage = () => {
   const iniciarGrabacion = async (config, tipo = 'movimientos') => {
     setEligeGuion(null);
     setGrabacion({ crid: config.crid, banco: config.banco_nombre, iniciando: true, pasos: [], tipo });
+    // En producción el navegador del banco está en el servidor: se abre ya su
+    // ventana, aprovechando el clic (si no, el navegador bloquea la ventana).
+    if (import.meta.env.PROD) abrirPantallaRemota();
     // En el servidor, abrir el banco puede tardar (o quedarse en un captcha):
     // se sondea ya, para enseñar la pantalla remota en cuanto exista la sesión.
     window.setTimeout(() => seguirGrabacion(config.crid, 120), 2000);
@@ -1353,96 +1353,7 @@ const ExtractosPage = () => {
 
       {comparar && <ComparadorPasos cuenta={comparar} onClose={() => setComparar(null)} />}
 
-      {/* Grabación en el SERVIDOR (27/09/2026): el navegador remoto ocupa toda
-          la pantalla; arriba, una barra fina con el estado y los botones, y la
-          lista de pasos en un panel lateral que se abre a voluntad. */}
-      {grabacion && grabacion.pantallaRemota && (
-        <div className="fixed inset-0 z-[70] flex flex-col bg-black" role="dialog" aria-modal="true" aria-labelledby="grabacion-title">
-          <div className="flex flex-wrap items-center gap-3 border-b border-white px-3 py-2 text-sm text-white">
-            <CircleDot size={18} className="shrink-0 animate-pulse text-destructive-text" />
-            <h2 id="grabacion-title" className="font-bold">
-              {grabacion.fase === 'descarga'
-                ? t('recording_download_title').replace('{banco}', grabacion.banco)
-                : t('recording_access_title').replace('{banco}', grabacion.banco)}
-              {' · '}{grabacion.tipo === 'justificante' ? t('record_receipt', 'Justificante fiscal') : t('record_movements', 'Descarga de movimientos')}
-            </h2>
-            <Badge variant={grabacion.fase === 'descarga' ? 'success' : 'info'}>
-              {grabacion.fase === 'descarga'
-                ? t('access_recorded').replace('{n}', grabacion.pasosAcceso)
-                : t('phase_1_of_2')}
-            </Badge>
-            <Badge variant={grabacion.huboDescarga ? 'success' : 'neutral'}>
-              {grabacion.huboDescarga
-                ? t('file_badge').replace('{fichero}', grabacion.ficheroDescargado)
-                : t('no_download_yet')}
-            </Badge>
-            <button type="button" onClick={() => setVerPasos((v) => !v)}
-              className="rounded border border-white px-2 py-1 text-xs text-white hover:bg-white/10">
-              {verPasos ? t('hide_steps', 'Ocultar pasos') : t('show_steps', 'Ver pasos')} ({(grabacion.pasos || []).length})
-            </button>
-            <div className="ml-auto flex gap-2">
-
-              <Button variant="secondary" onClick={() => cancelarGrabacion(grabacion.crid)}>
-                {t('cancel')}
-              </Button>
-              {/* Se puede guardar sin haber exportado nada.
-                  Hay bancos donde exportar exige firmar desde el móvil cada vez
-                  —CaixaBank—, así que la descarga diaria no puede depender de
-                  ello: se para en la lista de movimientos y se leen de la
-                  pantalla. Antes el botón estaba apagado hasta que hubiera
-                  fichero y no había forma de guardar ese caso (25/08/2026).
-                  El aviso de qué se ha grabado sale al terminar. */}
-              <Button
-                variant="primary"
-                disabled={grabacion.fase !== 'descarga'}
-                title={grabacion.fase !== 'descarga'
-                  ? t('finish_access_first')
-                  : grabacion.huboDescarga
-                    ? t('save_both_sequences')
-                    : t('save_reading_screen')}
-                onClick={() => finalizarGrabacion(grabacion.crid)}
-              >
-                <CheckCircle size={16} /> {t('save_sequences')}
-              </Button>
-            </div>
-          </div>
-          <div className="flex min-h-0 flex-1">
-            <div className="min-w-0 flex-1">
-              <PantallaRemota />
-            </div>
-            {verPasos && (
-              <div className="w-96 shrink-0 overflow-y-auto border-l border-white bg-surface2 custom-scrollbar">
-
-              {(grabacion.pasos || []).length === 0 ? (
-                <p className="p-8 text-center text-sm opacity-50">
-                  {grabacion.iniciando ? t('opening_browser') : t('steps_will_appear')}
-                </p>
-              ) : (
-                <ol className="divide-y divide-border">
-                  {grabacion.pasos.map((paso) => (
-                    <li key={paso.n} className="flex items-baseline gap-3 px-4 py-2 text-sm">
-                      <span className="w-6 shrink-0 text-right font-mono text-xs opacity-40">{paso.n}</span>
-                      <span className={`w-24 shrink-0 text-xs font-semibold uppercase
-                        ${paso.tipo === 'descargar' ? 'text-success' : 'opacity-60'}`}>
-                        {paso.tipo}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate">{paso.descripcion}</span>
-                      {paso.valor !== undefined && paso.valor !== null && (
-                        <span className={`shrink-0 font-mono text-xs ${paso.secreto ? 'opacity-50' : ''}`}>
-                          {paso.valor}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {grabacion && !grabacion.pantallaRemota && (
+      {grabacion && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-modal-backdrop/80 p-4" role="dialog" aria-modal="true" aria-labelledby="grabacion-title">
           <Card className="flex max-h-[85vh] w-full max-w-2xl flex-col p-6 shadow-xl">
             <div className="mb-4 flex items-start gap-3">
@@ -1475,6 +1386,18 @@ const ExtractosPage = () => {
               </Badge>
               <span className="opacity-60">{t('steps_in_phase').replace('{n}', (grabacion.pasos || []).length)}</span>
             </div>
+
+            {/* En el servidor no hay monitor: el navegador del banco se ve y se
+                maneja en una ventana aparte del navegador, a toda pantalla
+                (pantalla remota, 27/09/2026). En el PC se abre la de Chrome. */}
+            {grabacion.pantallaRemota && (
+              <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface2 p-3 text-sm">
+                <span className="flex-1">{t('remote_screen_hint', 'El navegador del banco está en el servidor y se abre en una ventana aparte. Si no se ha abierto, púlsalo.')}</span>
+                <Button variant="primary" onClick={() => abrirPantallaRemota()}>
+                  {t('remote_screen_open', 'Abrir el navegador')}
+                </Button>
+              </div>
+            )}
 
             <div className="min-h-[180px] flex-1 overflow-y-auto rounded-lg border border-border bg-surface2 custom-scrollbar">
               {(grabacion.pasos || []).length === 0 ? (

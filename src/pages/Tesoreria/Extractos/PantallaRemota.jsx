@@ -18,7 +18,20 @@ const urlWebSocket = (ruta) => {
   return base.replace(/^http/, 'ws').replace(/\/$/, '') + ruta;
 };
 
-const PantallaRemota = () => {
+/**
+ * Abre la pantalla remota en una ventana aparte del navegador, a todo el
+ * tamaño del monitor (27/09/2026). Si ya está abierta, la trae delante.
+ */
+export const abrirPantallaRemota = () => {
+  const ancho = window.screen?.availWidth || 1400;
+  const alto = window.screen?.availHeight || 1000;
+  const ventana = window.open('/pantalla-remota', 'alkim-pantalla-remota',
+    `popup,width=${ancho},height=${alto},left=0,top=0`);
+  ventana?.focus();
+  return ventana;
+};
+
+const PantallaRemota = ({ onTerminada = null }) => {
   const { t } = useTmTr('Extractos');
   const marco = useRef(null);
   const caja = useRef(null);
@@ -48,6 +61,7 @@ const PantallaRemota = () => {
     let rfb = null;
     let vivo = true;
     let reintento = null;
+    let yaConecto = false;
 
     const conectar = async () => {
       if (!vivo) return;
@@ -55,6 +69,8 @@ const PantallaRemota = () => {
       try {
         const r = await apiFetch('/crawler/pantalla/permiso', { method: 'POST', headers: authHeaders() });
         const cuerpo = await r.json().catch(() => ({}));
+        // 409 = ya no hay grabación abierta. Si ya se había visto, ha terminado.
+        if (r.status === 409 && yaConecto && onTerminada) { onTerminada(); return; }
         if (!r.ok || !cuerpo.success) throw new Error(cuerpo.message || `Error ${r.status}`);
         if (!vivo) return;
         rfb = new RFB(marco.current, urlWebSocket(cuerpo.data.ruta));
@@ -62,7 +78,7 @@ const PantallaRemota = () => {
         rfb.scaleViewport = ajustadaRef.current; // la pantalla del servidor cabe en el panel
         rfb.resizeSession = false;    // y no cambia de tamaño: el guion se graba a esa medida
         rfb.focusOnClick = true;
-        rfb.addEventListener('connect', () => { setEstado('conectada'); setMensaje(''); rfb.focus(); });
+        rfb.addEventListener('connect', () => { yaConecto = true; setEstado('conectada'); setMensaje(''); rfb.focus(); });
         rfb.addEventListener('disconnect', () => {
           rfb = null;
           rfbRef.current = null;
