@@ -60,6 +60,12 @@ const ExtractosPage = () => {
   // exigía el campo. **No son solo cifras**: el código de ING trae letras.
   const LARGO_MINIMO = 4;
   const [grabacion, setGrabacion] = useState(null);
+  const [verProceso, setVerProceso] = useState(true);
+  useEffect(() => {
+    apiFetch('/crawler/schedule/config', { headers: authHeaders() })
+      .then((r) => r.json()).then((res) => { if (res.success && typeof res.data?.verProceso === 'boolean') setVerProceso(res.data.verProceso); })
+      .catch(() => {});
+  }, []);
   // Antes de grabar se elige QUÉ guion: movimientos o justificante fiscal.
   const [eligeGuion, setEligeGuion] = useState(null);
   const [guionGuardado, setGuionGuardado] = useState(null);
@@ -298,6 +304,9 @@ const ExtractosPage = () => {
   };
 
   const handleSync = async (crid, desde = null, banco = false) => {
+    // Con «Ver proceso» (Descargas programadas), en el servidor se abre la
+    // ventana del navegador remoto para seguir la descarga (27/09/2026).
+    if (import.meta.env.PROD && verProceso) abrirPantallaRemota();
     setDesdeCuando(null);
     setSyncing(prev => ({ ...prev, [crid]: { status: 'pending' } }));
     try {

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Badge, Spinner } from '../../../components/UI';
+import { Button, Badge, Spinner, Toggle } from '../../../components/UI';
 import {
-  ArrowLeft, CalendarClock, CalendarOff, Clock, AlertCircle, CheckCircle, XCircle, Play, Download,
+  ArrowLeft, CalendarClock, CalendarOff, Clock, AlertCircle, CheckCircle, XCircle, Play, Download, Monitor,
 } from 'lucide-react';
+import { abrirPantallaRemota } from './PantallaRemota';
 import { apiFetch, authHeaders } from '../../../services/api';
 import { useTmTr } from '../../../contexts/TmTrContext';
 import useEmpresaActiva, { esDeLaEmpresa } from '../../../hooks/useEmpresaActiva';
@@ -42,6 +43,25 @@ const ProgramacionPage = () => {
       if (!res.success) throw new Error(res.message);
       setConfig(res.data);
       if (res.data.tanda?.enMarcha) { setTanda(res.data.tanda); seguirTanda(); }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // «Ver proceso» (27/09/2026): las descargas abren un navegador donde se ve
+  // lo que hacen. En el servidor es la pantalla remota, en una ventana aparte.
+  const cambiarVerProceso = async () => {
+    const nuevo = !(config?.verProceso ?? true);
+    try {
+      const response = await apiFetch('/crawler/schedule/config', {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verProceso: nuevo }),
+      });
+      const res = await response.json();
+      if (!res.success) throw new Error(res.message);
+      setConfig((c) => ({ ...c, verProceso: res.data.verProceso }));
+      setAviso({ tipo: 'ok', texto: res.message });
     } catch (err) {
       setError(err.message);
     }
@@ -86,6 +106,9 @@ const ProgramacionPage = () => {
   };
 
   const descargarAhora = async () => {
+    // En el servidor, con «Ver proceso», se abre ya la ventana del navegador
+    // (aprovechando el clic: si no, el navegador la bloquea).
+    if (import.meta.env.PROD && (config?.verProceso ?? true)) abrirPantallaRemota();
     setLanzando(true);
     setAviso(null);
     try {
@@ -178,6 +201,7 @@ const ProgramacionPage = () => {
         <CalendarOff size={18} className="shrink-0 text-on-surface2" aria-hidden="true" />
         <span>
           <strong>{t('weekend_notice_strong')}</strong> {t('weekend_notice_text')}
+          {' '}{t('run_order_hint', 'Se descargan una detrás de otra, banco por banco: primero los movimientos y después, si falta alguno, el justificante fiscal.')}
         </span>
       </div>
 
@@ -190,34 +214,45 @@ const ProgramacionPage = () => {
         </div>
       )}
 
-      {/* ── Configuración: hora común + Descargar ahora ───────────────── */}
-      <div className="mb-6 flex flex-wrap items-end gap-6 rounded-3xl border border-border bg-surface2 px-5 py-4 shadow-sm">
-        <label className="flex flex-col gap-1 text-sm font-black text-on-background">
+      {/* ── Configuración, en una sola línea (27/09/2026). De izquierda a
+          derecha: Descargar ahora, Ver proceso y el resto. El texto del orden de
+          descarga está arriba, con el aviso de fines de semana. ── */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-3xl border border-border bg-surface2 px-5 py-4 shadow-sm lg:flex-nowrap">
+        <Button
+          variant="primary"
+          className="shrink-0"
+          disabled={lanzando || Boolean(tanda?.enMarcha) || programadas.length === 0}
+          onClick={descargarAhora}
+          leftIcon={lanzando || tanda?.enMarcha ? <Spinner size="xs" /> : <Download size={16} />}
+        >
+          {t('download_now', 'Descargar ahora')}
+        </Button>
+        <Toggle
+          className="shrink-0"
+          checked={config?.verProceso ?? true}
+          onChange={cambiarVerProceso}
+          label={t('see_process', 'Ver proceso')}
+          title={t('see_process_hint', 'Con él, las descargas abren un navegador donde se ve todo lo que hacen. Sin él, van sin navegador visible.')}
+        />
+        {import.meta.env.PROD && (config?.verProceso ?? true) && (
+          <Button variant="secondary" className="shrink-0" onClick={() => abrirPantallaRemota()} leftIcon={<Monitor size={16} />}
+            title={t('open_server_browser_hint', 'Abre en una ventana el navegador del servidor, para ver una descarga en curso.')}>
+            {t('open_server_browser', 'Ver navegador')}
+          </Button>
+        )}
+        <label className="flex shrink-0 items-center gap-2 text-sm font-black text-on-background">
           {t('common_time', 'Hora de las descargas automáticas')}
           <input
             type="time"
             value={horaEditada ?? config?.hora ?? '09:30'}
             onChange={(e) => setHoraEditada(e.target.value)}
             onBlur={() => { if (horaEditada && horaEditada !== config?.hora) guardarHora(horaEditada); }}
-            className="input-base w-36 rounded-xl border-border bg-surface1 px-3 py-2 text-sm font-bold"
+            className="input-base w-[6.5rem] rounded-xl border-border bg-surface1 px-2 py-1.5 text-sm font-bold"
           />
         </label>
-        <div className="flex flex-col gap-1 text-sm">
-          <span className="font-black text-on-background">{t('col_next_run', 'Próxima ejecución')}</span>
+        <div className="flex shrink-0 items-center gap-2 text-sm">
+          <span className="font-black text-on-background">{t('col_next_run', 'Próxima ejecución')}:</span>
           <span className="font-bold capitalize">{config?.proxima_ejecucion ? formatProximaEjecucion(config.proxima_ejecucion) : '—'}</span>
-        </div>
-        <p className="max-w-md text-xs font-bold">
-          {t('run_order_hint', 'Se descargan una detrás de otra, banco por banco: primero los movimientos y después, si falta alguno, el justificante fiscal.')}
-        </p>
-        <div className="ml-auto">
-          <Button
-            variant="primary"
-            disabled={lanzando || Boolean(tanda?.enMarcha) || programadas.length === 0}
-            onClick={descargarAhora}
-            leftIcon={lanzando || tanda?.enMarcha ? <Spinner size="xs" /> : <Download size={16} />}
-          >
-            {t('download_now', 'Descargar ahora')}
-          </Button>
         </div>
       </div>
 
