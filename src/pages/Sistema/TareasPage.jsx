@@ -194,7 +194,7 @@ const Historial = ({ tarea, onCerrar }) => {
                 {filas && filas.length === 0 && <p>{t('sin_ejecuciones', 'Todavía no se ha ejecutado.')}</p>}
                 {filas && filas.length > 0 && (
                     <table className="w-full text-sm">
-                        <thead>
+                        <thead className="bg-table-header text-on-table-header">
                             <tr className="border-b border-border text-left">
                                 <th className="py-1 pr-2">{t('inicio', 'Inicio')}</th>
                                 <th className="py-1 pr-2">{t('estado', 'Estado')}</th>
@@ -204,8 +204,8 @@ const Historial = ({ tarea, onCerrar }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filas.map((f) => (
-                                <tr key={f.id} className="border-b border-border align-top">
+                            {filas.map((f, i) => (
+                                <tr key={f.id} className={`border-b border-border align-top ${i % 2 ? 'bg-table-row-striped text-on-table-row-striped' : 'bg-table-row text-on-table-row'}`}>
                                     <td className="py-1 pr-2 whitespace-nowrap">{fecha(f.inicio)}</td>
                                     <td className="py-1 pr-2"><Estado estado={f.estado} /></td>
                                     <td className="py-1 pr-2 text-right whitespace-nowrap">{f.duracion_ms != null ? `${(f.duracion_ms / 1000).toFixed(1)} s` : '—'}</td>
@@ -302,7 +302,7 @@ const TareasPage = () => {
             {datos && datos.tareas.length > 0 && (
                 <div className="overflow-x-auto rounded-xl border border-border">
                     <table className="w-full text-sm">
-                        <thead className="bg-surface2">
+                        <thead className="bg-table-header text-on-table-header">
                             <tr className="text-left">
                                 <th className="p-2">{t('nombre', 'Nombre')}</th>
                                 <th className="p-2">{t('horario', 'Horario')}</th>
@@ -313,8 +313,8 @@ const TareasPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {datos.tareas.map((tarea) => (
-                                <tr key={tarea.id} className={`border-t border-border align-top ${tarea.activo ? '' : 'opacity-60'}`}>
+                            {datos.tareas.map((tarea, i) => (
+                                <tr key={tarea.id} className={`border-t border-border align-top ${i % 2 ? 'bg-table-row-striped text-on-table-row-striped' : 'bg-table-row text-on-table-row'} ${tarea.activo ? '' : 'opacity-60'}`}>
                                     <td className="p-2">
                                         <div className="font-semibold">{tarea.nombre}</div>
                                         {!tarea.activo && <div className="text-warning text-xs">{t('desactivada', 'Desactivada')}</div>}
