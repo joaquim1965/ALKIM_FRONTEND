@@ -28,7 +28,7 @@ import useEmpresaActiva, { esDeLaEmpresa } from '../../../hooks/useEmpresaActiva
 // Botón «marcado» de una fila —algo que ya está hecho o encendido: credencial
 // guardada (Revocar), guion grabado (Regrabar), autodescarga activa—: fondo
 // azul con el icono en blanco (26/09/2026).
-const MARCADO = { backgroundColor: '#2f7bff', borderColor: '#2f7bff', color: '#ffffff' };
+const MARCADO = { backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)', color: 'var(--color-on-primary)' };
 
 const ExtractosPage = () => {
   const { t } = useTmTr('Extractos');
@@ -1261,7 +1261,7 @@ const ExtractosPage = () => {
               </div>
               </>)}
               {!queBajar.movimientos && !queBajar.justificantes && (
-                <p className="text-sm font-bold" style={{ color: '#ff9b9b' }}>{t('dl_choose_one', 'Marca al menos una de las dos.')}</p>
+                <p className="text-sm font-bold text-destructive-text">{t('dl_choose_one', 'Marca al menos una de las dos.')}</p>
               )}
             </div>
 

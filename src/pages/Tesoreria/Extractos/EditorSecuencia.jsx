@@ -172,7 +172,7 @@ const EditorSecuencia = ({ crid, banco, onCerrar, onGuardado }) => {
   const totalQuitados = marcados.acceso.length + marcados.descarga.length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/80 p-4">
       <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden
         rounded-3xl border border-border bg-surface2 shadow-2xl"
       >

@@ -197,7 +197,7 @@ const UserListStyled = ({
 
             {/* Modales */}
             {editUser && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-modal-backdrop/80 backdrop-blur-sm"
                      onClick={e => { if (e.target === e.currentTarget) setEditUser(null); }}>
                     <div className="bg-surface1 border border-border rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
                         <button 
@@ -244,7 +244,7 @@ const AddUserModal = ({ onClose, onCreate, t }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black"
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-modal-backdrop"
             onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
             <div className="bg-surface1 border border-border rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
                 <div className="p-4 border-b border-border flex items-center justify-between bg-surface2">

@@ -74,7 +74,7 @@ const ImportBankModal = ({ isOpen, onClose, onImport, cuentas }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-modal-backdrop/80 backdrop-blur-sm">
             <div className="bg-surface1 rounded-2xl border border-border w-full max-w-2xl shadow-xl overflow-hidden animate-in zoom-in-95">
                 <div className="flex justify-between items-center p-6 border-b border-border">
                     <h3 className="text-xl font-bold flex items-center gap-2">

@@ -69,13 +69,13 @@ export function ErrorPopover({
       <div 
         className="rounded-full p-4 border-4" 
         style={{ 
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--color-surface1)',
           color: 'var(--color-destructive)',
           borderColor: 'var(--color-destructive)',
           boxShadow: '0 0 20px var(--color-destructive-border)'
         }}
       >
-        <div className="flex items-center justify-center p-1 bg-white rounded-full">
+        <div className="flex items-center justify-center p-1 bg-surface1 rounded-full">
             <XCircle size={48} className="text-destructive-border" />
         </div>
       </div>

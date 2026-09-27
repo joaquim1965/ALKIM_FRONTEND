@@ -334,7 +334,7 @@ const ExtractosBancariosPage = () => {
       {aviso && (
         <div className={`flex items-center justify-between rounded-2xl border p-4 font-bold ${aviso.tipo === 'ok' ? 'border-success bg-success text-on-success' : aviso.tipo === 'info' ? 'border-2 border-border bg-surface2 text-on-background' : 'border-destructive bg-destructive text-on-destructive'}`}>
           <span className="flex items-center gap-2">{aviso.tipo === 'info' && proceso && <Spinner size="xs" />}{aviso.texto}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label={t('close', 'Cerrar')} className="rounded-full px-2 hover:bg-black/20">×</button>
+          <button type="button" onClick={() => setAviso(null)} aria-label={t('close', 'Cerrar')} className="rounded-full px-2 hover:bg-surface-hover">×</button>
         </div>
       )}
 

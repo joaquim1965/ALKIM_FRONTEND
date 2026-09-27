@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Badge, Spinner, Toggle } from '../../../components/UI';
 import {
-  ArrowLeft, CalendarClock, CalendarOff, Clock, AlertCircle, CheckCircle, XCircle, Play, Download, Monitor,
+  ArrowLeft, CalendarClock, CalendarOff, Clock, AlertCircle, CheckCircle, XCircle, Play, Download,
 } from 'lucide-react';
 import { abrirPantallaRemota } from './PantallaRemota';
 import { apiFetch, authHeaders } from '../../../services/api';
@@ -234,12 +234,6 @@ const ProgramacionPage = () => {
           label={t('see_process', 'Ver proceso')}
           title={t('see_process_hint', 'Con él, las descargas abren un navegador donde se ve todo lo que hacen. Sin él, van sin navegador visible.')}
         />
-        {import.meta.env.PROD && (config?.verProceso ?? true) && (
-          <Button variant="secondary" className="shrink-0" onClick={() => abrirPantallaRemota()} leftIcon={<Monitor size={16} />}
-            title={t('open_server_browser_hint', 'Abre en una ventana el navegador del servidor, para ver una descarga en curso.')}>
-            {t('open_server_browser', 'Ver navegador')}
-          </Button>
-        )}
         <label className="flex shrink-0 items-center gap-2 text-sm font-black text-on-background">
           {t('common_time', 'Hora de las descargas automáticas')}
           <input

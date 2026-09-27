@@ -48,7 +48,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             {/* Overlay para cerrar al hacer clic fuera */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black z-[105] md:hidden"
+                    className="fixed inset-0 bg-modal-backdrop z-[105] md:hidden"
                     onClick={onClose}
                 />
             )}

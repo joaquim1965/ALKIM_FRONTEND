@@ -50,7 +50,7 @@ export default function VentanaConfigSaldo({ config, t, onCerrar, onGuardar, gua
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-5"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-modal-backdrop/80 p-5"
       onClick={(e) => { if (e.target === e.currentTarget) onCerrar(); }}
       role="dialog" aria-modal="true" aria-label={t('configurar')}
     >

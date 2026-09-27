@@ -103,9 +103,9 @@ const PantallaRemota = ({ onTerminada = null }) => {
     };
   }, []);
 
-  const boton = 'flex items-center gap-1 rounded border border-white/60 bg-black/70 px-2 py-1 text-xs text-white hover:bg-black';
+  const boton = 'flex items-center gap-1 rounded border border-border bg-surface1 px-2 py-1 text-xs text-on-surface1 hover:bg-surface-hover';
   return (
-    <div ref={caja} className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-black">
+    <div ref={caja} className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-background">
       <div ref={marco} className="h-full w-full" />
       <div className="absolute right-2 top-2 z-10 flex gap-2">
         <button type="button" className={boton} onClick={() => setAjustada((a) => !a)}
@@ -120,7 +120,7 @@ const PantallaRemota = ({ onTerminada = null }) => {
         </button>
       </div>
       {estado !== 'conectada' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-sm text-white">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-sm text-on-background">
           <span>{estado === 'error'
             ? t('remote_screen_error', 'No se puede conectar con el navegador del servidor. Reintentando…')
             : t('remote_screen_connecting', 'Conectando con el navegador del servidor…')}</span>

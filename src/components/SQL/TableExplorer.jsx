@@ -697,8 +697,8 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                       <Code size={14} className="text-primary flex-shrink-0" />
                       <span className="truncate text-primary">{event.name}</span>
                       <span className={`ml-auto text-xs font-medium flex-shrink-0 px-2 py-0.5 rounded ${isEnabled
-                        ? 'bg-success text-white'
-                        : 'bg-neutral text-white'
+                        ? 'bg-success text-on-success'
+                        : 'bg-neutral text-on-neutral'
                         }`}>
                         {isEnabled ? t(translations.eventEnabled) : t(translations.eventDisabled)}
                       </span>
@@ -784,8 +784,8 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                         <Eye size={14} className={activeTable === view.name ? 'text-on-primary' : 'text-primary'} />
                         <span className={`truncate ${activeTable === view.name ? 'font-bold text-on-primary' : 'font-medium text-primary'}`}>{view.name}</span>
                         <span className={`ml-auto text-[10px] font-medium flex-shrink-0 px-2 py-0.5 rounded ${view.isUpdatable === 'YES'
-                          ? 'bg-success text-white'
-                          : 'bg-neutral text-white'
+                          ? 'bg-success text-on-success'
+                          : 'bg-neutral text-on-neutral'
                           }`}>
                           {view.isUpdatable === 'YES' ? 'MOD' : 'RO'}
                         </span>
@@ -910,7 +910,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                 {/* Eliminar Primary Key */}
                 {contextMenu.column.key === 'PRI' && !contextMenu.column.foreignKey && (
                   <button
-                    className="w-full text-left px-4 py-2 text-sm text-warning hover:bg-warning hover:text-white transition-colors flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-warning hover:bg-warning hover:text-on-warning transition-colors flex items-center gap-2"
                     onClick={() => {
                       const sql = `ALTER TABLE \`${contextMenu.tableName}\` DROP PRIMARY KEY;`;
                       setContextMenu(prev => ({ ...prev, visible: false }));
@@ -925,7 +925,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                 {/* Eliminar Foreign Key */}
                 {contextMenu.column.foreignKey && (
                   <button
-                    className="w-full text-left px-4 py-2 text-sm text-warning hover:bg-warning hover:text-white transition-colors flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-warning hover:bg-warning hover:text-on-warning transition-colors flex items-center gap-2"
                     onClick={async () => {
                       const tbl = contextMenu.tableName;
                       const col = contextMenu.itemName;
@@ -956,7 +956,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                 {/* Eliminar Unique Key */}
                 {contextMenu.column.key === 'UNI' && !contextMenu.column.foreignKey && (
                   <button
-                    className="w-full text-left px-4 py-2 text-sm text-warning hover:bg-warning hover:text-white transition-colors flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-warning hover:bg-warning hover:text-on-warning transition-colors flex items-center gap-2"
                     onClick={async () => {
                       const tbl = contextMenu.tableName;
                       const col = contextMenu.itemName;

@@ -52,7 +52,7 @@ export function TermsModal({ isOpen, onClose, terms }) {
       aria-labelledby="terms-modal-title"
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black" />
+      <div className="absolute inset-0 bg-modal-backdrop" />
 
       {/* Modal */}
       <div

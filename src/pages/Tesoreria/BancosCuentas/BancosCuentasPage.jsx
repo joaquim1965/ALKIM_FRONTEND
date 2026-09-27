@@ -107,7 +107,7 @@ const Dato = ({ icono, rotulo, valor }) => {
 const Modal = ({ titulo, icono, onClose, children }) => {
     const { t } = useTmTr('BancosCuentas');
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-modal-backdrop/80 p-4 backdrop-blur-sm"
              onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div className="animate-in zoom-in-95 flex w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-surface1 shadow-2xl duration-200">
                 <div className="flex items-center justify-between border-b border-border bg-surface2 p-5">
@@ -561,7 +561,7 @@ const BancosCuentasPage = () => {
                 <div className={`animate-in slide-in-from-top flex items-center justify-between rounded-2xl border p-4 shadow-lg duration-300
                     ${aviso.tipo === 'ok' ? 'border-success bg-success text-on-success' : 'border-destructive bg-destructive text-on-destructive'}`}>
                     <span className="font-bold">{aviso.texto}</span>
-                    <button onClick={() => setAviso(null)} aria-label={t('cerrar_aviso')} className="rounded-full p-1 transition-colors hover:bg-black/20">
+                    <button onClick={() => setAviso(null)} aria-label={t('cerrar_aviso')} className="rounded-full p-1 transition-colors hover:bg-surface-hover">
                         <CloseIcon size={18} />
                     </button>
                 </div>

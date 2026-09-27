@@ -19,7 +19,7 @@ const PantallaRemotaPage = () => {
   }, [t]);
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black">
+    <div className="fixed inset-0 z-[300] bg-background">
       <PantallaRemota onTerminada={() => window.close()} />
     </div>
   );

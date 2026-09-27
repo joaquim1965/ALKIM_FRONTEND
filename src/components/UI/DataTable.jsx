@@ -188,7 +188,7 @@ const FilterModal = ({ filterFields = [], filters, onApply, onClose }) => {
     const inputCls = "input-base w-full px-3 py-2 text-sm transition-all";
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-modal-backdrop/80 backdrop-blur-sm"
             onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
             <div className="bg-surface1 border border-border rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden">
                 {/* Cabecera Fija */}
@@ -537,13 +537,13 @@ export function DataTable({
                                                     <div className="flex items-center gap-0.5">
                                                         {onView && (
                                                             <button onClick={() => onView(row)} title="Ver"
-                                                                className="p-1 rounded hover:bg-black/5 hover:text-primary transition-all">
+                                                                className="p-1 rounded hover:bg-surface-hover hover:text-primary transition-all">
                                                                 <Eye size={12}/>
                                                             </button>
                                                         )}
                                                         {onEdit && (
                                                             <button onClick={() => onEdit(row)} title="Editar"
-                                                                className="p-1 rounded hover:bg-black/5 hover:text-primary transition-all">
+                                                                className="p-1 rounded hover:bg-surface-hover hover:text-primary transition-all">
                                                                 <Edit size={12}/>
                                                             </button>
                                                         )}
@@ -556,7 +556,7 @@ export function DataTable({
                                                                 setConfirmDel({ row, pos: r });
                                                             }}
                                                             title="Eliminar"
-                                                            className="p-1 rounded hover:bg-black/5 hover:text-destructive transition-all">
+                                                            className="p-1 rounded hover:bg-surface-hover hover:text-destructive transition-all">
                                                                 <Trash2 size={12}/>
                                                         </button>
                                                     )}

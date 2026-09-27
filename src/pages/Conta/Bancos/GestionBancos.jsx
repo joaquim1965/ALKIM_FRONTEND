@@ -376,11 +376,11 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
                             </div>
                             <div className="lg:col-span-2 grid grid-cols-2 gap-4">
                                 {tarjetas.map(t => (
-                                    <div key={t.id} className="relative rounded-2xl overflow-hidden shadow-lg p-5 border border-border/10
-                                        bg-gradient-to-br from-gray-800 to-gray-900 text-white min-h-[180px] flex flex-col justify-between">
+                                    <div key={t.id} className="relative rounded-2xl overflow-hidden shadow-lg p-5 border border-border
+                                        bg-surface2 text-on-surface2 min-h-[180px] flex flex-col justify-between">
                                         <div className="flex justify-between items-start">
                                             <CreditCard className="opacity-80" size={28}/>
-                                            <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded backdrop-blur-sm">{t.tipo_tarjeta}</span>
+                                            <span className="text-xs font-bold bg-surface-hover px-2 py-1 rounded">{t.tipo_tarjeta}</span>
                                         </div>
                                         <div className="mt-4">
                                             <p className="font-mono text-xl tracking-[0.25em] opacity-90">•••• •••• •••• {t.ultimos_digitos}</p>
@@ -395,7 +395,7 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
                                                 <p className="font-mono text-sm">{t.fecha_caducidad}</p>
                                             </div>
                                         </div>
-                                        <button onClick={() => handleDeleteTarjeta(t.id)} className="absolute top-4 right-[70px] text-destructive-border hover:text-destructive-border bg-black/20 px-2 py-1 rounded text-xs font-bold backdrop-blur-md transition-colors">BORRAR</button>
+                                        <button onClick={() => handleDeleteTarjeta(t.id)} className="absolute top-4 right-[70px] text-destructive-border hover:text-destructive-border bg-surface-hover px-2 py-1 rounded text-xs font-bold backdrop-blur-md transition-colors">BORRAR</button>
                                     </div>
                                 ))}
                             </div>

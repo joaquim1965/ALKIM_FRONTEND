@@ -346,3 +346,23 @@ The backend uses a generic table controller pattern that dynamically handles CRU
 **Git Branches:**
 - `backup-tailwind-v3` - Snapshot before v4 migration (commit: 158a64f)
 - `open-ai/repaso` - Current branch with v4
+
+## Todo sigue el tema (27/09/2026) — OBLIGATORIO
+
+Ningún color se pone a mano: fondos, textos, bordes, **iconos** y controles salen
+siempre de las variables del tema (`src/styles/colors.css`), con sus clases
+(`bg-surface1`, `text-on-background`, `bg-success` + `text-on-success`,
+`bg-modal-backdrop`, `hover:bg-surface-hover`…) o con `var(--color-…)`.
+
+- Prohibido: `text-white`, `bg-black`, `bg-black/60`, `text-gray-*`, `bg-blue-*`…
+  y colores `#hex` en `style`. Si no existe el color que hace falta, se añade
+  una variable al tema, no un color fijo.
+- Los iconos (lucide) heredan el color del texto (`currentColor`): no se les
+  pone color propio salvo uno del tema (`text-success`, `text-destructive-text`…).
+- Los controles nativos (icono del reloj/calendario de `<input type="time|date">`,
+  barras de desplazamiento, desplegables) ya siguen el tema por
+  `src/styles/utilities.css` (`color-scheme` + icono pintado con `currentColor`).
+- Excepciones: el editor de temas y los catálogos de colores (ColorsList,
+  CssVarsDemo, pickers), cuyo contenido SON los colores; y la paleta propia que
+  el usuario pidió para Fiscalidad → Extractos bancarios.
+- Al terminar un cambio de interfaz, comprobar en tema oscuro **y** claro.

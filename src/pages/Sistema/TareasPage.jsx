@@ -91,7 +91,7 @@ const Formulario = ({ tarea, catalogo, onCerrar, onGuardado }) => {
     const etiqueta = 'block text-sm font-semibold mb-1 text-on-surface1';
 
     return (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-modal-backdrop/80 p-4" onClick={onCerrar}>
             <div className="w-full max-w-lg rounded-xl bg-surface1 text-on-surface1 border border-border shadow-2xl p-5 max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
@@ -182,7 +182,7 @@ const Historial = ({ tarea, onCerrar }) => {
         pedir(`/tareas/${tarea.id}/historial`).then(setFilas).catch((e) => setError(e.message));
     }, [tarea.id]);
     return (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-modal-backdrop/80 p-4" onClick={onCerrar}>
             <div className="w-full max-w-3xl rounded-xl bg-surface1 text-on-surface1 border border-border shadow-2xl p-5 max-h-[85vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
