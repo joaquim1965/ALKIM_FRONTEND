@@ -833,7 +833,7 @@ const ExtractosPage = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="grid w-fit grid-cols-3 gap-1">
+                        <div className="grid w-max shrink-0 grid-cols-[repeat(3,max-content)] gap-1.5">{/* max-content: al estrechar la tabla, los botones no se montan uno encima de otro (27/09/2026) */}
                           {/* Orden pedido por el usuario (26/09/2026), en filas de tres:
                               Autodescargas · Grabar/Regrabar · Credencial/Revocar
                               Login · Quitar cuenta · Revisar
