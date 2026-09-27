@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { User, LogOut, Settings, Database } from "lucide-react";
+import { User, LogOut, Settings, Database, CalendarClock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../hooks/useStore";
 import { useTmTr } from "../contexts/TmTrContext";
@@ -54,6 +54,12 @@ const UserMenu = () => {
                 label: "Consultas Sql",
                 icon: <Database size={16} />,
                 onClick: () => handleNavigate("/sql-console"),
+            },
+            {
+                id: "tareas",
+                label: tr["Tareas:titulo"] || "Tareas programadas",
+                icon: <CalendarClock size={16} />,
+                onClick: () => handleNavigate("/sistema/tareas"),
             },
         ] : []),
         { type: "separator" },

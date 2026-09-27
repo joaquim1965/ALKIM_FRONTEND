@@ -52,7 +52,9 @@ export default defineConfig(({ mode }) => {
         '^/companies(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         '^/files(/|\\?|$)':  { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         // API de Fiscalidad. No «/fiscalidad»: esa es la ruta de la pantalla.
-        '^/fiscal(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
+        '^/fiscal(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        // Tareas programadas (27/09/2026). La pantalla es «/sistema/tareas».
+        '^/tareas(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
       }
     },
     build: {

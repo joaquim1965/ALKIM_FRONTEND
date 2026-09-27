@@ -17,6 +17,7 @@ const ROUTE_BREADCRUMBS = {
   '/tesoreria/extractos/logs': [{ label: 'Tesorería' }, { label: 'Extractos', path: '/tesoreria/extractos' }, { label: 'Historial' }],
   '/documentacion': [{ label: 'Documentación' }, { label: 'Archivos' }],
   '/sql-console': [{ label: 'Administración' }, { label: 'Consola SQL' }],
+  '/sistema/tareas': [{ label: 'Administración' }, { label: 'Tareas programadas' }],
   '/themeeditor': [{ label: 'Personalización' }, { label: 'Temas' }],
   '/coloreditor': [{ label: 'Personalización' }, { label: 'Colores' }],
   '/verify-phone': [{ label: 'Cuenta' }, { label: 'Verificación de teléfono' }],
