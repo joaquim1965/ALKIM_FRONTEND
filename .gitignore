@@ -20,3 +20,4 @@ tmp/
 # 26/09/2026 — copias de seguridad de las ediciones (fichero.jsx.bak-algo)
 *.bak
 *.bak-*
+*.bak[0-9]*
