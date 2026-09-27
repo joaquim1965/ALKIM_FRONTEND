@@ -1387,7 +1387,7 @@ const ExtractosPage = () => {
             {/* En el servidor no hay monitor: el navegador se ve y se maneja aquí
                 (pantalla remota, 27/09/2026). En el PC se abre la ventana de Chrome. */}
             {grabacion.pantallaRemota && (
-              <div className="mb-3 min-h-0 flex-[4]">
+              <div className="mb-3 h-[62vh] min-h-[420px]">
                 <PantallaRemota />
               </div>
             )}
