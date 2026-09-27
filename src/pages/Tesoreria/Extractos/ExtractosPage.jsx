@@ -451,6 +451,9 @@ const ExtractosPage = () => {
   const iniciarGrabacion = async (config, tipo = 'movimientos') => {
     setEligeGuion(null);
     setGrabacion({ crid: config.crid, banco: config.banco_nombre, iniciando: true, pasos: [], tipo });
+    // En el servidor, abrir el banco puede tardar (o quedarse en un captcha):
+    // se sondea ya, para enseñar la pantalla remota en cuanto exista la sesión.
+    window.setTimeout(() => seguirGrabacion(config.crid, 120), 2000);
     try {
       const response = await apiFetch(`/crawler/grabar/${config.crid}`, {
         method: 'POST',
@@ -459,19 +462,24 @@ const ExtractosPage = () => {
       });
       const res = await response.json();
       if (!res.success) throw new Error(res.message);
-      setGrabacion({ crid: config.crid, banco: config.banco_nombre, ...res.data });
-      seguirGrabacion(config.crid);
+      // El sondeo ya está en marcha desde que se pulsó grabar.
+      setGrabacion((previa) => ({ crid: config.crid, banco: config.banco_nombre, ...previa, ...res.data, iniciando: false }));
     } catch (err) {
       setGrabacion(null);
       setSyncResult({ status: 'error', log: { mensaje: err.message }, crid: config.crid });
     }
   };
 
-  const seguirGrabacion = async (crid) => {
+  // `arrancando`: cuántas veces más mirar si la sesión aún no existe (~3 min).
+  const seguirGrabacion = async (crid, arrancando = 0) => {
     try {
       const response = await apiFetch(`/crawler/grabar/${crid}`, { headers: authHeaders() });
       const res = await response.json();
-      if (!res.success) return;              // la grabación terminó o caducó
+      if (!res.success) {
+        // Mientras arranca aún no hay sesión: se vuelve a mirar.
+        if (arrancando > 0) window.setTimeout(() => seguirGrabacion(crid, arrancando - 1), 1500);
+        return;                              // la grabación terminó o caducó
+      }
 
       // La grabación puede cerrarse desde la barra flotante que ahora se dibuja
       // dentro de la web del banco. En ese caso esta pantalla no ha pedido nada:
@@ -1378,7 +1386,7 @@ const ExtractosPage = () => {
 
             {/* En el servidor no hay monitor: el navegador se ve y se maneja aquí
                 (pantalla remota, 27/09/2026). En el PC se abre la ventana de Chrome. */}
-            {grabacion.pantallaRemota && !grabacion.iniciando && (
+            {grabacion.pantallaRemota && (
               <div className="mb-3 min-h-0 flex-[4]">
                 <PantallaRemota />
               </div>
