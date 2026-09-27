@@ -14,6 +14,7 @@ import EditorSecuencia from './EditorSecuencia';
 import VisorExtractos from './VisorExtractos';
 import ComparadorPasos from './ComparadorPasos';
 import AltaCuenta from './AltaCuenta';
+import PantallaRemota from './PantallaRemota';
 import useEmpresaActiva, { esDeLaEmpresa } from '../../../hooks/useEmpresaActiva';
 
 /**
@@ -1343,7 +1344,7 @@ const ExtractosPage = () => {
 
       {grabacion && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-modal-backdrop/80 p-4" role="dialog" aria-modal="true" aria-labelledby="grabacion-title">
-          <Card className="flex max-h-[85vh] w-full max-w-2xl flex-col p-6 shadow-xl">
+          <Card className={`flex w-full flex-col p-6 shadow-xl ${grabacion.pantallaRemota ? 'h-[96vh] max-w-[98vw]' : 'max-h-[85vh] max-w-2xl'}`}>
             <div className="mb-4 flex items-start gap-3">
               <CircleDot size={26} className="mt-0.5 shrink-0 animate-pulse text-destructive-text" />
               <div className="flex-1">
@@ -1375,7 +1376,15 @@ const ExtractosPage = () => {
               <span className="opacity-60">{t('steps_in_phase').replace('{n}', (grabacion.pasos || []).length)}</span>
             </div>
 
-            <div className="min-h-[180px] flex-1 overflow-y-auto rounded-lg border border-border bg-surface2 custom-scrollbar">
+            {/* En el servidor no hay monitor: el navegador se ve y se maneja aquí
+                (pantalla remota, 27/09/2026). En el PC se abre la ventana de Chrome. */}
+            {grabacion.pantallaRemota && !grabacion.iniciando && (
+              <div className="mb-3 min-h-0 flex-[4]">
+                <PantallaRemota />
+              </div>
+            )}
+
+            <div className={`overflow-y-auto rounded-lg border border-border bg-surface2 custom-scrollbar ${grabacion.pantallaRemota ? 'min-h-[80px] flex-1' : 'min-h-[180px] flex-1'}`}>
               {(grabacion.pasos || []).length === 0 ? (
                 <p className="p-8 text-center text-sm opacity-50">
                   {grabacion.iniciando ? t('opening_browser') : t('steps_will_appear')}

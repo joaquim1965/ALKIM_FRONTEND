@@ -70,9 +70,13 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: mode === 'production' ? 'dist' : 'dev-dist', // Diferente carpeta de salida según el entorno
+      // noVNC (pantalla remota para grabar guiones) usa `await` de primer nivel,
+      // que necesita es2022. Lo soportan todos los navegadores actuales (27/09/2026).
+      target: 'es2022',
     },
     optimizeDeps: {
       exclude: ['lucide-react'], // Exclusión de dependencias específicas
+      esbuildOptions: { target: 'es2022' },
     },
   };
 });
