@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Icono de ALKIM (27/09/2026): A mayúscula blanca sobre fondo rojo. -->
+  <rect width="64" height="64" rx="12" fill="#d32f2f"/>
+  <path d="M32 9 L53 55 H43.5 L39.4 45.5 H24.6 L20.5 55 H11 Z M32 25.5 L27.8 37.5 H36.2 Z" fill="#ffffff" fill-rule="evenodd"/>
+</svg>

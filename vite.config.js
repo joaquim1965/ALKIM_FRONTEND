@@ -4,6 +4,17 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 
+// El icono de ALKIM (A blanca sobre rojo) es solo para producción. En desarrollo
+// (`npm run dev`) se deja el de Vite, para distinguir de un vistazo la pestaña
+// local de la de app.alkim.es (27/09/2026).
+const iconoSoloEnProduccion = {
+  name: 'icono-solo-en-produccion',
+  apply: 'serve',
+  transformIndexHtml: (html) => html
+    .replace('href="/favicon.svg"', 'href="/vite.svg"')
+    .replace(/\s*<link rel="apple-touch-icon"[^>]*>/, ''),
+};
+
 export default defineConfig(({ mode }) => {
   // Carga las variables de entorno
   const env = loadEnv(mode, process.cwd());
@@ -22,7 +33,7 @@ export default defineConfig(({ mode }) => {
 
   // Devuelve la configuración final basada en el entorno
   return {
-    plugins: [react()],
+    plugins: [react(), iconoSoloEnProduccion],
     server: {
       https: httpsConfig,
       port,
