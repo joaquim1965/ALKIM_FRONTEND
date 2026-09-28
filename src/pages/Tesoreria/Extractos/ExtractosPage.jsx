@@ -1684,6 +1684,15 @@ const ExtractosPage = () => {
                 </div>
               </div>
             )}
+            {/* Guardar una credencial no descarga nada: no hay historial que
+                ver. Solo «Cerrar», y se queda en Extractos. Antes el botón
+                principal era «Ver historial» y, al pulsarlo por inercia, sacaba
+                al usuario de la pantalla donde estaba (29/09/2026). */}
+            {syncResult.status === 'success' && syncResult.credential ? (
+              <div className="mt-6 flex justify-end">
+                <Button variant="primary" onClick={() => setSyncResult(null)}>{t('close')}</Button>
+              </div>
+            ) : (
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               <Button variant="ghost" onClick={() => setSyncResult(null)}>{t('close')}</Button>
               <Button
@@ -1695,6 +1704,7 @@ const ExtractosPage = () => {
                 {syncResult.status === 'success' && !syncResult.connection && !syncResult.credential ? t('view_movements') : t('view_history')}
               </Button>
             </div>
+            )}
           </Card>
         </div>
       )}
