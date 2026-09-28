@@ -1220,20 +1220,27 @@ const ExtractosPage = () => {
               )}
 
               {queBajar.movimientos && (<>
-              <button
-                type="button"
-                onClick={() => handleSync(desdeCuando.crid, null, todasDelBanco && hermanasDelBanco.length > 0)}
-                className="w-full rounded-2xl border border-border bg-surface1 p-4 text-left transition-colors hover:border-primary"
-              >
+              {/* Desde la última descarga: antes el recuadro entero era el
+                  botón y no se veía que se podía pulsar. Ahora lleva su botón
+                  «Descargar», igual que el de «Desde una fecha» (28/09/2026). */}
+              <div className="rounded-2xl border border-border bg-surface1 p-4">
                 <span className="block text-sm font-black text-on-surface1">{t('since_last_download')}</span>
-                <span className="mt-0.5 block text-xs font-bold opacity-80">
+                <p className="mt-0.5 text-xs font-bold opacity-80">
                   {desdeCuando.fecha_ultima_consulta
                     ? t('overlap_with_date')
                       .replace('{n}', desdeCuando.dias_solape)
                       .replace('{fecha}', formatFechaCorta(desdeCuando.fecha_ultima_consulta))
                     : t('overlap_no_history').replace('{n}', desdeCuando.dias_solape)}
-                </span>
-              </button>
+                </p>
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleSync(desdeCuando.crid, null, todasDelBanco && hermanasDelBanco.length > 0)}
+                >
+                  <Download size={15} /> {t('download', 'Descargar')}
+                </Button>
+              </div>
 
               <div className="rounded-2xl border border-border bg-surface1 p-4">
                 <label className="block text-sm font-black text-on-surface1">
@@ -1256,7 +1263,7 @@ const ExtractosPage = () => {
                   disabled={!fechaManual}
                   onClick={() => handleSync(desdeCuando.crid, fechaManual, todasDelBanco && hermanasDelBanco.length > 0)}
                 >
-                  <Download size={15} /> {t('download_from_date')}
+                  <Download size={15} /> {t('download', 'Descargar')}
                 </Button>
               </div>
               </>)}

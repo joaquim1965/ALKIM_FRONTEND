@@ -559,13 +559,6 @@ export const ExtractosTranslations = {
     catalan: "Per omplir històric. Un període llarg pot fer que el banc demani una verificació.",
     french: "Pour compléter l'historique. Une longue période peut amener la banque à demander une vérification."
   },
-  download_from_date: {
-    label: "Botón descargar desde esa fecha",
-    spanish: "Descargar desde esa fecha",
-    english: "Download from that date",
-    catalan: "Descarregar des d'aquesta data",
-    french: "Télécharger à partir de cette date"
-  },
   cancel: {
     label: "Cancelar",
     spanish: "Cancelar",
