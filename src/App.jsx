@@ -50,6 +50,7 @@ import BancosCuentasPage from "./pages/Tesoreria/BancosCuentas/BancosCuentasPage
 import MovimientosPage from "./pages/Tesoreria/MovimientosPage";
 import DocumentacionPage from "./pages/Documentacion/DocumentacionPage";
 import EntidadesPage from "./pages/Gestion/EntidadesPage";
+import TercerosPage from "./pages/Gestion/TercerosPage";
 
 /**
  * ProtectedRoute (Fase 1)
@@ -185,6 +186,14 @@ function AppContent() {
             element={
               <ProtectedRoute table="m_company">
                 <EntidadesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gestion/terceros/:papel?"
+            element={
+              <ProtectedRoute table="m_party">
+                <TercerosPage />
               </ProtectedRoute>
             }
           />

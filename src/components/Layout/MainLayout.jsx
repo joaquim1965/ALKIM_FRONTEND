@@ -100,6 +100,7 @@ export const MainLayout = ({ children }) => {
                             collapsed={!sidebarOpen}
                         >
                             <SidebarSubItem to="/gestion/empresas" icon={<Building2 size={13}/>} label="Entidades" />
+                            <SidebarSubItem to="/gestion/terceros/inquilino" icon={<Contact2 size={13}/>} label="Terceros" />
                             <SidebarSubItem to="/gestion/calendario" icon={<Calendar size={13}/>} label="Calendario" />
                             <SidebarSubItem to="/gestion/impuestos" icon={<ReceiptEuro size={13}/>} label="Impuestos (Saldo/Recibos)" />
                         </SidebarGroup>
