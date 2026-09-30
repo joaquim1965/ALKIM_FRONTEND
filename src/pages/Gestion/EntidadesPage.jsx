@@ -7,16 +7,18 @@
  *   /companies/mine                     lista (las visibles para el usuario)
  *   /companies  ·  /companies/:id        alta, edición, baja
  *   /companies/:id/partners[/:fila]      socios y comuneros
+ *   Documentos (fase 0c): components/Documentos/DocumentosObjeto.jsx
  *
  * Textos en s_dictionary, contexto «Entidades» (ES, EN, CA, FR):
  * DATABASE/MIGRATIONS/2026.10.01b - textos entidades.sql
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Plus, X, Users, Trash2, Pencil } from 'lucide-react';
+import { Building2, Plus, X, Users, Trash2, Pencil, FileText } from 'lucide-react';
 import Button from '../../components/UI/Button';
 import DataTable from '../../components/UI/DataTable';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
+import DocumentosObjeto from '../../components/Documentos/DocumentosObjeto';
 
 const TIPOS = ['PERSONAL', 'CB', 'SL', 'SA', 'SC'];
 const REGIMEN_FISCAL = ['IRPF', 'ATRIBUCION', 'IS'];
@@ -156,6 +158,11 @@ export default function EntidadesPage() {
         <Button size="xs" variant="outline" leftIcon={<Users size={14} />} onClick={() => abrirSocios(x)}>{t('ver_socios', 'Socios')}</Button>
       )),
     },
+    {
+      id: 'documentos', label: t('col_documentos', 'Documentos'), render: (x) => (
+        <Button size="xs" variant="outline" leftIcon={<FileText size={14} />} onClick={() => setModal({ tipo: 'documentos', tabla: 'm_company', id: x.id, titulo: x.nombre, soloLectura: !puedeEditar(x) })}>{t('ver_documentos', 'Documentos')}</Button>
+      ),
+    },
   ];
 
   return (
@@ -276,6 +283,7 @@ export default function EntidadesPage() {
                     <td className="font-mono">{fecha(s.fecha_desde)}</td>
                     <td className="font-mono">{fecha(s.fecha_hasta) || t('vigente', 'vigente')}</td>
                     <td className="whitespace-nowrap text-right">
+                      <Button size="xs" variant="ghost" aria-label={t('documentos_socio', 'Documentos del socio')} onClick={() => setModal({ tipo: 'documentos', tabla: 'x_company_partner', id: s.id, titulo: `${s.socio_nombre} · ${modal.entidad.nombre}`, soloLectura: !puedeEditar(modal.entidad), volver: modal })}><FileText size={14} /></Button>
                       {puedeEditar(modal.entidad) && <>
                         <Button size="xs" variant="ghost" aria-label={t('editar_socio', 'Editar')} onClick={() => editarSocio(s)}><Pencil size={14} /></Button>
                         <Button size="xs" variant="ghost" aria-label={t('quitar_socio', 'Quitar')} onClick={() => quitarSocio(s)}><Trash2 size={14} /></Button>
@@ -315,6 +323,18 @@ export default function EntidadesPage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {modal?.tipo === 'documentos' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/70 p-4" role="dialog" aria-modal="true">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-surface2 p-6 shadow-xl">
+            <div className="mb-4 flex justify-between gap-4">
+              <h2 className="text-xl font-black text-on-background">{t('documentos_de', 'Documentos de {nombre}').replace('{nombre}', modal.titulo)}</h2>
+              <button onClick={() => setModal(modal.volver || null)} aria-label={t('cerrar', 'Cerrar')}><X size={20} /></button>
+            </div>
+            <DocumentosObjeto tabla={modal.tabla} id={modal.id} soloLectura={modal.soloLectura} />
           </div>
         </div>
       )}

@@ -19,6 +19,7 @@ import Button from '../../components/UI/Button';
 import DataTable from '../../components/UI/DataTable';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
+import DocumentosObjeto from '../../components/Documentos/DocumentosObjeto';
 
 const PAPELES = ['inquilino', 'proveedor', 'todos'];
 const TIPOS_DOC = ['NIF', 'NIE', 'PASAPORTE', 'CIF', 'OTRO'];
@@ -314,6 +315,13 @@ export default function TercerosPage() {
                 <Button type="submit" loading={guardando}>{t('guardar', 'Guardar')}</Button>
               </div>
             </form>
+
+            {modal.tercero && (
+              <section className="mt-6 space-y-3 rounded-xl border border-border p-4">
+                <h3 className="text-xs font-black uppercase tracking-widest">{t('bloque_documentos', 'Documentos')}</h3>
+                <DocumentosObjeto tabla="m_party" id={modal.tercero.id} />
+              </section>
+            )}
           </div>
         </div>
       )}

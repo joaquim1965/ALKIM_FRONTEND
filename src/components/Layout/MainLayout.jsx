@@ -127,7 +127,7 @@ export const MainLayout = ({ children }) => {
                             <SidebarSubItem to="/docs/propiedades" label="Propiedades" />
                             <SidebarSubItem to="/docs/uf" label="UF" />
                             <SidebarSubItem to="/docs/inquilinos" label="Inquilinos" />
-                            <SidebarSubItem to="/documentacion" label="Archivos" />
+                            <SidebarSubItem to="/sistema/archivos" label="Explorador de archivos" />
                         </SidebarGroup>
 
                         {/* 5. Contabilidad (filtrado por permisos) */}

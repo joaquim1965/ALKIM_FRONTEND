@@ -48,7 +48,7 @@ import ProgramacionPage from "./pages/Tesoreria/Extractos/ProgramacionPage";
 import ExtractosBancariosPage from "./pages/Fiscalidad/ExtractosBancariosPage";
 import BancosCuentasPage from "./pages/Tesoreria/BancosCuentas/BancosCuentasPage";
 import MovimientosPage from "./pages/Tesoreria/MovimientosPage";
-import DocumentacionPage from "./pages/Documentacion/DocumentacionPage";
+import ExploradorArchivosPage from "./pages/Sistema/ExploradorArchivosPage";
 import EntidadesPage from "./pages/Gestion/EntidadesPage";
 import TercerosPage from "./pages/Gestion/TercerosPage";
 
@@ -202,14 +202,16 @@ function AppContent() {
           <Route path="/sistema/tareas" element={<TareasPage />} />
           {/* Navegador del servidor al grabar guiones, en ventana aparte (27/09/2026) */}
           <Route path="/pantalla-remota" element={<ProtectedRoute><PantallaRemotaPage /></ProtectedRoute>} />
+          {/* Explorador de archivos (fase 0c, 30/09/2026): sustituye a «Documentación → Archivos» */}
           <Route
-            path="/documentacion"
+            path="/sistema/archivos"
             element={
-              <ProtectedRoute>
-                <DocumentacionPage />
+              <ProtectedRoute table="s_files">
+                <ExploradorArchivosPage />
               </ProtectedRoute>
             }
           />
+          <Route path="/documentacion" element={<Navigate to="/sistema/archivos" replace />} />
           {/* Los paneles de saldo viven en «Panel de control» (/consola).
               Estas dos puertas llevan allí en vez de repetir la pantalla. */}
           <Route path="/panel" element={<Navigate to="/consola" replace />} />
