@@ -49,7 +49,7 @@ import ExtractosBancariosPage from "./pages/Fiscalidad/ExtractosBancariosPage";
 import BancosCuentasPage from "./pages/Tesoreria/BancosCuentas/BancosCuentasPage";
 import MovimientosPage from "./pages/Tesoreria/MovimientosPage";
 import DocumentacionPage from "./pages/Documentacion/DocumentacionPage";
-import EmpresasPage from "./pages/Gestion/EmpresasPage";
+import EntidadesPage from "./pages/Gestion/EntidadesPage";
 
 /**
  * ProtectedRoute (Fase 1)
@@ -184,7 +184,7 @@ function AppContent() {
             path="/gestion/empresas"
             element={
               <ProtectedRoute table="m_company">
-                <EmpresasPage />
+                <EntidadesPage />
               </ProtectedRoute>
             }
           />
