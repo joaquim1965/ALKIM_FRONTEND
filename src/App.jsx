@@ -52,6 +52,7 @@ import ExploradorArchivosPage from "./pages/Sistema/ExploradorArchivosPage";
 import EntidadesPage from "./pages/Gestion/EntidadesPage";
 import TercerosPage from "./pages/Gestion/TercerosPage";
 import PropiedadesPage from "./pages/Cartera/PropiedadesPage";
+import RecibosPage from "./pages/Cartera/RecibosPage";
 
 /**
  * ProtectedRoute (Fase 1)
@@ -209,6 +210,15 @@ function AppContent() {
             element={
               <ProtectedRoute table="im_property">
                 <PropiedadesPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Cartera → Recibos (fase 1V, 01/10/2026) */}
+          <Route
+            path="/cartera/recibos"
+            element={
+              <ProtectedRoute table="co_document">
+                <RecibosPage />
               </ProtectedRoute>
             }
           />

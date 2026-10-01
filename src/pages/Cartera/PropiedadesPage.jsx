@@ -2,7 +2,7 @@
  * PropiedadesPage — Cartera → Propiedades (01/10/2026, Plan core inmobiliaria fase 1).
  *
  * Lista de propiedades de las entidades del usuario (la entidad activa filtra)
- * y ficha con pestañas: Datos · Espacios (árbol editable) · Titulares · Préstamos · Documentos (fase 2).
+ * y ficha con pestañas: Datos · Espacios (árbol editable) · Unidades (1V) · Titulares · Préstamos · Documentos.
  * Los espacios comunes se ven en el árbol pero no son alquilables.
  *
  *   /propiedades · /propiedades/tipos · /propiedades/:id
@@ -17,6 +17,7 @@ import FichaConPestanas from '../../components/UI/FichaConPestanas';
 import DocumentosObjeto from '../../components/Documentos/DocumentosObjeto';
 import TitularesPestana from './TitularesPestana';
 import PrestamosPestana from './PrestamosPestana';
+import UnidadesPestana from './UnidadesPestana';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { useStore } from '../../hooks/useStore';
@@ -58,6 +59,9 @@ export default function PropiedadesPage() {
   const puedePrestamos = puede('ban_loan', 'Write');
   const veTitulares = puede('x_property_owner', 'Read');
   const vePrestamos = puede('ban_loan', 'Read');
+  const veUnidades = puede('im_unit', 'Read');
+  const puedeUnidades = puede('im_unit', 'Write');
+  const puedeContratos = puede('im_contract', 'Write');
   const puedeEspacios = can('im_space', 'Write');
 
   const [propiedades, setPropiedades] = useState([]);
@@ -370,6 +374,7 @@ export default function PropiedadesPage() {
           pestanas={[
             { id: 'datos', etiqueta: t('pestana_datos', 'Datos'), contenido: pestanaDatos },
             { id: 'espacios', etiqueta: t('pestana_espacios', 'Espacios'), contador: plano.length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: pestanaEspacios },
+            ...(veUnidades ? [{ id: 'unidades', etiqueta: t('pestana_unidades', 'Unidades'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <UnidadesPestana propiedadId={ficha.id} espacios={plano} puedeEscribir={puedeUnidades} puedeContratos={puedeContratos} /> }] : []),
             ...(veTitulares ? [{ id: 'titulares', etiqueta: t('pestana_titulares', 'Titulares'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <TitularesPestana propiedadId={ficha.id} puedeEscribir={puedeTitulares && !Number(ficha.datos?.es_de_tercero)} onCambio={cargar} /> }] : []),
             ...(vePrestamos ? [{ id: 'prestamos', etiqueta: t('pestana_prestamos', 'Préstamos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <PrestamosPestana propiedadId={ficha.id} puedeEscribir={puedePrestamos} /> }] : []),
             { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} /> },

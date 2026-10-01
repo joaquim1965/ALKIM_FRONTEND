@@ -16,6 +16,7 @@ const ROUTE_BREADCRUMBS = {
   '/fiscalidad/extractos': [{ label: 'Fiscalidad' }, { label: 'Extractos bancarios' }],
   '/tesoreria/extractos/logs': [{ label: 'Tesorería' }, { label: 'Extractos', path: '/tesoreria/extractos' }, { label: 'Historial' }],
   '/cartera/propiedades': [{ label: 'Cartera' }, { label: 'Propiedades' }],
+  '/cartera/recibos': [{ label: 'Cartera' }, { label: 'Recibos' }],
   '/sistema/archivos': [{ label: 'Sistema' }, { label: 'Explorador de archivos' }],
   '/gestion/terceros': [{ label: 'Gestión' }, { label: 'Terceros' }],
   '/sql-console': [{ label: 'Administración' }, { label: 'Consola SQL' }],
