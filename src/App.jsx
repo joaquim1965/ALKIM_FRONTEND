@@ -51,6 +51,7 @@ import MovimientosPage from "./pages/Tesoreria/MovimientosPage";
 import ExploradorArchivosPage from "./pages/Sistema/ExploradorArchivosPage";
 import EntidadesPage from "./pages/Gestion/EntidadesPage";
 import TercerosPage from "./pages/Gestion/TercerosPage";
+import PropiedadesPage from "./pages/Cartera/PropiedadesPage";
 
 /**
  * ProtectedRoute (Fase 1)
@@ -202,6 +203,16 @@ function AppContent() {
           <Route path="/sistema/tareas" element={<TareasPage />} />
           {/* Navegador del servidor al grabar guiones, en ventana aparte (27/09/2026) */}
           <Route path="/pantalla-remota" element={<ProtectedRoute><PantallaRemotaPage /></ProtectedRoute>} />
+          {/* Cartera → Propiedades (fase 1, 01/10/2026) */}
+          <Route
+            path="/cartera/propiedades"
+            element={
+              <ProtectedRoute table="im_property">
+                <PropiedadesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/cartera/activos" element={<Navigate to="/cartera/propiedades" replace />} />
           {/* Explorador de archivos (fase 0c, 30/09/2026): sustituye a «Documentación → Archivos» */}
           <Route
             path="/sistema/archivos"

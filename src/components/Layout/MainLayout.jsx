@@ -111,7 +111,7 @@ export const MainLayout = ({ children }) => {
                             label="Cartera" 
                             collapsed={!sidebarOpen}
                         >
-                            <SidebarSubItem to="/cartera/activos" icon={<Building2 size={13}/>} label="Activos" />
+                            <SidebarSubItem to="/cartera/propiedades" icon={<Building2 size={13}/>} label="Propiedades" />
                             <SidebarSubItem to="/cartera/unidades" icon={<Warehouse size={13}/>} label="Unid. Facturación (UF)" />
                             <SidebarSubItem to="/cartera/inquilinos" icon={<Users size={13}/>} label="Inquilinos" />
                             <SidebarSubItem to="/cartera/plantillas" icon={<ScrollText size={13}/>} label="Plantillas" />
