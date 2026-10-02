@@ -45,7 +45,8 @@ const ExtractosPage = () => {
   const [cargaPara, setCargaPara] = useState(null);
   const [cargando, setCargando] = useState({});
   const [credentialModal, setCredentialModal] = useState(null);
-  const [credentialForm, setCredentialForm] = useState({ username: '', password: '' });
+  const [quitarModal, setQuitarModal] = useState(null);
+  const [credentialForm, setCredentialForm] = useState({ username: '', password: '', clave3: '', clave4: '' });
   const [savingCredential, setSavingCredential] = useState(false);
   const [twoFactor, setTwoFactor] = useState(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
@@ -545,10 +546,29 @@ const ExtractosPage = () => {
     setAvisoAlta(res.message);
   };
 
+  // ¿La cuenta ya tiene credencial? Entonces usuario y contraseña pueden
+  // dejarse en blanco para conservarlos y añadir solo la 3.ª o la 4.ª.
+  const yaHayCredencial = Boolean(credentialModal?.credencial_estado && credentialModal.credencial_estado !== 'revocado');
+
   const openCredentialModal = (config) => {
-    setCredentialForm({ username: '', password: '' });
+    setCredentialForm({ username: '', password: '', clave3: '', clave4: '' });
     setCredentialModal(config);
   };
+
+  // Editar (02/10/2026): desde la ventana que enseña las credenciales, se abre
+  // la de guardar con los 4 valores ya puestos. Se guarda tal cual queda: una
+  // casilla 3.ª o 4.ª vaciada se borra.
+  const editCredential = () => {
+    const { config, datos } = revokeModal || {};
+    if (!config || !datos) return;
+    setRevokeModal(null);
+    setCredentialForm({
+      username: datos.credencial1 || '', password: datos.credencial2 || '',
+      clave3: datos.credencial3 || '', clave4: datos.credencial4 || '', completo: true,
+    });
+    setCredentialModal(config);
+  };
+  const editandoCredencial = Boolean(credentialForm.completo);
 
   const saveCredential = async (event) => {
     event.preventDefault();
@@ -563,7 +583,7 @@ const ExtractosPage = () => {
       const res = await response.json();
       if (!res.success) throw new Error(res.message);
       setCredentialModal(null);
-      setCredentialForm({ username: '', password: '' });
+      setCredentialForm({ username: '', password: '', clave3: '', clave4: '' });
       await fetchConfigs();
       setSyncResult({ status: 'success', log: { mensaje: res.message, finalizado: new Date() }, crid, credential: true });
     } catch (err) {
@@ -573,15 +593,39 @@ const ExtractosPage = () => {
     }
   };
 
+  // «Revocar» ya no es un `window.confirm` (02/10/2026): abre una ventana con
+  // las 4 credenciales guardadas para verlas antes de borrarlas, con
+  // «Eliminar» y «Cancelar».
+  const [revokeModal, setRevokeModal] = useState(null);
+  const [revoking, setRevoking] = useState(false);
+
   const revokeCredential = async (config) => {
-    if (!window.confirm(t('revoke_confirm'))) return;
+    setRevokeModal({ config, datos: null, error: null });
+    try {
+      const response = await apiFetch(`/crawler/credentials/${config.crid}/detalle`, { headers: authHeaders() });
+      const res = await response.json();
+      if (!res.success) throw new Error(res.message);
+      setRevokeModal({ config, datos: res.data, error: null });
+    } catch (err) {
+      setRevokeModal({ config, datos: null, error: err.message });
+    }
+  };
+
+  const confirmRevoke = async () => {
+    const config = revokeModal?.config;
+    if (!config) return;
+    setRevoking(true);
     try {
       const response = await apiFetch(`/crawler/credentials/${config.crid}`, { method: 'DELETE', headers: authHeaders() });
       const res = await response.json();
       if (!res.success) throw new Error(res.message);
+      setRevokeModal(null);
       await fetchConfigs();
     } catch (err) {
+      setRevokeModal(null);
       setSyncResult({ status: 'error', log: { mensaje: err.message }, crid: config.crid });
+    } finally {
+      setRevoking(false);
     }
   };
 
@@ -592,8 +636,15 @@ const ExtractosPage = () => {
    * de qué se lleva por delante —el guion grabado y la sesión— porque volver a
    * ponerla obliga a grabar otra vez, y eso pasa por el banco.
    */
-  const quitarCuenta = async (config) => {
-    if (!window.confirm(`${t('remove_account_confirm')}\n\n${config.banco_nombre} · ${config.cuenta_alias}`)) return;
+  // Antes era un `window.confirm` con un texto que no decía qué se iba a
+  // perder; el usuario la quitó por error (01/10/2026, Caja Rural). Ahora un
+  // diálogo propio que dice qué se conserva y qué se borra.
+  const quitarCuenta = (config) => setQuitarModal(config);
+
+  const confirmarQuitarCuenta = async () => {
+    const config = quitarModal;
+    setQuitarModal(null);
+    if (!config) return;
     try {
       const response = await apiFetch(`/crawler/cuentas/${config.crid}`, { method: 'DELETE', headers: authHeaders() });
       const res = await response.json();
@@ -624,14 +675,14 @@ const ExtractosPage = () => {
    */
   const submitTwoFactor = async (event) => {
     event.preventDefault();
-    if (twoFactor.type !== 'approval' && twoFactorCode.length < LARGO_MINIMO) return;
+    if (!['approval', 'firma'].includes(twoFactor.type) && twoFactorCode.length < LARGO_MINIMO) return;
     setTwoFactorError(null);
     setSubmittingTwoFactor(true);
     try {
       const response = await apiFetch(`/crawler/challenges/${twoFactor.id}/verify`, {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify(twoFactor.type === 'approval' ? {} : { code: twoFactorCode }),
+        body: JSON.stringify(['approval', 'firma'].includes(twoFactor.type) ? {} : { code: twoFactorCode }),
       });
       const res = await response.json();
       if (!res.success) throw new Error(res.message);
@@ -691,18 +742,6 @@ const ExtractosPage = () => {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Agregar cuenta: un «+» redondo al principio de la fila.
-              Es la acción que menos se usa —una cuenta se da de alta una vez— y
-              como botón con texto se llevaba el sitio y la atención de las que
-              se usan a diario. El rótulo sigue estando al pasar por encima. */}
-          <Tooltip texto={t('add_account_hint')}>
-            <button
-              type="button" onClick={() => setAlta(true)} aria-label={t('add_account')}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background"
-            >
-              <Plus size={20} />
-            </button>
-          </Tooltip>
           <Button variant="primary" onClick={() => navigate(bancoFiltro ? `/tesoreria/extractos/programacion?banco=${encodeURIComponent(bancoFiltro)}` : '/tesoreria/extractos/programacion')}>
             <CalendarClock size={16} /> {t('scheduled_downloads')}
           </Button>
@@ -741,8 +780,21 @@ const ExtractosPage = () => {
           un segundo control para lo mismo solo ocupa sitio. Aparece únicamente
           con más de una entidad — con una sola, un filtro que no filtra nada es
           ruido (23/08/2026). */}
+      {/* Agregar cuenta: el «+» redondo delante del selector de banco, como
+          en Bancos y cuentas (01/10/2026, petición del usuario). Antes iba
+          en la cabecera, al principio de la fila de botones. Sale siempre,
+          aunque el selector no (con un solo banco). */}
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <Tooltip texto={t('add_account_hint')}>
+          <button
+            type="button" onClick={() => setAlta(true)} aria-label={t('add_account')}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background"
+          >
+            <Plus size={20} />
+          </button>
+        </Tooltip>
       {bancos.length > 1 && (
-        <label className="mb-4 flex items-center gap-3">
+        <label className="flex items-center gap-3">
           <span className="text-[11px] font-black uppercase tracking-widest text-on-surface2">{t('bank')}</span>
           <select
             value={bancoFiltro || ''}
@@ -758,6 +810,7 @@ const ExtractosPage = () => {
           </select>
         </label>
       )}
+      </div>
 
       <div className="overflow-hidden rounded-3xl border border-border bg-surface2 shadow-2xl">
         <div className="overflow-x-auto custom-scrollbar">
@@ -1543,19 +1596,48 @@ const ExtractosPage = () => {
         </div>
       )}
 
+      {quitarModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/70 p-4" role="dialog" aria-modal="true" aria-labelledby="quitar-title">
+          <Card className="w-full max-w-lg p-6 shadow-xl">
+            <div className="mb-4 flex items-start gap-3">
+              <Trash2 size={28} className="shrink-0" />
+              <div>
+                <h2 id="quitar-title" className="text-xl font-bold">{t('remove_title', 'Vas a quitar la cuenta de la descarga automática')}</h2>
+                <p className="text-sm font-semibold">{quitarModal.banco_nombre} · {quitarModal.cuenta_alias}</p>
+              </div>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="font-semibold">{t('remove_keeps_title', 'Se conserva:')}</p>
+                <p>{t('remove_keeps', 'La cuenta bancaria, sus movimientos y la credencial del banco (usuario y clave).')}</p>
+              </div>
+              <div>
+                <p className="font-semibold">{t('remove_deletes_title', 'Se borra:')}</p>
+                <p>{t('remove_deletes', 'El guion grabado (habrá que volver a grabarlo), la sesión del navegador (el banco puede volver a pedir un código) y el historial de descargas.')}</p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setQuitarModal(null)}>{t('cancel')}</Button>
+              <Button type="button" variant="danger" onClick={confirmarQuitarCuenta}><Trash2 size={16} /> {t('confirm_button', 'Confirmar')}</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {credentialModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/70 p-4" role="dialog" aria-modal="true" aria-labelledby="credential-title">
           <Card className="w-full max-w-lg p-6 shadow-xl">
             <div className="mb-5 flex items-start gap-3">
               <KeyRound size={28} className="shrink-0" />
               <div>
-                <h2 id="credential-title" className="text-xl font-bold">{t('credential_title')}</h2>
+                <h2 id="credential-title" className="text-xl font-bold">{editandoCredencial ? t('edit_credential') : t('credential_title')}</h2>
                 <p className="text-sm text-on-surface2">{t('credential_desc').replace('{banco}', credentialModal.banco_nombre)}</p>
               </div>
             </div>
+            <p className="mb-4 rounded border border-border px-3 py-2 text-sm">{t('credential_order_note')}</p>
             <form onSubmit={saveCredential} className="space-y-4">
               <label className="block text-sm font-medium">{t('bank_username')}
-                <input autoComplete="off" required maxLength={150} value={credentialForm.username} onChange={(e) => setCredentialForm(p => ({ ...p, username: e.target.value }))} className="mt-1 w-full rounded border border-border bg-input px-3 py-2 text-on-surface1" />
+                <input autoComplete="off" required={!yaHayCredencial || editandoCredencial} maxLength={150} value={credentialForm.username} onChange={(e) => setCredentialForm(p => ({ ...p, username: e.target.value }))} className="mt-1 w-full rounded border border-border bg-input px-3 py-2 text-on-surface1" />
               </label>
               {/* Con el ojo para poder verla, igual que en la pantalla de
                   entrar a ALKIM. Una contraseña de banco es larga y se teclea a
@@ -1566,11 +1648,31 @@ const ExtractosPage = () => {
                 name="password"
                 label={t('bank_password')}
                 autoComplete="new-password"
-                required
+                required={!yaHayCredencial || editandoCredencial}
                 maxLength={300}
                 value={credentialForm.password}
                 onChange={(e) => setCredentialForm(p => ({ ...p, password: e.target.value }))}
               />
+              {/* 3.ª y 4.ª credencial (02/10/2026). La 3.ª es la clave de firma
+                  que Ruralvía pide por posiciones (en ING, la fecha de
+                  nacimiento). Lo que se deja en blanco se conserva. */}
+              <PasswordInput
+                name="clave3"
+                label={t('bank_key3')}
+                autoComplete="new-password"
+                maxLength={300}
+                value={credentialForm.clave3}
+                onChange={(e) => setCredentialForm(p => ({ ...p, clave3: e.target.value }))}
+              />
+              <PasswordInput
+                name="clave4"
+                label={t('bank_key4')}
+                autoComplete="new-password"
+                maxLength={300}
+                value={credentialForm.clave4}
+                onChange={(e) => setCredentialForm(p => ({ ...p, clave4: e.target.value }))}
+              />
+              {yaHayCredencial && !editandoCredencial && <p className="text-xs text-on-surface2">{t('credential_keep_hint')}</p>}
               <p className="text-xs text-on-surface2">{t('credential_replace_hint')}</p>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setCredentialModal(null)}>{t('cancel')}</Button>
@@ -1581,19 +1683,63 @@ const ExtractosPage = () => {
         </div>
       )}
 
+      {revokeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/70 p-4" role="dialog" aria-modal="true" aria-labelledby="revoke-title">
+          <Card className="w-full max-w-lg p-6 shadow-xl">
+            <div className="mb-4 flex items-start gap-3">
+              <KeyRound size={28} className="shrink-0" />
+              <div>
+                <h2 id="revoke-title" className="text-xl font-bold">{t('revoke')}</h2>
+                <p className="text-sm text-on-surface2">{revokeModal.config.banco_nombre}. {t('revoke_confirm')}</p>
+              </div>
+            </div>
+            {!revokeModal.datos && !revokeModal.error && <div className="flex justify-center py-6"><Spinner /></div>}
+            {revokeModal.error && (
+              <p className="rounded border border-destructive px-3 py-2 text-sm text-destructive" role="alert">{revokeModal.error}</p>
+            )}
+            {revokeModal.datos && (
+              <dl className="space-y-3">
+                {[
+                  ['bank_username', 'credencial1'],
+                  ['bank_password', 'credencial2'],
+                  ['bank_key3', 'credencial3'],
+                  ['bank_key4', 'credencial4'],
+                ].map(([etiqueta, campo]) => (
+                  <div key={campo}>
+                    <dt className="text-sm font-medium">{t(etiqueta)}</dt>
+                    <dd className="mt-1 rounded border border-border bg-input px-3 py-2 font-mono text-base text-on-surface1 break-all">
+                      {revokeModal.datos[campo] || '—'}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setRevokeModal(null)} disabled={revoking}>{t('cancel')}</Button>
+              <Button type="button" variant="primary" onClick={editCredential} disabled={revoking || !revokeModal.datos}>{t('edit_credential_btn')}</Button>
+              <Button type="button" variant="destructive" onClick={confirmRevoke} disabled={revoking}>
+                {revoking ? <Spinner size="sm" /> : t('delete_credential_btn')}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {twoFactor && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-modal-backdrop/80 p-4" role="dialog" aria-modal="true" aria-labelledby="two-factor-title">
           <Card className="w-full max-w-md p-6 shadow-xl">
             <ShieldCheck size={32} className="mb-3" />
             <h2 id="two-factor-title" className="text-xl font-bold">{t('two_factor_title')}</h2>
             <p className="mt-2 text-sm text-on-surface2">
-              {twoFactor.type === 'approval'
-                ? t('two_factor_approval')
-                : t('two_factor_code_hint')}
+              {twoFactor.type === 'firma'
+                ? t('two_factor_firma')
+                : twoFactor.type === 'approval'
+                  ? t('two_factor_approval')
+                  : t('two_factor_code_hint')}
               {' '}{t('two_factor_expires').replace('{hora}', new Date(twoFactor.expiresAt).toLocaleTimeString('es-ES'))}
             </p>
             <form onSubmit={submitTwoFactor} className="mt-5 space-y-4">
-              {twoFactor.type !== 'approval' && (
+              {!['approval', 'firma'].includes(twoFactor.type) && (
                 <label className="block text-sm font-medium">{t('two_factor_code_label')}
                   {/* **Letras y números, no solo cifras.**
                       El primer intento filtraba a dígitos dando por hecho que
@@ -1636,9 +1782,9 @@ const ExtractosPage = () => {
                   type="submit"
                   className="flex-1"
                   variant="primary"
-                  disabled={submittingTwoFactor || (twoFactor.type !== 'approval' && twoFactorCode.length < LARGO_MINIMO)}
+                  disabled={submittingTwoFactor || (!['approval', 'firma'].includes(twoFactor.type) && twoFactorCode.length < LARGO_MINIMO)}
                 >
-                  {submittingTwoFactor ? <Spinner size="sm" /> : twoFactor.type === 'approval' ? t('already_approved') : t('verify')}
+                  {submittingTwoFactor ? <Spinner size="sm" /> : twoFactor.type === 'firma' ? t('already_signed') : twoFactor.type === 'approval' ? t('already_approved') : t('verify')}
                 </Button>
               </div>
             </form>

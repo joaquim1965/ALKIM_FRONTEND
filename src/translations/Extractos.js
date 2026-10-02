@@ -475,6 +475,48 @@ export const ExtractosTranslations = {
     catalan: "Voleu treure aquest compte de la llista de descàrregues? Els moviments importats i el compte bancari es conserven; s'esborren el guió gravat, la sessió i l'historial.",
     french: "Retirer ce compte de la liste des téléchargements ? Les opérations importées et le compte bancaire sont conservés ; le script enregistré, la session et l'historique sont supprimés."
   },
+  remove_title: {
+    label: "Título del diálogo de quitar cuenta",
+    spanish: "Vas a quitar la cuenta de la descarga automática",
+    english: "You are about to remove the account from automatic download",
+    catalan: "Treuràs el compte de la descàrrega automàtica",
+    french: "Vous allez retirer le compte du téléchargement automatique"
+  },
+  remove_keeps_title: {
+    label: "Quitar cuenta: lo que se conserva (título)",
+    spanish: "Se conserva:",
+    english: "Kept:",
+    catalan: "Es conserva:",
+    french: "Conservé :"
+  },
+  remove_keeps: {
+    label: "Quitar cuenta: lo que se conserva",
+    spanish: "La cuenta bancaria, sus movimientos y la credencial del banco (usuario y clave).",
+    english: "The bank account, its transactions and the bank credential (username and password).",
+    catalan: "El compte bancari, els seus moviments i la credencial del banc (usuari i clau).",
+    french: "Le compte bancaire, ses opérations et l'identifiant de la banque (utilisateur et mot de passe)."
+  },
+  remove_deletes_title: {
+    label: "Quitar cuenta: lo que se borra (título)",
+    spanish: "Se borra:",
+    english: "Deleted:",
+    catalan: "S'esborra:",
+    french: "Supprimé :"
+  },
+  remove_deletes: {
+    label: "Quitar cuenta: lo que se borra",
+    spanish: "El guion grabado (habrá que volver a grabarlo), la sesión del navegador (el banco puede volver a pedir un código) y el historial de descargas.",
+    english: "The recorded script (it will have to be recorded again), the browser session (the bank may ask for a code again) and the download history.",
+    catalan: "El guió gravat (caldrà tornar-lo a gravar), la sessió del navegador (el banc pot tornar a demanar un codi) i l'historial de descàrregues.",
+    french: "Le script enregistré (il faudra l'enregistrer à nouveau), la session du navigateur (la banque peut redemander un code) et l'historique des téléchargements."
+  },
+  confirm_button: {
+    label: "Botón Confirmar",
+    spanish: "Confirmar",
+    english: "Confirm",
+    catalan: "Confirmar",
+    french: "Confirmer"
+  },
   bank_session_renewed: {
     label: "Sesión bancaria renovada",
     spanish: "Sesión bancaria renovada.",
@@ -848,24 +890,24 @@ export const ExtractosTranslations = {
   },
   bank_username: {
     label: "Usuario bancario",
-    spanish: "Usuario bancario",
-    english: "Bank username",
-    catalan: "Usuari bancari",
-    french: "Identifiant bancaire"
+    spanish: "Credencial 1 (Usuario/Documento/Etc)",
+    english: "Credential 1 (User/ID document/Etc)",
+    catalan: "Credencial 1 (Usuari/Document/Etc)",
+    french: "Identifiant 1 (Utilisateur/Document/Etc)"
   },
   bank_password: {
     label: "Contraseña bancaria",
-    spanish: "Contraseña bancaria",
-    english: "Bank password",
-    catalan: "Contrasenya bancària",
-    french: "Mot de passe bancaire"
+    spanish: "Credencial 2 (Password/Etc)",
+    english: "Credential 2 (Password/Etc)",
+    catalan: "Credencial 2 (Contrasenya/Etc)",
+    french: "Identifiant 2 (Mot de passe/Etc)"
   },
   credential_replace_hint: {
     label: "Aviso de reemplazo del secreto",
-    spanish: "Guardar reemplaza el secreto anterior. ALKIM nunca podrá mostrarlo de nuevo.",
-    english: "Saving replaces the previous secret. ALKIM will never be able to show it again.",
-    catalan: "Desar reemplaça el secret anterior. ALKIM mai no podrà tornar a mostrar-lo.",
-    french: "L'enregistrement remplace le secret précédent. ALKIM ne pourra plus jamais l'afficher."
+    spanish: "Guardar reemplaza lo que había en las casillas que rellenes. Para ver las credenciales guardadas, pulsa «Revocar credencial».",
+    english: "Saving replaces what was stored in the fields you fill in. To see the stored credentials, press «Revoke credential».",
+    catalan: "Desar reemplaça el que hi havia a les caselles que omplis. Per veure les credencials desades, prem «Revocar credencial».",
+    french: "L’enregistrement remplace le contenu des champs remplis. Pour voir les identifiants enregistrés, appuyez sur «Révoquer l’identifiant»."
   },
   save_securely: {
     label: "Botón guardar de forma segura",
@@ -887,6 +929,69 @@ export const ExtractosTranslations = {
     english: "Approve the login in the bank's mobile app and confirm here once you are done.",
     catalan: "Aprova l'accés a l'aplicació mòbil del banc i confirma aquí quan hagis acabat.",
     french: "Approuvez la connexion dans l'application mobile de la banque puis confirmez ici une fois terminé."
+  },
+  credential_order_note: {
+    label: "Nota: orden de las credenciales",
+    spanish: "Las credenciales se introducen en el orden en que las solicita la aplicación.",
+    english: "Credentials are entered in the order in which the application asks for them.",
+    catalan: "Les credencials s'introdueixen en l'ordre en què les demana l'aplicació.",
+    french: "Les identifiants se saisissent dans l'ordre où l'application les demande."
+  },
+  edit_credential_btn: {
+    label: "Botón editar credencial",
+    spanish: "Editar",
+    english: "Edit",
+    catalan: "Editar",
+    french: "Modifier"
+  },
+  edit_credential: {
+    label: "Título de la ventana al editar la credencial",
+    spanish: "Editar credencial bancaria",
+    english: "Edit bank credential",
+    catalan: "Editar credencial bancària",
+    french: "Modifier l'identifiant bancaire"
+  },
+  delete_credential_btn: {
+    label: "Botón eliminar credencial",
+    spanish: "Eliminar",
+    english: "Delete",
+    catalan: "Eliminar",
+    french: "Supprimer"
+  },
+  bank_key3: {
+    label: "Tercera credencial: clave de firma",
+    spanish: "Credencial 3 (Clave1)",
+    english: "Credential 3 (Key1)",
+    catalan: "Credencial 3 (Clau1)",
+    french: "Identifiant 3 (Clé1)"
+  },
+  bank_key4: {
+    label: "Cuarta credencial",
+    spanish: "Credencial 4 (Clave2)",
+    english: "Credential 4 (Key2)",
+    catalan: "Credencial 4 (Clau2)",
+    french: "Identifiant 4 (Clé2)"
+  },
+  credential_keep_hint: {
+    label: "Aviso: lo que se deja en blanco se conserva",
+    spanish: "Lo que dejes en blanco se conserva tal como estaba.",
+    english: "Anything you leave blank is kept as it was.",
+    catalan: "El que deixis en blanc es conserva tal com estava.",
+    french: "Ce que vous laissez vide est conservé tel quel."
+  },
+  two_factor_firma: {
+    label: "Instrucción de clave de firma en la ventana del banco",
+    spanish: "El banco pide la clave de firma. Escríbela tú en la ventana del banco (ALKIM no la guarda ni la teclea) y pulsa aquí cuando hayas terminado. Si después llega un código por SMS, se te pedirá aquí.",
+    english: "The bank is asking for the signing key. Type it yourself in the bank window (ALKIM neither stores nor types it) and press here when done. If an SMS code follows, you will be asked for it here.",
+    catalan: "El banc demana la clau de signatura. Escriu-la tu a la finestra del banc (ALKIM no la desa ni la tecleja) i prem aquí quan hagis acabat. Si després arriba un codi per SMS, se't demanarà aquí.",
+    french: "La banque demande la clé de signature. Saisissez-la vous-même dans la fenêtre de la banque (ALKIM ne la conserve ni ne la saisit) et appuyez ici une fois terminé. Si un code SMS suit, il vous sera demandé ici."
+  },
+  already_signed: {
+    label: "Botón ya he escrito la clave de firma",
+    spanish: "Ya la he escrito",
+    english: "I've typed it",
+    catalan: "Ja l'he escrita",
+    french: "Je l'ai saisie"
   },
   two_factor_code_hint: {
     label: "Instrucción de introducción del código",

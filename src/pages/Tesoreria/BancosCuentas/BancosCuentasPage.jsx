@@ -570,6 +570,42 @@ const BancosCuentasPage = () => {
             {/* ── Arriba: el banco ── */}
             <section className="space-y-4 rounded-3xl border border-border bg-surface2 p-5 shadow-sm">
                 <div className="flex w-full flex-col items-end gap-4 md:flex-row">
+                    {/* Botones del banco a la izquierda, delante del selector
+                        (01/10/2026, petición del usuario). */}
+                    <div className="flex shrink-0 items-center gap-4">
+                        {/* Nuevo banco: el círculo con «+» del tema, el mismo que
+                            «Agregar cuenta» en Extractos, a la izquierda de «Editar
+                            banco» (25/09/2026). Antes era un botón con texto en la
+                            cabecera. */}
+                        <Tooltip texto={t('boton_nuevo_banco')}>
+                            <button
+                                type="button" onClick={abrirNuevoBanco} aria-label={t('boton_nuevo_banco')}
+                                className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background"
+                            >
+                                <Plus size={20} />
+                            </button>
+                        </Tooltip>
+                        <Tooltip texto={t('tooltip_editar_banco')}>
+                            {/* Solo el lápiz, redondo como «+» y la papelera (01/10/2026). */}
+                            <Button
+                                variant="secondary" isIconOnly rounded="full" onClick={abrirEditarBanco} disabled={!banco}
+                                aria-label={t('boton_editar_banco')} className="h-[45px] w-[45px] shrink-0"
+                            >
+                                <Pencil size={18} />
+                            </Button>
+                        </Tooltip>
+                        {/* Papelera: borrar el banco. Apagada mientras tenga cuentas. */}
+                        <Tooltip texto={banco && cuentasDelBanco.length ? t('tooltip_eliminar_banco_con_cuentas') : t('boton_eliminar_banco')}>
+                            <button
+                                type="button" onClick={borrarBanco}
+                                disabled={!banco || cuentasDelBanco.length > 0 || guardando}
+                                aria-label={t('boton_eliminar_banco')}
+                                className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-destructive-border bg-destructive text-on-destructive transition-colors hover:border-on-background disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <Trash2 size={19} />
+                            </button>
+                        </Tooltip>
+                    </div>
                     <div className="w-full flex-1 space-y-1.5">
                         <label htmlFor="selector-banco" className="ml-1 text-[11px] font-black uppercase tracking-widest text-on-surface2">
                             {t('label_banco')}
@@ -587,34 +623,6 @@ const BancosCuentasPage = () => {
                             <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-on-surface2/50" />
                         </div>
                     </div>
-                    {/* Nuevo banco: el círculo con «+» del tema, el mismo que
-                        «Agregar cuenta» en Extractos, a la izquierda de «Editar
-                        banco» (25/09/2026). Antes era un botón con texto en la
-                        cabecera. */}
-                    <Tooltip texto={t('boton_nuevo_banco')}>
-                        <button
-                            type="button" onClick={abrirNuevoBanco} aria-label={t('boton_nuevo_banco')}
-                            className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background"
-                        >
-                            <Plus size={20} />
-                        </button>
-                    </Tooltip>
-                    <Tooltip texto={t('tooltip_editar_banco')}>
-                        <Button variant="secondary" size="lg" onClick={abrirEditarBanco} disabled={!banco} leftIcon={<Pencil size={18} />}>
-                            {t('boton_editar_banco')}
-                        </Button>
-                    </Tooltip>
-                    {/* Papelera: borrar el banco. Apagada mientras tenga cuentas. */}
-                    <Tooltip texto={banco && cuentasDelBanco.length ? t('tooltip_eliminar_banco_con_cuentas') : t('boton_eliminar_banco')}>
-                        <button
-                            type="button" onClick={borrarBanco}
-                            disabled={!banco || cuentasDelBanco.length > 0 || guardando}
-                            aria-label={t('boton_eliminar_banco')}
-                            className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-destructive-border bg-destructive text-on-destructive transition-colors hover:border-on-background disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            <Trash2 size={19} />
-                        </button>
-                    </Tooltip>
                 </div>
 
                 {banco && (
