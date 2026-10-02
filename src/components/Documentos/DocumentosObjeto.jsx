@@ -19,15 +19,12 @@ import { Upload, Download, Trash2, Pencil, Link2, Unlink, AlertTriangle, Lock, C
 import Button from '../UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
+import { formatTamano } from '../../utils/format';
+import { Campo, Casilla, AvisoError, AvisoOk, CLASE_INPUT, Recuadro, claseFila, BotonFila } from '../UI/TemaPagina';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 const fecha = (v) => (v ? String(v).slice(0, 10) : '');
-const tamano = (b) => {
-  const n = Number(b) || 0;
-  if (n < 1024) return `${n} B`;
-  if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / 1048576).toFixed(1)} MB`;
-};
+const tamano = formatTamano;
 
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: authHeaders() });
@@ -36,8 +33,6 @@ async function pedir(url, opciones = {}) {
   return b;
 }
 
-const claseInput = 'mt-1 w-full rounded-lg border border-border bg-surface1 px-3 py-2 text-on-background';
-const Campo = ({ etiqueta, children }) => <label className="block text-sm font-bold text-on-background">{etiqueta}{children}</label>;
 
 export default function DocumentosObjeto({ tabla, id, soloLectura = false }) {
   const { t } = useTmTr('Documentos');
@@ -145,17 +140,17 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false }) {
     catch (e) { setError(e.message); }
   };
 
-  if (!datos && !error) return <p className="py-6 text-center text-sm">{t('cargando', 'Cargando…')}</p>;
+  if (!datos && !error) return <p className="py-6 text-center text-xs font-bold uppercase tracking-widest">{t('cargando', 'Cargando…')}</p>;
 
   return (
     <div className="space-y-4">
-      {error && <div role="alert" className="rounded-lg border border-destructive px-3 py-2 text-sm text-destructive-text">{error}</div>}
-      {aviso && <div role="status" className="rounded-lg border border-border px-3 py-2 text-sm">{aviso}</div>}
+      <AvisoError>{error}</AvisoError>
+      <AvisoOk>{aviso}</AvisoOk>
 
       {datos && (
-        <section aria-label={t('que_falta', 'Qué falta')} className="rounded-xl border border-border p-4">
-          <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest">
-            {datos.faltan.length ? <AlertTriangle size={16} className="text-warning" /> : <CheckCircle2 size={16} className="text-success" />}
+        <Recuadro as="section" aria-label={t('que_falta', 'Qué falta')} className="text-on-surface2">
+          <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
+            {datos.faltan.length ? <AlertTriangle size={16} className="text-warning-border" /> : <CheckCircle2 size={16} className="text-success-border" />}
             {t('que_falta', 'Qué falta')}
           </h3>
           {datos.faltan.length
@@ -168,8 +163,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false }) {
                 ))}
               </ul>
             )
-            : <p className="mt-2 text-sm">{t('nada_falta', 'Están todos los documentos obligatorios.')}</p>}
-        </section>
+            : <p className="mt-2 text-sm font-bold">{t('nada_falta', 'Están todos los documentos obligatorios.')}</p>}
+        </Recuadro>
       )}
 
       {!soloLectura && !subida && (
@@ -177,61 +172,67 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false }) {
       )}
 
       {subida && (
-        <form onSubmit={subir} className="space-y-3 rounded-xl border border-border p-4">
-          <div className="flex justify-between">
-            <h3 className="font-black text-on-background">{t('subir', 'Subir documentos')}</h3>
-            <button type="button" onClick={() => setSubida(null)} aria-label={t('cerrar', 'Cerrar')}><X size={18} /></button>
+        <Recuadro as="form" onSubmit={subir} className="space-y-3">
+          <div className="flex justify-between text-on-surface2">
+            <h3 className="font-black tracking-tight">{t('subir', 'Subir documentos')}</h3>
+            <BotonFila icono={<X size={18} />} titulo={t('cerrar', 'Cerrar')} onClick={() => setSubida(null)} />
           </div>
           <Campo etiqueta={t('ficheros', 'Archivos (PDF, imagen, Word, Excel; máx. 20 MB cada uno)')}>
-            <input type="file" multiple onChange={(e) => setSubida((s) => ({ ...s, ficheros: [...e.target.files] }))} className={claseInput} />
+            <input type="file" multiple onChange={(e) => setSubida((s) => ({ ...s, ficheros: [...e.target.files] }))} className={CLASE_INPUT} />
           </Campo>
           <div className="grid gap-3 sm:grid-cols-3">
             <Campo etiqueta={t('categoria', 'Tipo de documento')}>
               <select value={subida.categoria_id} onChange={(e) => {
                 const c = datos.categorias.find((x) => String(x.id) === e.target.value);
                 setSubida((s) => ({ ...s, categoria_id: e.target.value, confidencial: Boolean(Number(c?.confidencial)) }));
-              }} className={claseInput}>
+              }} className={CLASE_INPUT}>
                 {datos.categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c)}{Number(c.obligatorio) ? ' *' : ''}</option>)}
               </select>
             </Campo>
-            <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><input type="date" max={hoy()} value={subida.fecha_documento} onChange={(e) => setSubida((s) => ({ ...s, fecha_documento: e.target.value }))} className={claseInput} /></Campo>
-            <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={subida.ejercicio} onChange={(e) => setSubida((s) => ({ ...s, ejercicio: e.target.value }))} className={claseInput} /></Campo>
+            <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><input type="date" max={hoy()} value={subida.fecha_documento} onChange={(e) => setSubida((s) => ({ ...s, fecha_documento: e.target.value }))} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={subida.ejercicio} onChange={(e) => setSubida((s) => ({ ...s, ejercicio: e.target.value }))} className={CLASE_INPUT} /></Campo>
             {Number(datos.categorias.find((c) => String(c.id) === String(subida.categoria_id))?.caduca) === 1 && (
-              <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><input type="date" value={subida.fecha_caducidad} onChange={(e) => setSubida((s) => ({ ...s, fecha_caducidad: e.target.value }))} className={claseInput} /></Campo>
+              <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><input type="date" value={subida.fecha_caducidad} onChange={(e) => setSubida((s) => ({ ...s, fecha_caducidad: e.target.value }))} className={CLASE_INPUT} /></Campo>
             )}
-            <div className="sm:col-span-2"><Campo etiqueta={t('descripcion', 'Descripción')}><input maxLength={500} value={subida.descripcion} onChange={(e) => setSubida((s) => ({ ...s, descripcion: e.target.value }))} className={claseInput} /></Campo></div>
+            <div className="sm:col-span-2"><Campo etiqueta={t('descripcion', 'Descripción')}><input maxLength={500} value={subida.descripcion} onChange={(e) => setSubida((s) => ({ ...s, descripcion: e.target.value }))} className={CLASE_INPUT} /></Campo></div>
           </div>
-          <label className="flex items-center gap-2 text-sm font-bold text-on-background">
-            <input type="checkbox" checked={subida.confidencial} onChange={(e) => setSubida((s) => ({ ...s, confidencial: e.target.checked }))} className="h-4 w-4" />
-            {t('confidencial', 'Confidencial (solo lo ven quienes gestionan)')}
-          </label>
+          <Casilla etiqueta={t('confidencial', 'Confidencial (solo lo ven quienes gestionan)')} checked={subida.confidencial} onChange={(v) => setSubida((s) => ({ ...s, confidencial: v }))} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setSubida(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('subir_boton', 'Subir')}</Button>
           </div>
-        </form>
+        </Recuadro>
       )}
 
-      {porCategoria.length === 0 && <p className="text-sm">{t('sin_documentos', 'Todavía no hay documentos.')}</p>}
+      {porCategoria.length === 0 && <p className="text-xs font-bold uppercase tracking-widest">{t('sin_documentos', 'Todavía no hay documentos.')}</p>}
 
       {porCategoria.map((g) => (
-        <section key={g.codigo} className="rounded-xl border border-border">
-          <h3 className="border-b border-border px-4 py-2 text-sm font-black text-on-background">{nombreCat(g)} · {g.archivos.length}</h3>
+        <section key={g.codigo} className="overflow-hidden rounded-2xl border border-border">
+          <h3 className="border-b border-border bg-table-header px-4 py-3 text-[11px] font-black uppercase tracking-widest text-on-table-header">{nombreCat(g)} · {g.archivos.length}</h3>
           <ul>
-            {g.archivos.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2 last:border-b-0">
+            {g.archivos.map((a, i) => (
+              <li key={a.id} className={`flex flex-wrap items-center gap-3 px-4 py-2 ${claseFila(i)}`}>
+                {/* Acciones a la izquierda, como en todas las listas */}
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <BotonFila icono={<Download size={15} />} titulo={t('descargar', 'Descargar')} onClick={() => descargar(a)} />
+                  {!soloLectura && <>
+                    <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, campos: { categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)) } })} />
+                    <BotonFila icono={<Link2 size={15} />} titulo={t('vincular', 'Vincular a otra entidad')} onClick={() => abrirVinculo(a)} />
+                    {a.principal && <BotonFila icono={<Trash2 size={15} />} titulo={t('papelera', 'Mover a la papelera')} onClick={() => papelera(a)} />}
+                  </>}
+                </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold text-on-background">
+                  <p className="truncate text-sm font-black tracking-tight">
                     {Number(a.confidencial) === 1 && <Lock size={13} className="mr-1 inline" aria-label={t('confidencial_corto', 'Confidencial')} />}
                     {a.nombre_original}
                   </p>
-                  <p className="text-xs">
+                  <p className="text-xs font-bold">
                     {[fecha(a.fecha_documento), a.ejercicio && `${t('ejercicio', 'Ejercicio')} ${a.ejercicio}`, tamano(a.tamanyo_bytes),
                       a.fecha_caducidad && `${t('caduca', 'caduca')} ${fecha(a.fecha_caducidad)}`,
                       !a.principal && t('vinculado', 'vinculado desde otro objeto'), a.descripcion].filter(Boolean).join(' · ')}
                   </p>
                   {a.vinculos?.length > 0 && (
-                    <p className="text-xs">
+                    <p className="text-xs font-bold">
                       {t('se_ve_en', 'También se ve en')}: {a.vinculos.map((v) => (
                         <span key={v.id} className="mr-2">{v.objeto_tabla} {v.objeto_id}
                           {!soloLectura && a.principal && <button type="button" className="ml-1" aria-label={t('desvincular', 'Desvincular')} onClick={() => desvincular(a, v)}><Unlink size={12} className="inline" /></button>}
@@ -240,12 +241,6 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false }) {
                     </p>
                   )}
                 </div>
-                <Button size="xs" variant="ghost" aria-label={t('descargar', 'Descargar')} onClick={() => descargar(a)}><Download size={15} /></Button>
-                {!soloLectura && <>
-                  <Button size="xs" variant="ghost" aria-label={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, campos: { categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)) } })}><Pencil size={15} /></Button>
-                  <Button size="xs" variant="ghost" aria-label={t('vincular', 'Vincular a otra entidad')} onClick={() => abrirVinculo(a)}><Link2 size={15} /></Button>
-                  {a.principal && <Button size="xs" variant="ghost" aria-label={t('papelera', 'Mover a la papelera')} onClick={() => papelera(a)}><Trash2 size={15} /></Button>}
-                </>}
               </li>
             ))}
           </ul>
@@ -253,38 +248,35 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false }) {
       ))}
 
       {edicion && (
-        <form onSubmit={guardarEdicion} className="space-y-3 rounded-xl border border-border p-4">
-          <div className="flex justify-between">
-            <h3 className="font-black text-on-background">{t('editar_titulo', 'Editar «{nombre}»').replace('{nombre}', edicion.archivo.nombre_original)}</h3>
-            <button type="button" onClick={() => setEdicion(null)} aria-label={t('cerrar', 'Cerrar')}><X size={18} /></button>
+        <Recuadro as="form" onSubmit={guardarEdicion} className="space-y-3">
+          <div className="flex justify-between text-on-surface2">
+            <h3 className="font-black tracking-tight">{t('editar_titulo', 'Editar «{nombre}»').replace('{nombre}', edicion.archivo.nombre_original)}</h3>
+            <BotonFila icono={<X size={18} />} titulo={t('cerrar', 'Cerrar')} onClick={() => setEdicion(null)} />
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-              <select value={edicion.campos.categoria_id} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(e.target.value) } }))} className={claseInput}>
+              <select value={edicion.campos.categoria_id} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(e.target.value) } }))} className={CLASE_INPUT}>
                 {datos.categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c)}</option>)}
               </select>
             </Campo>
-            <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><input type="date" value={edicion.campos.fecha_documento} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_documento: e.target.value } }))} className={claseInput} /></Campo>
-            <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={edicion.campos.ejercicio} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, ejercicio: e.target.value } }))} className={claseInput} /></Campo>
-            <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><input type="date" value={edicion.campos.fecha_caducidad} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_caducidad: e.target.value } }))} className={claseInput} /></Campo>
-            <div className="sm:col-span-2"><Campo etiqueta={t('descripcion', 'Descripción')}><input maxLength={500} value={edicion.campos.descripcion} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, descripcion: e.target.value } }))} className={claseInput} /></Campo></div>
+            <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><input type="date" value={edicion.campos.fecha_documento} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_documento: e.target.value } }))} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={edicion.campos.ejercicio} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, ejercicio: e.target.value } }))} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><input type="date" value={edicion.campos.fecha_caducidad} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_caducidad: e.target.value } }))} className={CLASE_INPUT} /></Campo>
+            <div className="sm:col-span-2"><Campo etiqueta={t('descripcion', 'Descripción')}><input maxLength={500} value={edicion.campos.descripcion} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, descripcion: e.target.value } }))} className={CLASE_INPUT} /></Campo></div>
           </div>
-          <label className="flex items-center gap-2 text-sm font-bold text-on-background">
-            <input type="checkbox" checked={edicion.campos.confidencial} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, confidencial: e.target.checked } }))} className="h-4 w-4" />
-            {t('confidencial', 'Confidencial (solo lo ven quienes gestionan)')}
-          </label>
+          <Casilla etiqueta={t('confidencial', 'Confidencial (solo lo ven quienes gestionan)')} checked={edicion.campos.confidencial} onChange={(v) => setEdicion((s) => ({ ...s, campos: { ...s.campos, confidencial: v } }))} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setEdicion(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>
-        </form>
+        </Recuadro>
       )}
 
       {vinculo && (
-        <form onSubmit={vincular} className="space-y-3 rounded-xl border border-border p-4">
-          <h3 className="font-black text-on-background">{t('vincular_titulo', 'Que «{nombre}» se vea también en…').replace('{nombre}', vinculo.archivo.nombre_original)}</h3>
+        <Recuadro as="form" onSubmit={vincular} className="space-y-3">
+          <h3 className="font-black tracking-tight text-on-surface2">{t('vincular_titulo', 'Que «{nombre}» se vea también en…').replace('{nombre}', vinculo.archivo.nombre_original)}</h3>
           <Campo etiqueta={t('entidad', 'Entidad')}>
-            <select value={vinculo.entidad_id} onChange={(e) => setVinculo((s) => ({ ...s, entidad_id: e.target.value }))} className={claseInput}>
+            <select value={vinculo.entidad_id} onChange={(e) => setVinculo((s) => ({ ...s, entidad_id: e.target.value }))} className={CLASE_INPUT}>
               <option value="">—</option>
               {entidades.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
             </select>
@@ -293,7 +285,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false }) {
             <Button type="button" variant="secondary" onClick={() => setVinculo(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado} disabled={!vinculo.entidad_id}>{t('vincular_boton', 'Vincular')}</Button>
           </div>
-        </form>
+        </Recuadro>
       )}
     </div>
   );

@@ -16,10 +16,16 @@ import Button from '../../components/UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { useStore } from '../../hooks/useStore';
+import { formatImporte, formatPorcentaje } from '../../utils/format';
+import {
+  CabeceraPagina, Panel, CabeceraPanel, Campo, AvisoError, AvisoOk, Rotulo, SinDato, CLASE_INPUT,
+  TablaTema, claseFila, TD, FilaVacia, BotonFila,
+} from '../../components/UI/TemaPagina';
 
 const ESTADOS = ['EMITIDO', 'PARCIAL', 'PAGADO', 'IMPAGADO', 'ANULADO'];
 const mesActual = () => new Date().toISOString().slice(0, 7);
-const euros = (v) => (v == null || v === '' ? '—' : Number(v).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+// Cifras con punto de millares (NORMAS §9). La unidad va en el rótulo.
+const euros = (v) => (v == null || v === '' ? '' : formatImporte(v, ''));
 
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: authHeaders() });
@@ -27,8 +33,6 @@ async function pedir(url, opciones = {}) {
   if (!r.ok) throw new Error(b.errors?.[0] ? `${b.errors[0].field ? `${b.errors[0].field}: ` : ''}${b.errors[0].message}` : (b.message || `Error ${r.status}`));
   return b;
 }
-const claseInput = 'mt-1 w-full rounded-lg border border-border bg-surface1 px-3 py-2 text-on-background';
-const Campo = ({ etiqueta, children, ancho = '' }) => <label className={`block text-sm font-bold text-on-background ${ancho}`}>{etiqueta}{children}</label>;
 
 export default function RecibosPage() {
   const { t } = useTmTr('Recibos');
@@ -98,76 +102,60 @@ export default function RecibosPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end gap-3">
-        <div className="flex-1">
-          <p className="text-xs font-black uppercase tracking-widest">{t('seccion', 'Cartera')}</p>
-          <h1 className="text-2xl font-black text-on-background">{t('titulo', 'Recibos')}</h1>
-          <p className="text-sm">{t('subtitulo', 'Recibos de alquiler del mes y su cobro en el banco. Pantalla provisional (corte vertical).')}</p>
-        </div>
-      </header>
-
-      {error && <div role="alert" className="rounded-xl border border-destructive bg-surface1 px-4 py-3 text-sm text-destructive-text">{error}</div>}
-      {aviso && <div role="status" className="rounded-xl border border-border bg-surface1 px-4 py-3 text-sm">{aviso}</div>}
+      <CabeceraPagina icono={<Receipt size={24} />} titulo={t('titulo', 'Recibos')} subtitulo={t('subtitulo', 'Recibos de alquiler del mes y su cobro en el banco. Pantalla provisional (corte vertical).')} />
+      <AvisoError>{error}</AvisoError>
+      <AvisoOk>{aviso}</AvisoOk>
 
       {puedeGenerar && (
-        <form onSubmit={generar} className="grid gap-3 rounded-2xl border border-border bg-surface2 p-4 sm:grid-cols-4">
-          <h2 className="font-black text-on-background sm:col-span-4">{t('generar', 'Generar el recibo de un mes')}</h2>
+        <Panel className="p-5"><form onSubmit={generar} className="grid gap-3 sm:grid-cols-4">
+          <h2 className="font-black tracking-tight text-on-surface2 sm:col-span-4">{t('generar', 'Generar el recibo de un mes')}</h2>
           <Campo etiqueta={t('contrato', 'Contrato')} ancho="sm:col-span-2">
-            <select required value={gen.contrato_id} onChange={(e) => setGen((s) => ({ ...s, contrato_id: e.target.value }))} className={claseInput}>
+            <select required value={gen.contrato_id} onChange={(e) => setGen((s) => ({ ...s, contrato_id: e.target.value }))} className={CLASE_INPUT}>
               <option value="">—</option>
-              {contratos.map((c) => <option key={c.id} value={c.id}>{c.unidad_codigo} · {c.inquilino || '—'} · {euros(c.renta_mensual)} € · {c.arrendador_nombre}</option>)}
+              {contratos.map((c) => <option key={c.id} value={c.id}>{c.unidad_codigo} · {c.inquilino || '?'} · {euros(c.renta_mensual)}€ · {c.arrendador_nombre}</option>)}
             </select>
           </Campo>
-          <Campo etiqueta={t('mes', 'Mes')}><input required type="month" value={gen.mes} onChange={(e) => setGen((s) => ({ ...s, mes: e.target.value }))} className={claseInput} /></Campo>
+          <Campo etiqueta={t('mes', 'Mes')}><input required type="month" value={gen.mes} onChange={(e) => setGen((s) => ({ ...s, mes: e.target.value }))} className={CLASE_INPUT} /></Campo>
           <div className="flex items-end"><Button type="submit" loading={ocupado} leftIcon={<Plus size={16} />}>{t('generar_boton', 'Generar')}</Button></div>
-        </form>
+        </form></Panel>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-surface2">
-        <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-border text-on-background"><Receipt size={20} /></div>
-          <h2 className="flex-1 font-black text-on-background">{t('lista', 'Recibos')} <span className="font-mono">({(recibos || []).length})</span></h2>
+      <Panel className="overflow-hidden">
+        <CabeceraPanel icono={<Receipt size={20} />} titulo={t('lista', 'Recibos')} contador={String((recibos || []).length)}>
           {contratoFiltro && <Button size="sm" variant="outline" leftIcon={<X size={14} />} onClick={() => { setParams({}); setMes(mesActual()); }}>{t('quitar_filtro', 'Quitar filtro de contrato')}</Button>}
-          <label className="text-sm font-bold text-on-background">{t('mes', 'Mes')} <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="ml-1 rounded-lg border border-border bg-surface1 px-2 py-1 text-on-background" /></label>
-          <select value={estado} onChange={(e) => setEstado(e.target.value)} aria-label={t('col_estado', 'Estado')} className="rounded-lg border border-border bg-surface1 px-3 py-2 text-sm text-on-background">
+          <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} aria-label={t('mes', 'Mes')} className="input-base px-3 py-2 text-sm" />
+          <select value={estado} onChange={(e) => setEstado(e.target.value)} aria-label={t('col_estado', 'Estado')} className="input-base px-3 py-2 text-sm">
             <option value="">{t('todos_estados', 'Todos los estados')}</option>
             {ESTADOS.map((x) => <option key={x} value={x}>{t(`estado_${x.toLowerCase()}`, x)}</option>)}
           </select>
-        </div>
-        <div className="overflow-x-auto p-3">
-          <table className="w-full text-sm">
-            <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-              <th className="p-2">{t('col_numero', 'Número')}</th><th className="p-2">{t('col_periodo', 'Periodo')}</th><th className="p-2">{t('col_unidad', 'Unidad')}</th>
-              <th className="p-2">{t('col_inquilino', 'Inquilino')}</th><th className="p-2">{t('col_entidad', 'Emite')}</th>
-              <th className="p-2 text-right">{t('col_total', 'Total (€)')}</th><th className="p-2 text-right">{t('col_cobrado', 'Cobrado (€)')}</th><th className="p-2">{t('col_estado', 'Estado')}</th>
-            </tr></thead>
-            <tbody>
-              {(recibos || []).map((r) => (
+        </CabeceraPanel>
+        <div className="p-3">
+          <TablaTema columnas={[{ texto: t('col_numero', 'Número') }, { texto: t('col_periodo', 'Periodo') }, { texto: t('col_unidad', 'Unidad') }, { texto: t('col_inquilino', 'Inquilino') }, { texto: t('col_entidad', 'Emite') }, { texto: t('col_total', 'Total (€)'), derecha: true }, { texto: t('col_cobrado', 'Cobrado (€)'), derecha: true }, { texto: t('col_estado', 'Estado') }]}>
+              {(recibos || []).map((r, i) => (
                 <tr key={r.id} tabIndex={0} onClick={() => abrir(r.id)} onKeyDown={(e) => e.key === 'Enter' && abrir(r.id)}
-                  className={`cursor-pointer bg-table-row text-on-table-row border-b border-border hover:bg-table-row-hover hover:text-on-table-row-hover ${abierto?.id === r.id ? 'font-black' : ''}`}>
-                  <td className="p-2 font-mono">{r.serie}/{r.numero}</td>
-                  <td className="p-2 font-mono">{r.periodo_desde} → {r.periodo_hasta}</td>
-                  <td className="p-2">{r.unidad_codigo} · {r.unidad_nombre}</td>
-                  <td className="p-2">{r.inquilino || '—'}</td>
-                  <td className="p-2">{r.entidad_nombre}</td>
-                  <td className="p-2 text-right font-mono">{euros(r.total)}</td>
-                  <td className="p-2 text-right font-mono">{euros(r.pagado)}</td>
-                  <td className="p-2 font-bold">{t(`estado_${String(r.estado).toLowerCase()}`, r.estado)}</td>
+                  className={claseFila(i, { seleccionada: abierto?.id === r.id, clic: true })}>
+                  <td className={`${TD} font-mono font-black`}>{r.serie}/{r.numero}</td>
+                  <td className={`${TD} font-mono`}>{r.periodo_desde} → {r.periodo_hasta}</td>
+                  <td className={TD}>{r.unidad_codigo} · {r.unidad_nombre}</td>
+                  <td className={`${TD} font-black tracking-tight`}>{r.inquilino || <SinDato />}</td>
+                  <td className={TD}>{r.entidad_nombre}</td>
+                  <td className={`${TD} text-right font-mono`}>{euros(r.total)}</td>
+                  <td className={`${TD} text-right font-mono`}>{euros(r.pagado)}</td>
+                  <td className={`${TD} font-bold`}>{t(`estado_${String(r.estado).toLowerCase()}`, r.estado)}</td>
                 </tr>
               ))}
-              {recibos && !recibos.length && <tr className="bg-table-row text-on-table-row"><td colSpan={8} className="p-4 text-center">{t('vacio', 'No hay recibos con estos filtros.')}</td></tr>}
-            </tbody>
-          </table>
+              {recibos && !recibos.length && <FilaVacia columnas={8}>{t('vacio', 'No hay recibos con estos filtros.')}</FilaVacia>}
+          </TablaTema>
         </div>
-      </section>
+      </Panel>
 
       {abierto && (
-        <section className="space-y-4 rounded-2xl border border-border bg-surface2 p-5" aria-label={t('detalle', 'Detalle del recibo')}>
-          <div className="flex flex-wrap items-start gap-3">
-            <div className="flex-1">
-              <h2 className="text-xl font-black text-on-background">{t('recibo', 'Recibo')} <span className="font-mono">{abierto.serie}/{abierto.numero}</span> · {t(`estado_${String(abierto.estado).toLowerCase()}`, abierto.estado)}</h2>
-              <p className="text-sm">{abierto.entidad_nombre}{abierto.entidad_nif ? ` (${abierto.entidad_nif})` : ''} → {abierto.inquilino || '—'} · {abierto.propiedad_codigo} {abierto.unidad_codigo} · {t('contrato', 'Contrato')} <span className="font-mono">{abierto.contrato_codigo}</span></p>
-              <p className="text-sm">{t('col_total', 'Total (€)')}: <span className="font-mono">{euros(abierto.total)}</span> · {t('col_cobrado', 'Cobrado (€)')}: <span className="font-mono">{euros(abierto.pagado)}</span> · {t('pendiente', 'Pendiente (€)')}: <span className="font-mono">{euros(Number(abierto.total) - Number(abierto.pagado))}</span></p>
+        <Panel className="space-y-4 p-5 text-on-surface2">
+          <div className="flex flex-wrap items-start gap-3" aria-label={t('detalle', 'Detalle del recibo')}>
+            <div className="flex-1 space-y-1">
+              <h2 className="text-xl font-black tracking-tight">{t('recibo', 'Recibo')} <span className="font-mono">{abierto.serie}/{abierto.numero}</span> · {t(`estado_${String(abierto.estado).toLowerCase()}`, abierto.estado)}</h2>
+              <p className="text-sm font-bold">{abierto.entidad_nombre}{abierto.entidad_nif ? ` (${abierto.entidad_nif})` : ''} → {abierto.inquilino || t('sin_inquilino', 'sin inquilino')} · {abierto.propiedad_codigo} {abierto.unidad_codigo} · {t('contrato', 'Contrato')} <span className="font-mono">{abierto.contrato_codigo}</span></p>
+              <p className="text-sm font-bold">{t('col_total', 'Total (€)')}: <span className="font-mono">{euros(abierto.total)}</span> · {t('col_cobrado', 'Cobrado (€)')}: <span className="font-mono">{euros(abierto.pagado)}</span> · {t('pendiente', 'Pendiente (€)')}: <span className="font-mono">{euros(Number(abierto.total) - Number(abierto.pagado))}</span></p>
             </div>
             {puedeGenerar && abierto.estado !== 'ANULADO' && !abierto.cobros.length && <Button size="sm" variant="outline" leftIcon={<Ban size={15} />} onClick={anular}>{t('anular', 'Anular')}</Button>}
             <Button size="sm" variant="secondary" leftIcon={<X size={15} />} onClick={() => { setAbierto(null); setCand(null); }}>{t('cerrar', 'Cerrar')}</Button>
@@ -176,74 +164,58 @@ export default function RecibosPage() {
           {abierto.lineas.map((l) => {
             const rep = abierto.reparto.find((x) => x.linea_id === l.id)?.filas || [];
             return (
-              <div key={l.id} className="rounded-xl border border-border p-3">
-                <p className="text-sm font-bold text-on-background">{l.descripcion} · <span className="font-mono">{euros(l.base)} €</span>{Number(l.cuota_iva) ? <> · IVA <span className="font-mono">{euros(l.cuota_iva)}</span></> : null}{Number(l.retencion) ? <> · {t('retencion', 'Retención')} <span className="font-mono">{euros(l.retencion)}</span></> : null}</p>
-                <h3 className="mt-2 text-xs font-black uppercase tracking-widest">{t('reparto', 'A quién va el ingreso')}</h3>
-                <table className="mt-1 w-full text-sm">
-                  <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-                    <th className="p-2">{t('col_titular', 'Titular')}</th><th className="p-2 text-right">%</th><th className="p-2 text-right">{t('col_importe', 'Importe (€)')}</th>
-                  </tr></thead>
-                  <tbody>
-                    {rep.map((f) => (
-                      <tr key={f.titular_id ?? 'sin'} className="bg-table-row text-on-table-row border-b border-border">
-                        <td className="p-2 font-bold">{f.titular_nombre || t('sin_titular', 'Sin titular (revisa la pestaña Titulares)')}</td>
-                        <td className="p-2 text-right font-mono">{Number(f.porcentaje).toLocaleString('es-ES', { maximumFractionDigits: 3 })}</td>
-                        <td className="p-2 text-right font-mono">{euros(f.importe)}</td>
+              <div key={l.id} className="rounded-2xl border border-border p-4">
+                <p className="text-sm font-black">{l.descripcion} · <span className="font-mono">{euros(l.base)}€</span>{Number(l.cuota_iva) ? <> · IVA <span className="font-mono">{euros(l.cuota_iva)}</span></> : null}{Number(l.retencion) ? <> · {t('retencion', 'Retención')} <span className="font-mono">{euros(l.retencion)}</span></> : null}</p>
+                <Rotulo className="mb-2 mt-3">{t('reparto', 'A quién va el ingreso')}</Rotulo>
+                <TablaTema columnas={[{ texto: t('col_titular', 'Titular') }, { texto: '%', derecha: true }, { texto: t('col_importe', 'Importe (€)'), derecha: true }]}>
+                    {rep.map((f, i) => (
+                      <tr key={f.titular_id ?? 'sin'} className={claseFila(i)}>
+                        <td className={`${TD} font-black tracking-tight`}>{f.titular_nombre || t('sin_titular', 'Sin titular (revisa la pestaña Titulares)')}</td>
+                        <td className={`${TD} text-right font-mono`}>{formatPorcentaje(f.porcentaje)}</td>
+                        <td className={`${TD} text-right font-mono`}>{euros(f.importe)}</td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
+                </TablaTema>
               </div>
             );
           })}
 
           <div>
-            <h3 className="mb-1 text-xs font-black uppercase tracking-widest">{t('cobros', 'Cobros')}</h3>
-            {!abierto.cobros.length && <p className="text-sm">{t('sin_cobros', 'Todavía sin cobrar.')}</p>}
+            <Rotulo className="mb-2">{t('cobros', 'Cobros')}</Rotulo>
+            {!abierto.cobros.length && <p className="text-sm font-bold">{t('sin_cobros', 'Todavía sin cobrar.')}</p>}
             {abierto.cobros.length > 0 && (
-              <table className="w-full text-sm">
-                <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-                  <th className="p-2">{t('col_fecha', 'Fecha')}</th><th className="p-2">{t('col_movimiento', 'Movimiento')}</th><th className="p-2 text-right">{t('col_importe', 'Importe (€)')}</th><th />
-                </tr></thead>
-                <tbody>
-                  {abierto.cobros.map((c) => (
-                    <tr key={c.id} className="bg-table-row text-on-table-row border-b border-border">
-                      <td className="p-2 font-mono">{c.fecha}</td>
-                      <td className="p-2">{c.cuenta_alias} · {c.concepto_bancario || t('efectivo', 'Efectivo')}</td>
-                      <td className="p-2 text-right font-mono">{euros(c.importe)}</td>
-                      <td className="p-2 text-right">{puedeCobrar && <Button size="xs" variant="ghost" leftIcon={<Unlink size={15} />} onClick={() => descasar(c)}>{t('descasar', 'Deshacer')}</Button>}</td>
+              <TablaTema columnas={[...(puedeCobrar ? [{ texto: '' }] : []), { texto: t('col_fecha', 'Fecha') }, { texto: t('col_movimiento', 'Movimiento') }, { texto: t('col_importe', 'Importe (€)'), derecha: true }]}>
+                  {abierto.cobros.map((c, i) => (
+                    <tr key={c.id} className={claseFila(i)}>
+                      {puedeCobrar && <td className={`${TD} whitespace-nowrap`}><BotonFila icono={<Unlink size={13} />} texto={t('descasar', 'Deshacer')} onClick={() => descasar(c)} /></td>}
+                      <td className={`${TD} font-mono`}>{c.fecha}</td>
+                      <td className={TD}>{c.cuenta_alias} · {c.concepto_bancario || t('efectivo', 'Efectivo')}</td>
+                      <td className={`${TD} text-right font-mono`}>{euros(c.importe)}</td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+              </TablaTema>
             )}
           </div>
 
           {cand && (
             <div>
-              <h3 className="mb-1 text-xs font-black uppercase tracking-widest">{t('candidatos', 'Movimientos que pueden pagarlo')} <span className="font-mono normal-case">({cand.desde} → {cand.hasta})</span></h3>
-              {!cand.movimientos.length && <p className="text-sm">{t('sin_candidatos', 'No hay ingresos sin casar en las cuentas de esta entidad en esas fechas. ¿Están descargados los extractos?')}</p>}
+              <Rotulo className="mb-2">{t('candidatos', 'Movimientos que pueden pagarlo')} <span className="font-mono normal-case">({cand.desde} → {cand.hasta})</span></Rotulo>
+              {!cand.movimientos.length && <p className="text-sm font-bold">{t('sin_candidatos', 'No hay ingresos sin casar en las cuentas de esta entidad en esas fechas. ¿Están descargados los extractos?')}</p>}
               {cand.movimientos.length > 0 && (
-                <table className="w-full text-sm">
-                  <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-                    <th className="p-2">{t('col_fecha', 'Fecha')}</th><th className="p-2">{t('col_cuenta', 'Cuenta')}</th><th className="p-2">{t('col_concepto', 'Concepto')}</th>
-                    <th className="p-2 text-right">{t('col_importe', 'Importe (€)')}</th><th className="p-2 text-right">{t('col_libre', 'Sin casar (€)')}</th><th />
-                  </tr></thead>
-                  <tbody>
-                    {cand.movimientos.map((m) => (
-                      <tr key={m.id} className={`bg-table-row text-on-table-row border-b border-border ${m.exacto ? 'font-black' : ''}`}>
-                        <td className="p-2 font-mono">{m.fecha}</td><td className="p-2">{m.cuenta_alias}</td>
-                        <td className="p-2">{m.concepto_bancario}{m.exacto ? ` · ${t('exacto', 'importe exacto')}` : ''}</td>
-                        <td className="p-2 text-right font-mono">{euros(m.importe)}</td><td className="p-2 text-right font-mono">{euros(m.libre)}</td>
-                        <td className="p-2 text-right"><Button size="xs" leftIcon={<Link2 size={15} />} loading={ocupado} onClick={() => casar(m)}>{t('casar', 'Casar')}</Button></td>
+                <TablaTema columnas={[{ texto: '' }, { texto: t('col_fecha', 'Fecha') }, { texto: t('col_cuenta', 'Cuenta') }, { texto: t('col_concepto', 'Concepto') }, { texto: t('col_importe', 'Importe (€)'), derecha: true }, { texto: t('col_libre', 'Sin casar (€)'), derecha: true }]}>
+                    {cand.movimientos.map((m, i) => (
+                      <tr key={m.id} className={`${claseFila(i)} ${m.exacto ? 'font-black' : ''}`}>
+                        <td className={`${TD} whitespace-nowrap`}><Button size="xs" variant="primary" leftIcon={<Link2 size={15} />} loading={ocupado} onClick={() => casar(m)}>{t('casar', 'Casar')}</Button></td>
+                        <td className={`${TD} font-mono`}>{m.fecha}</td><td className={TD}>{m.cuenta_alias}</td>
+                        <td className={TD}>{m.concepto_bancario}{m.exacto ? ` · ${t('exacto', 'importe exacto')}` : ''}</td>
+                        <td className={`${TD} text-right font-mono`}>{euros(m.importe)}</td><td className={`${TD} text-right font-mono`}>{euros(m.libre)}</td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
+                </TablaTema>
               )}
             </div>
           )}
-        </section>
+        </Panel>
       )}
     </div>
   );

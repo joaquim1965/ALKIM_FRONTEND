@@ -88,3 +88,31 @@ export const formatProximaEjecucion = (valor) => {
 
 /** Hora `HH:MM` a partir de un `TIME` de MySQL (`09:30:00`). */
 export const formatHora = (valor) => (valor ? String(valor).slice(0, 5) : null);
+
+/**
+ * Porcentaje con hasta tres decimales y punto de millares: `33,333 %`.
+ * Para cuotas de titularidad y participaciones (01/10/2026).
+ */
+const PORCENTAJE_ES = new Intl.NumberFormat('es-ES', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 3,
+  useGrouping: 'always',
+});
+export const formatPorcentaje = (valor) => {
+  const numero = Number(valor);
+  if (valor === null || valor === undefined || valor === '' || !Number.isFinite(numero)) return null;
+  return `${PORCENTAJE_ES.format(numero)} %`;
+};
+
+/**
+ * Tamaño de archivo con coma decimal: `1,5 MB`, `820 KB`. `toFixed()` daba
+ * `1.5 MB`, con punto decimal inglés (01/10/2026).
+ */
+const TAMANO_ES = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1, useGrouping: 'always' });
+export const formatTamano = (bytes) => {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${TAMANO_ES.format(n)} B`;
+  if (n < 1048576) return `${TAMANO_ES.format(Math.round(n / 1024))} KB`;
+  if (n < 1073741824) return `${TAMANO_ES.format(n / 1048576)} MB`;
+  return `${TAMANO_ES.format(n / 1073741824)} GB`;
+};

@@ -17,16 +17,14 @@ import Button from '../../components/UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { useStore } from '../../hooks/useStore';
+import { formatTamano } from '../../utils/format';
+import {
+  CabeceraPagina, Panel, Campo, AvisoError, Ayuda, SinDato, CLASE_INPUT, TablaTema, claseFila, TD, FilaVacia, BotonFila, MICRO,
+} from '../../components/UI/TemaPagina';
 
 const PESTANAS = ['catalogo', 'carpetas', 'mantenimiento'];
 const fecha = (v) => (v ? String(v).slice(0, 10) : '');
-const tamano = (b) => {
-  const n = Number(b) || 0;
-  if (n < 1024) return `${n} B`;
-  if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;
-  if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
-  return `${(n / 1073741824).toFixed(2)} GB`;
-};
+const tamano = formatTamano;
 
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: authHeaders() });
@@ -34,8 +32,6 @@ async function pedir(url, opciones = {}) {
   if (!r.ok) throw new Error(b.errors?.[0]?.message || b.message || `Error ${r.status}`);
   return b;
 }
-const claseInput = 'mt-1 w-full rounded-lg border border-border bg-surface1 px-3 py-2 text-on-background';
-const Campo = ({ etiqueta, children }) => <label className="block text-sm font-bold text-on-background">{etiqueta}{children}</label>;
 
 export default function ExploradorArchivosPage() {
   const { t } = useTmTr('Explorador');
@@ -125,11 +121,7 @@ export default function ExploradorArchivosPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <header>
-        <p className="text-xs font-black uppercase tracking-widest">{t('seccion', 'Sistema')}</p>
-        <h1 className="mt-1 text-3xl font-black tracking-tight text-on-background">{t('titulo', 'Explorador de archivos')}</h1>
-        <p className="mt-2 text-sm">{t('subtitulo', 'Todos los documentos: por tipo, por entidad y tal como están guardados en R2.')}</p>
-      </header>
+      <CabeceraPagina icono={<FolderTree size={24} />} titulo={t('titulo', 'Explorador de archivos')} subtitulo={t('subtitulo', 'Todos los documentos: por tipo, por entidad y tal como están guardados en R2.')} />
 
       <nav className="flex flex-wrap gap-2" aria-label={t('titulo', 'Explorador de archivos')}>
         {PESTANAS.filter((p) => p !== 'carpetas' || adminSistema).map((p) => (
@@ -137,128 +129,112 @@ export default function ExploradorArchivosPage() {
         ))}
       </nav>
 
-      {error && <div role="alert" className="rounded-xl border border-destructive bg-surface1 px-4 py-3 text-sm text-destructive-text">{error}</div>}
+      <AvisoError>{error}</AvisoError>
 
       {pestana === 'catalogo' && (
-        <section className="space-y-4 rounded-2xl border border-border bg-surface2 p-5">
+        <Panel className="space-y-4 p-5">
           <form onSubmit={(e) => { e.preventDefault(); buscar(); }} className="grid gap-3 sm:grid-cols-6">
             <Campo etiqueta={t('entidad', 'Entidad')}>
-              <select {...f('entidad_id')} className={claseInput}>
+              <select {...f('entidad_id')} className={CLASE_INPUT}>
                 <option value="">{t('todas', 'Todas')}</option>
                 {entidades.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
               </select>
             </Campo>
             <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-              <select {...f('categoria_id')} className={claseInput}>
+              <select {...f('categoria_id')} className={CLASE_INPUT}>
                 <option value="">{t('todos', 'Todos')}</option>
                 {categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c.codigo, c.nombre)}</option>)}
               </select>
             </Campo>
-            <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" {...f('ejercicio')} className={claseInput} /></Campo>
-            <Campo etiqueta={t('caduca_antes', 'Caducan antes de')}><input type="date" {...f('caduca_antes')} className={claseInput} /></Campo>
-            <Campo etiqueta={t('texto', 'Buscar')}><input maxLength={100} {...f('texto')} className={claseInput} /></Campo>
+            <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" {...f('ejercicio')} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('caduca_antes', 'Caducan antes de')}><input type="date" {...f('caduca_antes')} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('texto', 'Buscar')}><input maxLength={100} {...f('texto')} className={CLASE_INPUT} /></Campo>
             <div className="flex items-end"><Button type="submit" leftIcon={<Search size={16} />} loading={cargando}>{t('buscar', 'Buscar')}</Button></div>
           </form>
-          <p className="text-xs">{archivos.length} {t('archivos', 'archivos')}</p>
-          <table className="w-full text-sm">
-            <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-              <th className="p-2">{t('col_nombre', 'Archivo')}</th><th className="p-2">{t('categoria', 'Tipo de documento')}</th><th className="p-2">{t('entidad', 'Entidad')}</th>
-              <th className="p-2">{t('col_objeto', 'Objeto')}</th><th className="p-2">{t('col_fecha', 'Fecha')}</th><th className="p-2 text-right">{t('col_tamano', 'Tamaño')}</th><th />
-            </tr></thead>
-            <tbody>
-              {archivos.map((a) => (
-                <tr key={a.id} className="bg-table-row text-on-table-row border-b border-border hover:bg-table-row-hover hover:text-on-table-row-hover">
-                  <td className="p-2 font-bold">{Number(a.confidencial) === 1 && <Lock size={12} className="mr-1 inline" />}{a.nombre_original}</td>
-                  <td className="p-2">{nombreCat(a.categoria_codigo, a.categoria_nombre)}</td>
-                  <td className="p-2">{a.entidad_nombre || '—'}</td>
-                  <td className="p-2 font-mono text-xs">{a.origen_tabla} {a.origen_id ?? ''}</td>
-                  <td className="p-2 font-mono">{fecha(a.fecha_documento) || fecha(a.fecha_alta)}</td>
-                  <td className="p-2 text-right font-mono">{tamano(a.tamanyo_bytes)}</td>
-                  <td className="p-2 text-right"><Button size="xs" variant="ghost" aria-label={t('descargar', 'Descargar')} onClick={() => descargar(a)}><Download size={15} /></Button></td>
+          <p className={`${MICRO} text-on-surface2`}>{archivos.length} {t('archivos', 'archivos')}</p>
+          <TablaTema columnas={[{ texto: '' }, { texto: t('col_nombre', 'Archivo') }, { texto: t('categoria', 'Tipo de documento') }, { texto: t('entidad', 'Entidad') }, { texto: t('col_objeto', 'Objeto') }, { texto: t('col_fecha', 'Fecha') }, { texto: t('col_tamano', 'Tamaño'), derecha: true }]}>
+              {archivos.map((a, i) => (
+                <tr key={a.id} className={claseFila(i)}>
+                  <td className={TD}><BotonFila icono={<Download size={15} />} titulo={t('descargar', 'Descargar')} onClick={() => descargar(a)} /></td>
+                  <td className={`${TD} font-black tracking-tight`}>{Number(a.confidencial) === 1 && <Lock size={12} className="mr-1 inline" />}{a.nombre_original}</td>
+                  <td className={TD}>{nombreCat(a.categoria_codigo, a.categoria_nombre)}</td>
+                  <td className={TD}>{a.entidad_nombre || <SinDato />}</td>
+                  <td className={`${TD} font-mono text-xs`}>{a.origen_tabla} {a.origen_id ?? ''}</td>
+                  <td className={`${TD} font-mono`}>{fecha(a.fecha_documento) || fecha(a.fecha_alta)}</td>
+                  <td className={`${TD} text-right font-mono`}>{tamano(a.tamanyo_bytes)}</td>
                 </tr>
               ))}
-              {!archivos.length && <tr className="bg-table-row text-on-table-row"><td colSpan={7} className="p-6 text-center">{t('vacio', 'No hay archivos con estos filtros.')}</td></tr>}
-            </tbody>
-          </table>
-        </section>
+              {!archivos.length && <FilaVacia columnas={7}>{t('vacio', 'No hay archivos con estos filtros.')}</FilaVacia>}
+          </TablaTema>
+        </Panel>
       )}
 
       {pestana === 'carpetas' && carpeta && (
-        <section className="space-y-3 rounded-2xl border border-border bg-surface2 p-5">
+        <Panel className="space-y-3 p-5">
           <div className="flex items-center gap-3">
             <Button size="sm" variant="outline" leftIcon={<ArrowUp size={14} />} disabled={!prefijo} onClick={subir}>{t('subir_nivel', 'Subir')}</Button>
-            <p className="font-mono text-sm">/{prefijo}</p>
+            <p className="font-mono text-sm font-bold text-on-surface2">/{prefijo}</p>
           </div>
-          <table className="w-full text-sm">
-            <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-              <th className="p-2">{t('col_nombre', 'Archivo')}</th><th className="p-2 text-right">{t('col_tamano', 'Tamaño')}</th><th className="p-2">{t('col_fecha', 'Fecha')}</th><th className="p-2">{t('col_indexado', 'En el catálogo')}</th><th />
-            </tr></thead>
-            <tbody>
-              {carpeta.carpetas.map((c) => (
-                <tr key={c} className="bg-table-row text-on-table-row cursor-pointer border-b border-border hover:bg-table-row-hover hover:text-on-table-row-hover" onClick={() => abrirCarpeta(c)}>
-                  <td className="p-2 font-bold" colSpan={5}><Folder size={14} className="mr-2 inline" />{c.slice(prefijo.length)}</td>
+          <TablaTema columnas={[{ texto: '' }, { texto: t('col_nombre', 'Archivo') }, { texto: t('col_tamano', 'Tamaño'), derecha: true }, { texto: t('col_fecha', 'Fecha') }, { texto: t('col_indexado', 'En el catálogo') }]}>
+              {carpeta.carpetas.map((c, i) => (
+                <tr key={c} className={claseFila(i, { clic: true })} onClick={() => abrirCarpeta(c)}>
+                  <td className={TD} />
+                  <td className={`${TD} font-black tracking-tight`} colSpan={4}><Folder size={14} className="mr-2 inline" />{c.slice(prefijo.length)}</td>
                 </tr>
               ))}
-              {carpeta.objetos.map((o) => (
-                <tr key={o.key} className="bg-table-row text-on-table-row border-b border-border hover:bg-table-row-hover hover:text-on-table-row-hover">
-                  <td className="p-2"><FileText size={14} className="mr-2 inline" />{o.key.slice(prefijo.length)}</td>
-                  <td className="p-2 text-right font-mono">{tamano(o.size)}</td>
-                  <td className="p-2 font-mono">{fecha(o.lastModified)}</td>
-                  <td className="p-2">{o.archivo ? `${o.archivo.origen_tabla} ${o.archivo.origen_id ?? ''}${Number(o.archivo.activo) === -1 ? ` · ${t('en_papelera', 'en la papelera')}` : ''}` : t('no_indexado', 'no')}</td>
-                  <td className="p-2 text-right"><Button size="xs" variant="ghost" aria-label={t('descargar', 'Descargar')} onClick={() => enlaceR2(o.key)}><Download size={15} /></Button></td>
+              {carpeta.objetos.map((o, j) => (
+                <tr key={o.key} className={claseFila(carpeta.carpetas.length + j)}>
+                  <td className={TD}><BotonFila icono={<Download size={15} />} titulo={t('descargar', 'Descargar')} onClick={() => enlaceR2(o.key)} /></td>
+                  <td className={TD}><FileText size={14} className="mr-2 inline" />{o.key.slice(prefijo.length)}</td>
+                  <td className={`${TD} text-right font-mono`}>{tamano(o.size)}</td>
+                  <td className={`${TD} font-mono`}>{fecha(o.lastModified)}</td>
+                  <td className={TD}>{o.archivo ? `${o.archivo.origen_tabla} ${o.archivo.origen_id ?? ''}${Number(o.archivo.activo) === -1 ? ` · ${t('en_papelera', 'en la papelera')}` : ''}` : t('no_indexado', 'no')}</td>
                 </tr>
               ))}
-              {!carpeta.carpetas.length && !carpeta.objetos.length && <tr className="bg-table-row text-on-table-row"><td colSpan={5} className="p-6 text-center">{t('carpeta_vacia', 'Carpeta vacía.')}</td></tr>}
-            </tbody>
-          </table>
-        </section>
+              {!carpeta.carpetas.length && !carpeta.objetos.length && <FilaVacia columnas={5}>{t('carpeta_vacia', 'Carpeta vacía.')}</FilaVacia>}
+          </TablaTema>
+        </Panel>
       )}
 
       {pestana === 'mantenimiento' && estado && (
-        <section className="space-y-5 rounded-2xl border border-border bg-surface2 p-5">
+        <Panel className="space-y-5 p-5 text-on-surface2">
           <dl className="grid gap-3 sm:grid-cols-3">
             {[['activos', estado.activos], ['sin_clasificar', estado.sin_clasificar], ['caducan_60', estado.caducan_60], ['papelera', estado.papelera], ['pendientes', estado.pendientes], ['espacio', tamano(estado.bytes)]].map(([k, v]) => (
-              <div key={k} className="rounded-xl border border-border p-3">
-                <dt className="text-xs font-black uppercase tracking-widest">{t(`m_${k}`, k)}</dt>
-                <dd className="mt-1 font-mono text-2xl font-black text-on-background">{v ?? 0}</dd>
+              <div key={k} className="rounded-2xl border border-border bg-surface1 p-4 text-on-surface1">
+                <dt className={MICRO}>{t(`m_${k}`, k)}</dt>
+                <dd className="mt-1 font-mono text-2xl font-black">{v ?? 0}</dd>
               </div>
             ))}
           </dl>
           <div>
-            <h2 className="mb-2 font-black text-on-background">{t('por_tabla', 'Espacio por tipo de objeto')}</h2>
-            <table className="w-full text-sm">
-              <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider"><th className="p-2">{t('col_objeto', 'Objeto')}</th><th className="p-2 text-right">{t('archivos', 'archivos')}</th><th className="p-2 text-right">{t('col_tamano', 'Tamaño')}</th></tr></thead>
-              <tbody>
-                {estado.por_tabla.map((r) => (
-                  <tr key={r.origen_tabla} className="bg-table-row text-on-table-row border-b border-border">
-                    <td className="p-2 font-mono">{r.origen_tabla}</td><td className="p-2 text-right font-mono">{r.n}</td><td className="p-2 text-right font-mono">{tamano(r.bytes)}</td>
+            <h2 className="mb-2 font-black tracking-tight">{t('por_tabla', 'Espacio por tipo de objeto')}</h2>
+            <TablaTema columnas={[{ texto: t('col_objeto', 'Objeto') }, { texto: t('archivos', 'archivos'), derecha: true }, { texto: t('col_tamano', 'Tamaño'), derecha: true }]}>
+                {estado.por_tabla.map((r, i) => (
+                  <tr key={r.origen_tabla} className={claseFila(i)}>
+                    <td className={`${TD} font-mono`}>{r.origen_tabla}</td><td className={`${TD} text-right font-mono`}>{r.n}</td><td className={`${TD} text-right font-mono`}>{tamano(r.bytes)}</td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+            </TablaTema>
           </div>
           <div>
-            <h2 className="mb-2 font-black text-on-background"><FolderTree size={16} className="mr-2 inline" />{t('papelera_titulo', 'Papelera')}</h2>
-            <p className="mb-2 text-xs">{t('papelera_ayuda', 'Se puede restaurar siempre. El borrado definitivo (también de R2) es posible a los {n} días y solo para administradores del sistema.').replace('{n}', estado.dias_papelera)}</p>
-            <table className="w-full text-sm">
-              <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider"><th className="p-2">{t('col_nombre', 'Archivo')}</th><th className="p-2">{t('col_objeto', 'Objeto')}</th><th className="p-2">{t('col_borrado', 'En la papelera desde')}</th><th /></tr></thead>
-              <tbody>
-                {papelera.map((a) => (
-                  <tr key={a.id} className="bg-table-row text-on-table-row border-b border-border">
-                    <td className="p-2 font-bold">{a.nombre_original}</td>
-                    <td className="p-2 font-mono text-xs">{a.origen_tabla} {a.origen_id ?? ''}</td>
-                    <td className="p-2 font-mono">{fecha(a.fecha_eliminacion)}</td>
-                    <td className="whitespace-nowrap p-2 text-right">
-                      <Button size="xs" variant="ghost" aria-label={t('restaurar', 'Restaurar')} onClick={() => restaurar(a)}><RotateCcw size={15} /></Button>
-                      {adminSistema && <Button size="xs" variant="ghost" aria-label={t('borrar_definitivo', 'Borrar para siempre')} onClick={() => borrar(a)}><Trash2 size={15} /></Button>}
+            <h2 className="mb-2 font-black tracking-tight"><Trash2 size={16} className="mr-2 inline" />{t('papelera_titulo', 'Papelera')}</h2>
+            <Ayuda className="mb-2">{t('papelera_ayuda', 'Se puede restaurar siempre. El borrado definitivo (también de R2) es posible a los {n} días y solo para administradores del sistema.').replace('{n}', estado.dias_papelera)}</Ayuda>
+            <TablaTema columnas={[{ texto: '' }, { texto: t('col_nombre', 'Archivo') }, { texto: t('col_objeto', 'Objeto') }, { texto: t('col_borrado', 'En la papelera desde') }]}>
+                {papelera.map((a, i) => (
+                  <tr key={a.id} className={claseFila(i)}>
+                    <td className={`${TD} whitespace-nowrap`}>
+                      <BotonFila icono={<RotateCcw size={15} />} titulo={t('restaurar', 'Restaurar')} onClick={() => restaurar(a)} />
+                      {adminSistema && <BotonFila icono={<Trash2 size={15} />} titulo={t('borrar_definitivo', 'Borrar para siempre')} onClick={() => borrar(a)} />}
                     </td>
+                    <td className={`${TD} font-black tracking-tight`}>{a.nombre_original}</td>
+                    <td className={`${TD} font-mono text-xs`}>{a.origen_tabla} {a.origen_id ?? ''}</td>
+                    <td className={`${TD} font-mono`}>{fecha(a.fecha_eliminacion)}</td>
                   </tr>
                 ))}
-                {!papelera.length && <tr className="bg-table-row text-on-table-row"><td colSpan={4} className="p-6 text-center">{t('papelera_vacia', 'La papelera está vacía.')}</td></tr>}
-              </tbody>
-            </table>
+                {!papelera.length && <FilaVacia columnas={4}>{t('papelera_vacia', 'La papelera está vacía.')}</FilaVacia>}
+            </TablaTema>
           </div>
-        </section>
+        </Panel>
       )}
     </div>
   );

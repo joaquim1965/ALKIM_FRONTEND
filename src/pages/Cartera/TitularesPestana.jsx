@@ -13,14 +13,19 @@ import { Plus, Pencil, Trash2, HandCoins } from 'lucide-react';
 import Button from '../../components/UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
+import { formatImporte, formatPorcentaje } from '../../utils/format';
+import {
+  Campo, AvisoError, Ayuda, Rotulo, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, FilaVacia, BotonFila,
+} from '../../components/UI/TemaPagina';
 
 const DERECHOS = ['PLENO_DOMINIO', 'NUDA_PROPIEDAD', 'USUFRUCTO'];
 const FINALIDADES = ['INVERSION', 'EXISTENCIAS', 'USO_PROPIO'];
 const TITULOS = ['COMPRAVENTA', 'HERENCIA', 'DONACION', 'APORTACION', 'COMPRA_CUOTA', 'OBRA_NUEVA', 'OTRO'];
 const hoy = () => new Date().toISOString().slice(0, 10);
 const fecha = (v) => (v ? String(v).slice(0, 10) : '');
-const euros = (v) => (v == null || v === '' ? '—' : Number(v).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-const pct = (v) => `${Number(v).toLocaleString('es-ES', { maximumFractionDigits: 3 })} %`;
+// Cifras con punto de millares (NORMAS §9). La unidad va en la cabecera de la columna.
+const euros = (v) => (v == null || v === '' ? null : formatImporte(v, ''));
+const pct = (v) => formatPorcentaje(v) ?? '';
 const VACIA = { titular_id: '', porcentaje: '', tipo_derecho: 'PLENO_DOMINIO', finalidad: 'INVERSION', titulo_adquisicion: 'COMPRAVENTA', fecha_adquisicion: hoy(), precio_adquisicion: '', gastos_adquisicion: '', notas: '' };
 
 async function pedir(url, opciones = {}) {
@@ -29,8 +34,6 @@ async function pedir(url, opciones = {}) {
   if (!r.ok) throw new Error(b.errors?.[0]?.message || b.message || `Error ${r.status}`);
   return b;
 }
-const claseInput = 'mt-1 w-full rounded-lg border border-border bg-surface1 px-3 py-2 text-on-background';
-const Campo = ({ etiqueta, children, ancho = '' }) => <label className={`block text-sm font-bold text-on-background ${ancho}`}>{etiqueta}{children}</label>;
 
 export default function TitularesPestana({ propiedadId, puedeEscribir, onCambio }) {
   const { t } = useTmTr('Titulares');
@@ -84,45 +87,49 @@ export default function TitularesPestana({ propiedadId, puedeEscribir, onCambio 
   const vigentes = (datos?.cuotas || []).filter((c) => c.vigente);
   const historicas = (datos?.cuotas || []).filter((c) => !c.vigente);
 
-  const Tabla = ({ filas, conAcciones }) => (
-    <table className="w-full text-sm">
-      <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-        <th className="p-2">{t('col_titular', 'Titular')}</th><th className="p-2 text-right">%</th><th className="p-2">{t('col_derecho', 'Derecho')}</th>
-        <th className="p-2">{t('col_finalidad', 'Finalidad')}</th><th className="p-2">{t('col_desde', 'Desde')}</th><th className="p-2 text-right">{t('col_coste', 'Coste (precio + gastos)')}</th>
-        <th className="p-2">{t('col_hasta', 'Hasta')}</th><th />
-      </tr></thead>
-      <tbody>
-        {filas.map((c) => (
-          <tr key={c.id} className="bg-table-row text-on-table-row border-b border-border hover:bg-table-row-hover hover:text-on-table-row-hover">
-            <td className="p-2 font-bold">{c.titular_nombre}</td>
-            <td className="p-2 text-right font-mono">{pct(c.porcentaje)}</td>
-            <td className="p-2">{t(`derecho_${c.tipo_derecho.toLowerCase()}`, c.tipo_derecho)}</td>
-            <td className="p-2">{t(`finalidad_${c.finalidad.toLowerCase()}`, c.finalidad)}</td>
-            <td className="p-2 font-mono">{fecha(c.fecha_adquisicion)}</td>
-            <td className="p-2 text-right font-mono">{euros(Number(c.precio_adquisicion || 0) + Number(c.gastos_adquisicion || 0))}</td>
-            <td className="p-2 font-mono">{fecha(c.fecha_transmision) || '—'}{c.comprador_nombre ? ` → ${c.comprador_nombre}` : ''}</td>
-            <td className="whitespace-nowrap p-2 text-right">
-              {conAcciones && puedeEscribir && <>
-                <Button size="xs" variant="ghost" aria-label={t('vender_cuota', 'Vender cuota')} onClick={() => setVenta({ cuota: c, fecha: hoy(), porcentaje: c.porcentaje, precio: '', gastos: '', comprador_id: '', finalidad_comprador: c.finalidad })}><HandCoins size={15} /></Button>
-                <Button size="xs" variant="ghost" aria-label={t('editar', 'Editar')} onClick={() => setForm(Object.fromEntries([['id', c.id], ...Object.keys(VACIA).map((k) => [k, k.startsWith('fecha') ? fecha(c[k]) : (c[k] ?? '')])]))}><Pencil size={15} /></Button>
-                <Button size="xs" variant="ghost" aria-label={t('borrar', 'Borrar')} onClick={() => borrar(c)}><Trash2 size={15} /></Button>
-              </>}
-            </td>
+  // Acciones en la primera columna (CRITERIOS «Los botones van SIEMPRE en la primera columna»).
+  const acciones = conAccionesVisibles => conAccionesVisibles && puedeEscribir;
+  const Tabla = ({ filas, conAcciones }) => {
+    const conBotones = acciones(conAcciones);
+    const columnas = [
+      ...(conBotones ? [{ texto: '' }] : []),
+      { texto: t('col_titular', 'Titular') }, { texto: '%', derecha: true }, { texto: t('col_derecho', 'Derecho') },
+      { texto: t('col_finalidad', 'Finalidad') }, { texto: t('col_desde', 'Desde') }, { texto: t('col_coste', 'Coste (precio + gastos)'), derecha: true },
+      { texto: t('col_hasta', 'Hasta') },
+    ];
+    return (
+      <TablaTema columnas={columnas}>
+        {filas.map((c, i) => (
+          <tr key={c.id} className={claseFila(i)}>
+            {conBotones && (
+              <td className={`${TD} whitespace-nowrap`}>
+                <BotonFila icono={<HandCoins size={15} />} titulo={t('vender_cuota', 'Vender cuota')} onClick={() => setVenta({ cuota: c, fecha: hoy(), porcentaje: c.porcentaje, precio: '', gastos: '', comprador_id: '', finalidad_comprador: c.finalidad })} />
+                <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setForm(Object.fromEntries([['id', c.id], ...Object.keys(VACIA).map((k) => [k, k.startsWith('fecha') ? fecha(c[k]) : (c[k] ?? '')])]))} />
+                <BotonFila icono={<Trash2 size={15} />} titulo={t('borrar', 'Borrar')} onClick={() => borrar(c)} />
+              </td>
+            )}
+            <td className={`${TD} font-black tracking-tight`}>{c.titular_nombre}</td>
+            <td className={`${TD} text-right font-mono`}>{pct(c.porcentaje)}</td>
+            <td className={TD}>{t(`derecho_${c.tipo_derecho.toLowerCase()}`, c.tipo_derecho)}</td>
+            <td className={TD}>{t(`finalidad_${c.finalidad.toLowerCase()}`, c.finalidad)}</td>
+            <td className={`${TD} font-mono`}>{fecha(c.fecha_adquisicion)}</td>
+            <td className={`${TD} text-right font-mono`}>{euros(Number(c.precio_adquisicion || 0) + Number(c.gastos_adquisicion || 0))}</td>
+            <td className={`${TD} font-mono`}>{fecha(c.fecha_transmision) || <SinDato texto={t('vigente', 'Vigente')} />}{c.comprador_nombre ? ` → ${c.comprador_nombre}` : ''}</td>
           </tr>
         ))}
-        {!filas.length && <tr className="bg-table-row text-on-table-row"><td colSpan={8} className="p-4 text-center">{t('sin_cuotas', 'Sin cuotas.')}</td></tr>}
-      </tbody>
-    </table>
-  );
+        {!filas.length && <FilaVacia columnas={columnas.length}>{t('sin_cuotas', 'Sin cuotas.')}</FilaVacia>}
+      </TablaTema>
+    );
+  };
 
-  if (!datos && !error) return <p className="text-sm">{t('cargando', 'Cargando…')}</p>;
+  if (!datos && !error) return <p className="text-xs font-bold uppercase tracking-widest text-on-surface1">{t('cargando', 'Cargando…')}</p>;
 
   return (
     <div className="space-y-5">
-      {error && <div role="alert" className="text-sm text-destructive-text">{error}</div>}
+      <AvisoError>{error}</AvisoError>
       <div className="flex flex-wrap items-center gap-3">
-        <p className="flex-1 text-sm">
-          {t('suma_vigente', 'Vigente hoy')}: {Object.entries(datos?.suma_vigente || {}).map(([d, s]) => `${t(`derecho_${d.toLowerCase()}`, d)} ${pct(s)}`).join(' · ') || '—'}
+        <p className="flex-1 text-sm font-bold">
+          {t('suma_vigente', 'Vigente hoy')}: {Object.entries(datos?.suma_vigente || {}).map(([d, s]) => `${t(`derecho_${d.toLowerCase()}`, d)} ${pct(s)}`).join(' · ') || t('sin_cuotas', 'Sin cuotas.')}
         </p>
         {puedeEscribir && !form && !venta && <>
           <Button leftIcon={<Plus size={16} />} onClick={() => setForm({ ...VACIA, porcentaje: Math.max(0, 100 - Number(datos?.suma_vigente?.PLENO_DOMINIO || 0)) || '' })}>{t('anadir', 'Añadir titular')}</Button>
@@ -131,101 +138,95 @@ export default function TitularesPestana({ propiedadId, puedeEscribir, onCambio 
       </div>
 
       {form && (
-        <form onSubmit={guardar} className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-4">
-          <h3 className="font-black text-on-background sm:col-span-4">{form.id ? t('editar_cuota', 'Editar cuota') : t('anadir', 'Añadir titular')}</h3>
+        <Recuadro as="form" onSubmit={guardar} className="grid gap-3 sm:grid-cols-4">
+          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-4">{form.id ? t('editar_cuota', 'Editar cuota') : t('anadir', 'Añadir titular')}</h3>
           <Campo etiqueta={t('col_titular', 'Titular')} ancho="sm:col-span-2">
-            <select required {...f('titular_id')} className={claseInput}>
+            <select required {...f('titular_id')} className={CLASE_INPUT}>
               <option value="">—</option>
               {entidades.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
             </select>
           </Campo>
-          <Campo etiqueta="%"><input required type="number" step="0.001" min="0.001" max="100" {...f('porcentaje')} className={`${claseInput} font-mono`} /></Campo>
+          <Campo etiqueta="%"><input required type="number" step="0.001" min="0.001" max="100" {...f('porcentaje')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           <Campo etiqueta={t('col_derecho', 'Derecho')}>
-            <select {...f('tipo_derecho')} className={claseInput}>{DERECHOS.map((d) => <option key={d} value={d}>{t(`derecho_${d.toLowerCase()}`, d)}</option>)}</select>
+            <select {...f('tipo_derecho')} className={CLASE_INPUT}>{DERECHOS.map((d) => <option key={d} value={d}>{t(`derecho_${d.toLowerCase()}`, d)}</option>)}</select>
           </Campo>
           <Campo etiqueta={t('col_finalidad', 'Finalidad')}>
-            <select {...f('finalidad')} className={claseInput}>{FINALIDADES.map((d) => <option key={d} value={d}>{t(`finalidad_${d.toLowerCase()}`, d)}</option>)}</select>
+            <select {...f('finalidad')} className={CLASE_INPUT}>{FINALIDADES.map((d) => <option key={d} value={d}>{t(`finalidad_${d.toLowerCase()}`, d)}</option>)}</select>
           </Campo>
           <Campo etiqueta={t('titulo', 'Cómo se adquirió')}>
-            <select {...f('titulo_adquisicion')} className={claseInput}>{TITULOS.map((d) => <option key={d} value={d}>{t(`titulo_${d.toLowerCase()}`, d)}</option>)}</select>
+            <select {...f('titulo_adquisicion')} className={CLASE_INPUT}>{TITULOS.map((d) => <option key={d} value={d}>{t(`titulo_${d.toLowerCase()}`, d)}</option>)}</select>
           </Campo>
-          <Campo etiqueta={t('col_desde', 'Desde')}><input required type="date" {...f('fecha_adquisicion')} className={claseInput} /></Campo>
+          <Campo etiqueta={t('col_desde', 'Desde')}><input required type="date" {...f('fecha_adquisicion')} className={CLASE_INPUT} /></Campo>
           <div />
-          <Campo etiqueta={t('precio', 'Precio de su parte (€)')}><input type="number" step="0.01" min="0" {...f('precio_adquisicion')} className={claseInput} /></Campo>
-          <Campo etiqueta={t('gastos', 'Gastos de su parte (€)')}><input type="number" step="0.01" min="0" {...f('gastos_adquisicion')} className={claseInput} /></Campo>
-          <Campo etiqueta={t('notas', 'Notas')} ancho="sm:col-span-2"><input maxLength={255} {...f('notas')} className={claseInput} /></Campo>
-          <p className="text-xs sm:col-span-4">{t('ayuda_titular', 'Si el titular es una persona, créala antes en Gestión → Entidades como «Persona».')}</p>
+          <Campo etiqueta={t('precio', 'Precio de su parte (€)')}><input type="number" step="0.01" min="0" {...f('precio_adquisicion')} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('gastos', 'Gastos de su parte (€)')}><input type="number" step="0.01" min="0" {...f('gastos_adquisicion')} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('notas', 'Notas')} ancho="sm:col-span-2"><input maxLength={255} {...f('notas')} className={CLASE_INPUT} /></Campo>
+          <Ayuda className="sm:col-span-4">{t('ayuda_titular', 'Si el titular es una persona, créala antes en Gestión → Entidades como «Persona».')}</Ayuda>
           <div className="flex justify-end gap-2 sm:col-span-4">
             <Button type="button" variant="secondary" onClick={() => setForm(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>
-        </form>
+        </Recuadro>
       )}
 
       {venta && (
-        <form onSubmit={vender} className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-4">
-          <h3 className="font-black text-on-background sm:col-span-4">
+        <Recuadro as="form" onSubmit={vender} className="grid gap-3 sm:grid-cols-4">
+          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-4">
             {venta.propiedad ? t('vender_propiedad', 'Vender la propiedad') : t('vender_cuota_de', 'Vender la cuota de {nombre} ({pct})').replace('{nombre}', venta.cuota.titular_nombre).replace('{pct}', pct(venta.cuota.porcentaje))}
           </h3>
-          <Campo etiqueta={t('fecha_venta', 'Fecha de la venta')}><input required type="date" {...v('fecha')} className={claseInput} /></Campo>
-          {!venta.propiedad && <Campo etiqueta={t('pct_vendido', '% que se vende')}><input type="number" step="0.001" min="0.001" max={venta.cuota.porcentaje} {...v('porcentaje')} className={`${claseInput} font-mono`} /></Campo>}
-          <Campo etiqueta={t('precio_venta', 'Precio de venta (€)')}><input type="number" step="0.01" min="0" {...v('precio')} className={claseInput} /></Campo>
-          <Campo etiqueta={t('gastos_venta', 'Gastos de la venta (€)')}><input type="number" step="0.01" min="0" {...v('gastos')} className={claseInput} /></Campo>
+          <Campo etiqueta={t('fecha_venta', 'Fecha de la venta')}><input required type="date" {...v('fecha')} className={CLASE_INPUT} /></Campo>
+          {!venta.propiedad && <Campo etiqueta={t('pct_vendido', '% que se vende')}><input type="number" step="0.001" min="0.001" max={venta.cuota.porcentaje} {...v('porcentaje')} className={`${CLASE_INPUT} font-mono`} /></Campo>}
+          <Campo etiqueta={t('precio_venta', 'Precio de venta (€)')}><input type="number" step="0.01" min="0" {...v('precio')} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('gastos_venta', 'Gastos de la venta (€)')}><input type="number" step="0.01" min="0" {...v('gastos')} className={CLASE_INPUT} /></Campo>
           {!venta.propiedad && <>
             <Campo etiqueta={t('comprador', 'Comprador (si es de la casa)')} ancho="sm:col-span-2">
-              <select {...v('comprador_id')} className={claseInput}>
+              <select {...v('comprador_id')} className={CLASE_INPUT}>
                 <option value="">{t('comprador_externo', '(alguien de fuera)')}</option>
                 {entidades.filter((e) => e.id !== venta.cuota.titular_id).map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
               </select>
             </Campo>
             {venta.comprador_id && (
               <Campo etiqueta={t('finalidad_comprador', 'Finalidad para el comprador')}>
-                <select {...v('finalidad_comprador')} className={claseInput}>{FINALIDADES.map((d) => <option key={d} value={d}>{t(`finalidad_${d.toLowerCase()}`, d)}</option>)}</select>
+                <select {...v('finalidad_comprador')} className={CLASE_INPUT}>{FINALIDADES.map((d) => <option key={d} value={d}>{t(`finalidad_${d.toLowerCase()}`, d)}</option>)}</select>
               </Campo>
             )}
           </>}
-          <p className="text-xs sm:col-span-4">{venta.propiedad
+          <Ayuda className="sm:col-span-4">{venta.propiedad
             ? t('ayuda_venta_propiedad', 'Cierra todas las cuotas vigentes en esa fecha; el precio y los gastos se reparten por %. La propiedad pasa a «Vendida».')
-            : t('ayuda_venta_cuota', 'La cuota se cierra ese día. Si el comprador es de la casa, nace su cuota el mismo día. Si se vende una parte, el resto sigue.')}</p>
+            : t('ayuda_venta_cuota', 'La cuota se cierra ese día. Si el comprador es de la casa, nace su cuota el mismo día. Si se vende una parte, el resto sigue.')}</Ayuda>
           <div className="flex justify-end gap-2 sm:col-span-4">
             <Button type="button" variant="secondary" onClick={() => setVenta(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('registrar_venta', 'Registrar la venta')}</Button>
           </div>
-        </form>
+        </Recuadro>
       )}
 
       <section>
-        <h3 className="mb-2 text-xs font-black uppercase tracking-widest">{t('vigentes', 'Titulares actuales')}</h3>
+        <Rotulo className="mb-2">{t('vigentes', 'Titulares actuales')}</Rotulo>
         <Tabla filas={vigentes} conAcciones />
       </section>
       {historicas.length > 0 && (
         <section>
-          <h3 className="mb-2 text-xs font-black uppercase tracking-widest">{t('historicas', 'Historial (cuotas vendidas o futuras)')}</h3>
+          <Rotulo className="mb-2">{t('historicas', 'Historial (cuotas vendidas o futuras)')}</Rotulo>
           <Tabla filas={historicas} conAcciones={false} />
         </section>
       )}
 
-      <section className="rounded-xl border border-border p-4">
-        <div className="mb-2 flex items-center gap-3">
-          <h3 className="flex-1 text-xs font-black uppercase tracking-widest">{t('resumen', 'Resumen por titular')}</h3>
-          <label className="text-sm font-bold text-on-background">{t('anyo', 'Año')} <input type="number" min="1990" max="2100" value={anyo} onChange={(e) => setAnyo(e.target.value)} className="ml-1 w-24 rounded-lg border border-border bg-surface1 px-2 py-1 text-on-background" /></label>
+      <Recuadro as="section">
+        <div className="mb-3 flex items-center gap-3">
+          <Rotulo className="flex-1">{t('resumen', 'Resumen por titular')}</Rotulo>
+          <Campo etiqueta={t('anyo', 'Año')}><input type="number" min="1990" max="2100" value={anyo} onChange={(e) => setAnyo(e.target.value)} className="input-base w-28 px-3 py-2 text-sm" /></Campo>
         </div>
-        <table className="w-full text-sm">
-          <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-            <th className="p-2">{t('col_titular', 'Titular')}</th><th className="p-2 text-right">%</th><th className="p-2 text-right">{t('col_coste', 'Coste (precio + gastos)')}</th>
-            <th className="p-2 text-right">{t('col_intereses', 'Intereses del año')}</th><th className="p-2 text-right">{t('col_capital', 'Capital amortizado')}</th>
-          </tr></thead>
-          <tbody>
-            {resumen.map((r) => (
-              <tr key={r.titular_id} className="bg-table-row text-on-table-row border-b border-border">
-                <td className="p-2 font-bold">{r.titular_nombre}</td><td className="p-2 text-right font-mono">{pct(r.porcentaje)}</td>
-                <td className="p-2 text-right font-mono">{euros(r.coste)}</td><td className="p-2 text-right font-mono">{euros(r.intereses || 0)}</td><td className="p-2 text-right font-mono">{euros(r.capital || 0)}</td>
+        <TablaTema columnas={[{ texto: t('col_titular', 'Titular') }, { texto: '%', derecha: true }, { texto: t('col_coste', 'Coste (precio + gastos)'), derecha: true }, { texto: t('col_intereses', 'Intereses del año'), derecha: true }, { texto: t('col_capital', 'Capital amortizado'), derecha: true }]}>
+            {resumen.map((r, i) => (
+              <tr key={r.titular_id} className={claseFila(i)}>
+                <td className={`${TD} font-black tracking-tight`}>{r.titular_nombre}</td><td className={`${TD} text-right font-mono`}>{pct(r.porcentaje)}</td>
+                <td className={`${TD} text-right font-mono`}>{euros(r.coste) ?? <SinDato />}</td><td className={`${TD} text-right font-mono`}>{euros(r.intereses || 0)}</td><td className={`${TD} text-right font-mono`}>{euros(r.capital || 0)}</td>
               </tr>
             ))}
-            {!resumen.length && <tr className="bg-table-row text-on-table-row"><td colSpan={5} className="p-4 text-center">{t('sin_cuotas', 'Sin cuotas.')}</td></tr>}
-          </tbody>
-        </table>
-      </section>
+            {!resumen.length && <FilaVacia columnas={5}>{t('sin_cuotas', 'Sin cuotas.')}</FilaVacia>}
+        </TablaTema>
+      </Recuadro>
     </div>
   );
 }

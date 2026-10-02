@@ -13,12 +13,18 @@
  * DATABASE/MIGRATIONS/2026.10.01b - textos entidades.sql
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Plus, X, Users, Trash2, Pencil, FileText } from 'lucide-react';
+import { Building2, Plus, Users, Trash2, Pencil, FileText } from 'lucide-react';
 import Button from '../../components/UI/Button';
 import DataTable from '../../components/UI/DataTable';
+import Tooltip from '../../components/UI/Tooltip';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import DocumentosObjeto from '../../components/Documentos/DocumentosObjeto';
+import {
+  CabeceraPagina, Panel, CabeceraPanel, Campo, Leyenda, AvisoError, AvisoAtencion, Ayuda, SinDato,
+  VentanaModal, TablaTema, claseFila, TD, FilaVacia, CLASE_INPUT, Recuadro, BotonFila,
+} from '../../components/UI/TemaPagina';
+import { formatPorcentaje } from '../../utils/format';
 
 const TIPOS = ['PERSONAL', 'CB', 'SL', 'SA', 'SC'];
 const REGIMEN_FISCAL = ['IRPF', 'ATRIBUCION', 'IS'];
@@ -45,10 +51,6 @@ async function pedir(url, opciones = {}) {
   return b;
 }
 
-const Campo = ({ etiqueta, children }) => (
-  <label className="block text-sm font-bold text-on-background">{etiqueta}{children}</label>
-);
-const claseInput = 'mt-1.5 w-full rounded-lg border border-border bg-surface1 px-3 py-2 text-on-background';
 
 export default function EntidadesPage() {
   const { t } = useTmTr('Entidades');
@@ -148,195 +150,178 @@ export default function EntidadesPage() {
   );
 
   const columnas = [
-    { id: 'nombre', label: t('col_entidad', 'Entidad'), sortField: 'nombre', render: (x) => <span className="font-bold text-on-background">{x.nombre}</span> },
+    { id: 'nombre', label: t('col_entidad', 'Entidad'), sortField: 'nombre', render: (x) => <span className="text-sm font-black tracking-tight">{x.nombre}</span> },
     { id: 'tipo', label: t('col_tipo', 'Tipo'), sortField: 'tipo', render: (x) => etiquetaTipo(x.tipo) },
-    { id: 'nif', label: t('col_nif', 'NIF'), sortField: 'nif', render: (x) => <span className="font-mono">{x.nif || '—'}</span> },
+    { id: 'nif', label: t('col_nif', 'NIF'), sortField: 'nif', render: (x) => (x.nif ? <span className="font-mono text-xs">{x.nif}</span> : <SinDato />) },
     { id: 'regimen_fiscal', label: t('col_regimen', 'Régimen'), sortField: 'regimen_fiscal', render: (x) => t(`regimen_${String(x.regimen_fiscal || '').toLowerCase()}`, x.regimen_fiscal) },
     { id: 'rol', label: t('col_acceso', 'Tu acceso'), sortField: 'rol', render: (x) => t(`rol_${String(x.rol || '').toLowerCase()}`, x.rol) },
-    {
-      id: 'socios', label: t('col_socios', 'Socios'), render: (x) => (x.tipo === 'PERSONAL' ? '—' : (
-        <Button size="xs" variant="outline" leftIcon={<Users size={14} />} onClick={() => abrirSocios(x)}>{t('ver_socios', 'Socios')}</Button>
-      )),
-    },
-    {
-      id: 'documentos', label: t('col_documentos', 'Documentos'), render: (x) => (
-        <Button size="xs" variant="outline" leftIcon={<FileText size={14} />} onClick={() => setModal({ tipo: 'documentos', tabla: 'm_company', id: x.id, titulo: x.nombre, soloLectura: !puedeEditar(x) })}>{t('ver_documentos', 'Documentos')}</Button>
-      ),
-    },
   ];
+  // Socios y Documentos van con las demás acciones, en la primera columna.
+  const accionesExtra = (x) => (
+    <>
+      {x.tipo !== 'PERSONAL' && <BotonFila icono={<Users size={12} />} titulo={t('ver_socios', 'Socios')} onClick={() => abrirSocios(x)} />}
+      <BotonFila icono={<FileText size={12} />} titulo={t('ver_documentos', 'Documentos')} onClick={() => setModal({ tipo: 'documentos', tabla: 'm_company', id: x.id, titulo: x.nombre, soloLectura: !puedeEditar(x) })} />
+    </>
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-widest">{t('seccion', 'Gestión')}</p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight text-on-background">{t('titulo', 'Entidades')}</h1>
-          <p className="mt-2 text-sm">{t('subtitulo', 'Personas, comunidades de bienes y sociedades: sus datos fiscales y sus socios.')}</p>
-        </div>
-        <Button variant="primary" size="lg" leftIcon={<Plus size={18} />} onClick={() => abrirFicha()}>{t('nueva', 'Nueva entidad')}</Button>
-      </header>
+      <CabeceraPagina icono={<Building2 size={24} />} titulo={t('titulo', 'Entidades')} subtitulo={t('subtitulo', 'Personas, comunidades de bienes y sociedades: sus datos fiscales y sus socios.')} />
 
-      {error && !modal && <div role="alert" className="rounded-xl border border-destructive bg-surface1 px-4 py-3 text-sm text-destructive-text">{error}</div>}
-      {aviso && <div role="status" className="rounded-xl border border-border bg-surface1 px-4 py-3 text-sm">{aviso}</div>}
+      {!modal && <AvisoError>{error}</AvisoError>}
+      <AvisoAtencion>{aviso}</AvisoAtencion>
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-surface2 shadow-sm">
-        <div className="flex items-center gap-3 border-b border-border px-5 py-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-border bg-surface2 text-on-background"><Building2 size={20} /></div>
-          <div>
-            <h2 className="font-black text-on-background">{t('mis_entidades', 'Mis entidades')}</h2>
-            <p className="text-xs">{entidades.length} {entidades.length === 1 ? t('entidad', 'entidad') : t('entidades', 'entidades')}</p>
-          </div>
-        </div>
+      <Panel className="overflow-hidden">
+        <CabeceraPanel icono={<Building2 size={20} />} titulo={t('mis_entidades', 'Mis entidades')}
+          contador={`${entidades.length} ${entidades.length === 1 ? t('entidad', 'entidad') : t('entidades', 'entidades')}`} />
         {cargando
-          ? <div className="px-5 py-12 text-center text-sm">{t('cargando', 'Cargando…')}</div>
+          ? <div className="px-5 py-12 text-center text-xs font-bold uppercase tracking-widest text-on-surface2">{t('cargando', 'Cargando…')}</div>
           : (
-            <div className="p-3">
+            <div className="space-y-3 p-3">
+              {/* Nueva entidad: el círculo azul con «+» a la izquierda, igual que
+                  en Bancos y cuentas (01/10/2026). Antes era un botón con texto
+                  en la cabecera. */}
+              <div className="flex items-center gap-4">
+                <Tooltip texto={t('nueva', 'Nueva entidad')}>
+                  <button
+                    type="button" onClick={() => abrirFicha()} aria-label={t('nueva', 'Nueva entidad')}
+                    className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </Tooltip>
+              </div>
               <DataTable
                 columns={columnas} data={entidades} keyField="id" rowsPerPage={10}
                 searchFn={(x, q) => `${x.nombre} ${x.nif || ''}`.toLowerCase().includes(q)}
                 onEdit={(x) => (puedeEditar(x) ? abrirFicha(x) : null)}
                 onDelete={(x) => (puedeEditar(x) ? eliminar(x) : null)}
+                extraActions={accionesExtra}
                 emptyMessage={t('vacio', 'Todavía no hay entidades.')}
               />
             </div>
           )}
-      </section>
+      </Panel>
 
       {modal?.tipo === 'ficha' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/70 p-4" role="dialog" aria-modal="true">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-surface2 p-6 shadow-xl">
-            <div className="flex justify-between gap-4">
-              <h2 className="text-xl font-black text-on-background">{modal.entidad ? t('editar', 'Editar entidad') : t('nueva', 'Nueva entidad')}</h2>
-              <button onClick={() => !guardando && setModal(null)} aria-label={t('cerrar', 'Cerrar')}><X size={20} /></button>
-            </div>
-            {error && <div role="alert" className="mt-4 text-sm text-destructive-text">{error}</div>}
+        <VentanaModal icono={<Building2 size={20} />} titulo={modal.entidad ? t('editar', 'Editar entidad') : t('nueva', 'Nueva entidad')} onCerrar={() => !guardando && setModal(null)}>
+            <AvisoError>{error}</AvisoError>
             <form onSubmit={guardar} className="mt-5 space-y-5">
               <fieldset className="grid gap-4 sm:grid-cols-2">
-                <legend className="mb-2 text-xs font-black uppercase tracking-widest">{t('bloque_identidad', 'Identidad')}</legend>
-                <Campo etiqueta={t('nombre', 'Nombre corto')}><input autoFocus value={form.nombre} maxLength={150} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} className={claseInput} /></Campo>
+                <Leyenda>{t('bloque_identidad', 'Identidad')}</Leyenda>
+                <Campo etiqueta={t('nombre', 'Nombre corto')}><input autoFocus value={form.nombre} maxLength={150} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} className={CLASE_INPUT} /></Campo>
                 <Campo etiqueta={t('tipo', 'Forma')}>
-                  <select value={form.tipo} onChange={(e) => cambiarTipo(e.target.value)} className={claseInput}>
+                  <select value={form.tipo} onChange={(e) => cambiarTipo(e.target.value)} className={CLASE_INPUT}>
                     {TIPOS.map((v) => <option key={v} value={v}>{etiquetaTipo(v)}</option>)}
                   </select>
                 </Campo>
-                <Campo etiqueta={t('nif', 'NIF / CIF')}><input value={form.nif} maxLength={20} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.toUpperCase() }))} className={`${claseInput} font-mono`} /></Campo>
-                <Campo etiqueta={t('razon_social', 'Razón social / nombre completo')}><input value={form.razon_social} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, razon_social: e.target.value }))} className={claseInput} /></Campo>
+                <Campo etiqueta={t('nif', 'NIF / CIF')}><input value={form.nif} maxLength={20} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} /></Campo>
+                <Campo etiqueta={t('razon_social', 'Razón social / nombre completo')}><input value={form.razon_social} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, razon_social: e.target.value }))} className={CLASE_INPUT} /></Campo>
               </fieldset>
               <fieldset className="grid gap-4 sm:grid-cols-3">
-                <legend className="mb-2 text-xs font-black uppercase tracking-widest">{t('bloque_domicilio', 'Domicilio fiscal')}</legend>
-                <div className="sm:col-span-3"><Campo etiqueta={t('domicilio', 'Dirección')}><input value={form.domicilio} maxLength={255} onChange={(e) => setForm((f) => ({ ...f, domicilio: e.target.value }))} className={claseInput} /></Campo></div>
-                <Campo etiqueta={t('codigo_postal', 'Código postal')}><input value={form.codigo_postal} maxLength={10} onChange={(e) => setForm((f) => ({ ...f, codigo_postal: e.target.value }))} className={claseInput} /></Campo>
-                <Campo etiqueta={t('municipio', 'Municipio')}><input value={form.municipio} maxLength={100} onChange={(e) => setForm((f) => ({ ...f, municipio: e.target.value }))} className={claseInput} /></Campo>
-                <Campo etiqueta={t('provincia', 'Provincia')}><input value={form.provincia} maxLength={100} onChange={(e) => setForm((f) => ({ ...f, provincia: e.target.value }))} className={claseInput} /></Campo>
+                <Leyenda>{t('bloque_domicilio', 'Domicilio fiscal')}</Leyenda>
+                <div className="sm:col-span-3"><Campo etiqueta={t('domicilio', 'Dirección')}><input value={form.domicilio} maxLength={255} onChange={(e) => setForm((f) => ({ ...f, domicilio: e.target.value }))} className={CLASE_INPUT} /></Campo></div>
+                <Campo etiqueta={t('codigo_postal', 'Código postal')}><input value={form.codigo_postal} maxLength={10} onChange={(e) => setForm((f) => ({ ...f, codigo_postal: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('municipio', 'Municipio')}><input value={form.municipio} maxLength={100} onChange={(e) => setForm((f) => ({ ...f, municipio: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('provincia', 'Provincia')}><input value={form.provincia} maxLength={100} onChange={(e) => setForm((f) => ({ ...f, provincia: e.target.value }))} className={CLASE_INPUT} /></Campo>
               </fieldset>
               <fieldset className="grid gap-4 sm:grid-cols-3">
-                <legend className="mb-2 text-xs font-black uppercase tracking-widest">{t('bloque_fiscal', 'Régimen fiscal')}</legend>
+                <Leyenda>{t('bloque_fiscal', 'Régimen fiscal')}</Leyenda>
                 <Campo etiqueta={t('regimen_fiscal', 'Impuesto directo')}>
-                  <select value={form.regimen_fiscal} onChange={(e) => setForm((f) => ({ ...f, regimen_fiscal: e.target.value }))} className={claseInput}>
+                  <select value={form.regimen_fiscal} onChange={(e) => setForm((f) => ({ ...f, regimen_fiscal: e.target.value }))} className={CLASE_INPUT}>
                     {REGIMEN_FISCAL.map((v) => <option key={v} value={v}>{t(`regimen_${v.toLowerCase()}`, v)}</option>)}
                   </select>
                 </Campo>
                 <Campo etiqueta={t('regimen_iva', 'IVA')}>
-                  <select value={form.regimen_iva} onChange={(e) => setForm((f) => ({ ...f, regimen_iva: e.target.value }))} className={claseInput}>
+                  <select value={form.regimen_iva} onChange={(e) => setForm((f) => ({ ...f, regimen_iva: e.target.value }))} className={CLASE_INPUT}>
                     {REGIMEN_IVA.map((v) => <option key={v} value={v}>{t(`iva_${v.toLowerCase()}`, v)}</option>)}
                   </select>
                 </Campo>
                 <Campo etiqueta={t('periodicidad_iva', 'Declaración de IVA')}>
-                  <select value={form.periodicidad_iva} onChange={(e) => setForm((f) => ({ ...f, periodicidad_iva: e.target.value }))} className={claseInput}>
+                  <select value={form.periodicidad_iva} onChange={(e) => setForm((f) => ({ ...f, periodicidad_iva: e.target.value }))} className={CLASE_INPUT}>
                     {PERIODICIDAD.map((v) => <option key={v} value={v}>{t(`periodo_${v.toLowerCase()}`, v)}</option>)}
                   </select>
                 </Campo>
-                <Campo etiqueta={t('fecha_alta', 'Fecha de alta')}><input type="date" value={form.fecha_alta} onChange={(e) => setForm((f) => ({ ...f, fecha_alta: e.target.value }))} className={claseInput} /></Campo>
-                <Campo etiqueta={t('fecha_baja', 'Fecha de baja')}><input type="date" value={form.fecha_baja} onChange={(e) => setForm((f) => ({ ...f, fecha_baja: e.target.value }))} className={claseInput} /></Campo>
+                <Campo etiqueta={t('fecha_alta', 'Fecha de alta')}><input type="date" value={form.fecha_alta} onChange={(e) => setForm((f) => ({ ...f, fecha_alta: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('fecha_baja', 'Fecha de baja')}><input type="date" value={form.fecha_baja} onChange={(e) => setForm((f) => ({ ...f, fecha_baja: e.target.value }))} className={CLASE_INPUT} /></Campo>
               </fieldset>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('cancelar', 'Cancelar')}</Button>
                 <Button type="submit" loading={guardando}>{t('guardar', 'Guardar')}</Button>
               </div>
             </form>
-          </div>
-        </div>
+        </VentanaModal>
       )}
 
       {modal?.tipo === 'socios' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/70 p-4" role="dialog" aria-modal="true">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-surface2 p-6 shadow-xl">
-            <div className="flex justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-black text-on-background">{t('socios_de', 'Socios de {entidad}').replace('{entidad}', modal.entidad.nombre)}</h2>
-                <p className="mt-1 text-sm">{t('suma_vigente', 'Participación vigente: {n} %').replace('{n}', sumaVigente.toFixed(3))}</p>
-              </div>
-              <button onClick={() => setModal(null)} aria-label={t('cerrar', 'Cerrar')}><X size={20} /></button>
-            </div>
-            {error && <div role="alert" className="mt-4 text-sm text-destructive-text">{error}</div>}
+        <VentanaModal icono={<Users size={20} />} titulo={t('socios_de', 'Socios de {entidad}').replace('{entidad}', modal.entidad.nombre)} onCerrar={() => setModal(null)}>
+            <p className="text-sm font-bold text-on-surface1">{t('suma_vigente', 'Participación vigente: {n} %').replace('{n} %', formatPorcentaje(sumaVigente)).replace('{n}', formatPorcentaje(sumaVigente).slice(0, -2))}</p>
+            <div className="mt-4"><AvisoError>{error}</AvisoError></div>
 
-            <table className="mt-5 w-full text-sm">
-              <thead><tr className="bg-table-header text-on-table-header text-left text-xs uppercase tracking-wider">
-                <th className="p-2">{t('col_socio', 'Socio')}</th><th>{t('col_papel', 'Papel')}</th><th className="text-right">%</th><th>{t('col_desde', 'Desde')}</th><th>{t('col_hasta', 'Hasta')}</th><th />
-              </tr></thead>
-              <tbody>
-                {socios.map((s) => (
-                  <tr key={s.id} className="bg-table-row text-on-table-row border-b border-border transition-colors duration-100 hover:bg-table-row-hover hover:text-on-table-row-hover">
-                    <td className="py-2 font-bold">{s.socio_nombre}</td>
-                    <td>{t(`papel_${s.tipo.toLowerCase()}`, s.tipo)}</td>
-                    <td className="text-right font-mono">{Number(s.porcentaje).toFixed(3)}</td>
-                    <td className="font-mono">{fecha(s.fecha_desde)}</td>
-                    <td className="font-mono">{fecha(s.fecha_hasta) || t('vigente', 'vigente')}</td>
-                    <td className="whitespace-nowrap text-right">
-                      <Button size="xs" variant="ghost" aria-label={t('documentos_socio', 'Documentos del socio')} onClick={() => setModal({ tipo: 'documentos', tabla: 'x_company_partner', id: s.id, titulo: `${s.socio_nombre} · ${modal.entidad.nombre}`, soloLectura: !puedeEditar(modal.entidad), volver: modal })}><FileText size={14} /></Button>
+            <TablaTema className="mt-5" columnas={[{ texto: '' }, { texto: t('col_socio', 'Socio') }, { texto: t('col_papel', 'Papel') }, { texto: '%', derecha: true }, { texto: t('col_desde', 'Desde') }, { texto: t('col_hasta', 'Hasta') }]}>
+                {socios.map((s, i) => (
+                  <tr key={s.id} className={claseFila(i)}>
+                    <td className={`${TD} whitespace-nowrap`}>
+                      <BotonFila icono={<FileText size={14} />} titulo={t('documentos_socio', 'Documentos del socio')} onClick={() => setModal({ tipo: 'documentos', tabla: 'x_company_partner', id: s.id, titulo: `${s.socio_nombre} · ${modal.entidad.nombre}`, soloLectura: !puedeEditar(modal.entidad), volver: modal })} />
                       {puedeEditar(modal.entidad) && <>
-                        <Button size="xs" variant="ghost" aria-label={t('editar_socio', 'Editar')} onClick={() => editarSocio(s)}><Pencil size={14} /></Button>
-                        <Button size="xs" variant="ghost" aria-label={t('quitar_socio', 'Quitar')} onClick={() => quitarSocio(s)}><Trash2 size={14} /></Button>
+                        <BotonFila icono={<Pencil size={14} />} titulo={t('editar_socio', 'Editar')} onClick={() => editarSocio(s)} />
+                        <BotonFila icono={<Trash2 size={14} />} titulo={t('quitar_socio', 'Quitar')} onClick={() => quitarSocio(s)} />
                       </>}
                     </td>
+                    <td className={`${TD} font-black tracking-tight`}>{s.socio_nombre}</td>
+                    <td className={TD}>{t(`papel_${s.tipo.toLowerCase()}`, s.tipo)}</td>
+                    <td className={`${TD} text-right font-mono`}>{formatPorcentaje(s.porcentaje)}</td>
+                    <td className={`${TD} font-mono`}>{fecha(s.fecha_desde)}</td>
+                    <td className={`${TD} font-mono`}>{fecha(s.fecha_hasta) || t('vigente', 'vigente')}</td>
                   </tr>
                 ))}
-                {!socios.length && <tr className="bg-table-row text-on-table-row"><td colSpan={6} className="py-6 text-center">{t('sin_socios', 'Sin socios registrados.')}</td></tr>}
-              </tbody>
-            </table>
+                {!socios.length && <FilaVacia columnas={6}>{t('sin_socios', 'Sin socios registrados.')}</FilaVacia>}
+            </TablaTema>
 
             {puedeEditar(modal.entidad) && !formSocio && (
-              <div className="mt-4"><Button leftIcon={<Plus size={16} />} onClick={nuevoSocio}>{t('anadir_socio', 'Añadir socio')}</Button></div>
+              <div className="mt-4">
+                <Tooltip texto={t('anadir_socio', 'Añadir socio')}>
+                  <button
+                    type="button" onClick={nuevoSocio} aria-label={t('anadir_socio', 'Añadir socio')}
+                    className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </Tooltip>
+              </div>
             )}
 
             {formSocio && (
-              <form onSubmit={guardarSocio} className="mt-5 grid gap-4 rounded-xl border border-border p-4 sm:grid-cols-3">
+              <Recuadro as="form" onSubmit={guardarSocio} className="mt-5 grid gap-4 sm:grid-cols-3">
                 <Campo etiqueta={t('col_socio', 'Socio')}>
-                  <select required value={formSocio.socio_id} onChange={(e) => setFormSocio((f) => ({ ...f, socio_id: e.target.value }))} className={claseInput}>
+                  <select required value={formSocio.socio_id} onChange={(e) => setFormSocio((f) => ({ ...f, socio_id: e.target.value }))} className={CLASE_INPUT}>
                     <option value="">{t('elige', 'Elige…')}</option>
                     {candidatos.map((e) => <option key={e.id} value={e.id}>{e.nombre} ({etiquetaTipo(e.tipo)})</option>)}
                   </select>
                 </Campo>
                 <Campo etiqueta={t('col_papel', 'Papel')}>
-                  <select value={formSocio.tipo} onChange={(e) => setFormSocio((f) => ({ ...f, tipo: e.target.value }))} className={claseInput}>
+                  <select value={formSocio.tipo} onChange={(e) => setFormSocio((f) => ({ ...f, tipo: e.target.value }))} className={CLASE_INPUT}>
                     {TIPOS_SOCIO.map((v) => <option key={v} value={v}>{t(`papel_${v.toLowerCase()}`, v)}</option>)}
                   </select>
                 </Campo>
-                <Campo etiqueta={t('porcentaje', 'Porcentaje')}><input required type="number" step="0.001" min="0" max="100" value={formSocio.porcentaje} onChange={(e) => setFormSocio((f) => ({ ...f, porcentaje: e.target.value }))} className={`${claseInput} font-mono`} /></Campo>
-                <Campo etiqueta={t('col_desde', 'Desde')}><input required type="date" value={formSocio.fecha_desde} onChange={(e) => setFormSocio((f) => ({ ...f, fecha_desde: e.target.value }))} className={claseInput} /></Campo>
-                <Campo etiqueta={t('col_hasta', 'Hasta')}><input type="date" value={formSocio.fecha_hasta} onChange={(e) => setFormSocio((f) => ({ ...f, fecha_hasta: e.target.value }))} className={claseInput} /></Campo>
-                <Campo etiqueta={t('notas', 'Notas')}><input value={formSocio.notas} maxLength={255} onChange={(e) => setFormSocio((f) => ({ ...f, notas: e.target.value }))} className={claseInput} /></Campo>
-                <p className="text-xs sm:col-span-3">{t('ayuda_socio', 'Si el socio es una persona, créala antes como entidad de tipo Persona.')}</p>
+                <Campo etiqueta={t('porcentaje', 'Porcentaje')}><input required type="number" step="0.001" min="0" max="100" value={formSocio.porcentaje} onChange={(e) => setFormSocio((f) => ({ ...f, porcentaje: e.target.value }))} className={`${CLASE_INPUT} font-mono`} /></Campo>
+                <Campo etiqueta={t('col_desde', 'Desde')}><input required type="date" value={formSocio.fecha_desde} onChange={(e) => setFormSocio((f) => ({ ...f, fecha_desde: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('col_hasta', 'Hasta')}><input type="date" value={formSocio.fecha_hasta} onChange={(e) => setFormSocio((f) => ({ ...f, fecha_hasta: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('notas', 'Notas')}><input value={formSocio.notas} maxLength={255} onChange={(e) => setFormSocio((f) => ({ ...f, notas: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Ayuda className="sm:col-span-3">{t('ayuda_socio', 'Si el socio es una persona, créala antes como entidad de tipo Persona.')}</Ayuda>
                 <div className="flex justify-end gap-3 sm:col-span-3">
                   <Button type="button" variant="secondary" onClick={() => setFormSocio(null)}>{t('cancelar', 'Cancelar')}</Button>
                   <Button type="submit" loading={guardando}>{t('guardar', 'Guardar')}</Button>
                 </div>
-              </form>
+              </Recuadro>
             )}
-          </div>
-        </div>
+        </VentanaModal>
       )}
 
       {modal?.tipo === 'documentos' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/70 p-4" role="dialog" aria-modal="true">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-surface2 p-6 shadow-xl">
-            <div className="mb-4 flex justify-between gap-4">
-              <h2 className="text-xl font-black text-on-background">{t('documentos_de', 'Documentos de {nombre}').replace('{nombre}', modal.titulo)}</h2>
-              <button onClick={() => setModal(modal.volver || null)} aria-label={t('cerrar', 'Cerrar')}><X size={20} /></button>
-            </div>
+        <VentanaModal ancho="max-w-4xl" icono={<FileText size={20} />} titulo={t('documentos_de', 'Documentos de {nombre}').replace('{nombre}', modal.titulo)} onCerrar={() => setModal(modal.volver || null)}>
             <DocumentosObjeto tabla={modal.tabla} id={modal.id} soloLectura={modal.soloLectura} />
-          </div>
-        </div>
+        </VentanaModal>
       )}
     </div>
   );
