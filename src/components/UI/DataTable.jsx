@@ -211,16 +211,13 @@ const FilterModal = ({ filterFields = [], filters, onApply, onClose }) => {
                     {/* Tabs Sidebar */}
                     {hasTabs && (
                         <div className="w-48 border-r border-border bg-surface2/30 p-4 overflow-y-auto hidden sm:block shrink-0">
-                            <div className="space-y-1">
+                            <div role="tablist" className="tab-bar-vertical">
                                 {tabs.map(tab => (
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
-                                        className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                            activeTab === tab 
-                                                ? 'bg-primary text-on-primary shadow-sm' 
-                                                : 'text-on-surface2 hover:bg-surface3 hover:text-on-surface1'
-                                        }`}
+                                        role="tab" aria-selected={activeTab === tab}
+                                        className={`tab-base w-full ${activeTab === tab ? 'tab-active' : ''}`}
                                     >
                                         {tab}
                                     </button>

@@ -49,7 +49,7 @@ export function SqlTabGroupRaw({
             {tab.icon && <span className="shrink-0">{tab.icon}</span>}
             <span className="truncate">{tab.label}</span>
             {tab.count !== undefined && (
-              <span className="text-[10px] text-secondary font-mono">({tab.count})</span>
+              <span className="text-[10px] font-mono">({tab.count})</span>
             )}
             {tab.hasError && (
               <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
@@ -73,21 +73,17 @@ export function SqlTabGroup({
   className = ''
 }) {
   // Estilos según variante
+  // Colores de pestaña del tema (styles/utilities.css, 03/10/2026).
   const containerClasses = variant === 'pill'
-    ? 'bg-surface2 p-1 rounded-lg gap-1'
-    : 'border-b border-border gap-0 overflow-x-auto';
+    ? 'tab-bar flex-nowrap rounded-lg pb-1'
+    : 'tab-bar flex-nowrap overflow-x-auto';
 
   const baseTabClasses = variant === 'pill'
-    ? 'flex-1 justify-center px-3 py-1.5 text-xs font-semibold rounded-md'
-    : 'px-4 py-2 text-xs font-semibold border-r border-border min-w-max';
+    ? 'tab-base flex-1 justify-center px-3 py-1.5 text-xs rounded-md'
+    : 'tab-base px-4 py-2 text-xs min-w-max';
 
-  const activeClasses = variant === 'pill'
-    ? 'bg-primary text-on-primary shadow-sm'
-    : 'bg-surface1 text-primary border-b-2 border-b-primary';
-
-  const inactiveClasses = variant === 'pill'
-    ? 'text-on-surface2 hover:bg-surface-hover hover:text-on-surface1'
-    : 'text-on-surface2 hover:bg-surface-hover';
+  const activeClasses = 'tab-active';
+  const inactiveClasses = '';
 
   return (
     <SqlTabGroupRaw

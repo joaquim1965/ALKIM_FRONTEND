@@ -271,8 +271,9 @@ export function TabsRawV1({
 export function TabsV1({ tabs, content, themeConfig, variant = 'default', ...rest }) {
   const autoThemeConfig = !themeConfig
     ? {
-      tabActiveBg: 'bg-tab',
-      tabActiveText: 'text-on-tab',
+      // Elegida resaltada con «Pestaña (Hover)» (03/10/2026).
+      tabActiveBg: 'bg-tab-hover',
+      tabActiveText: 'text-on-tab-hover',
       tabActiveBorder: 'border-border',
       tabActiveHover: 'hover:bg-tab-hover',
       tabInactiveBg: 'bg-tab',
@@ -281,7 +282,7 @@ export function TabsV1({ tabs, content, themeConfig, variant = 'default', ...res
       tabInactiveHover: 'hover:bg-tab-hover',
       tabHover: 'hover:bg-tab-hover',
       contentBg: 'bg-tab-content',
-      contentText: 'text-on-background',
+      contentText: 'text-on-tab-content',
       borderColor: 'border-border',
       errorBg: 'bg-destructive',
       errorText: 'text-on-destructive',

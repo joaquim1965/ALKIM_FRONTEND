@@ -1126,7 +1126,7 @@ const ExtractosPage = () => {
             { icono: <CalendarClock size={15} />, nombre: `${t('autodownload')} / ${t('remove_autodownload')}`, texto: t('help_autodownload', 'Descarga la cuenta sola cada día laborable a la hora programada. Otra vez: la quita.') },
             { icono: <Video size={15} />, nombre: `${t('record_action')} / ${t('sequence_action')}`, texto: t('help_record', 'Graba el guion: cómo entrar en el banco y llegar hasta la descarga.') },
             { icono: <KeyRound size={15} />, nombre: t('create_credential'), texto: t('help_credential', 'Guarda el usuario y la clave del banco para que ALKIM pueda entrar solo.') },
-            { icono: <span className="relative inline-flex"><KeyRound size={15} /><svg aria-hidden="true" viewBox="0 0 10 10" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full"><line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /></svg></span>, nombre: t('revoke'), texto: t('help_revoke', 'Borra la credencial guardada: ALKIM deja de poder entrar en el banco.') },
+            { icono: <span className="relative inline-flex"><KeyRound size={15} /><svg aria-hidden="true" viewBox="0 0 10 10" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full"><line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /></svg></span>, nombre: t('revoke'), texto: t('help_revoke', 'Permite ver, editar o quitar la credencial guardada del banco. Si se quita, ALKIM deja de poder entrar en el banco.') },
             { icono: <RefreshCw size={15} />, nombre: t('renew'), texto: t('help_login', 'Entra en el banco y sale sin descargar: deja la sesión abierta y comprueba que el acceso funciona.') },
             { icono: <Trash2 size={15} />, nombre: t('remove_account'), texto: t('help_remove', 'Quita la cuenta de la lista de descargas y borra su guion y su sesión. Los movimientos se quedan.') },
             { icono: <ListChecks size={15} />, nombre: t('review'), texto: t('help_review', 'Abre el guion grabado para quitar pasos o reasignar fechas sin volver a grabar.') },
@@ -1341,7 +1341,7 @@ const ExtractosPage = () => {
           <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-3xl border border-border bg-surface2 p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3">
               <div className="rounded-2xl border-2 border-border bg-surface2 p-2.5 text-on-background shadow-sm">
-                {cadenaTerminada ? <CheckCircle size={22} /> : <Spinner size="sm" />}
+                {cadenaTerminada ? <CheckCircle size={22} strokeWidth={2.75} style={{ color: '#39ff14', filter: 'drop-shadow(0 0 4px #39ff14) drop-shadow(0 0 10px #39ff14)' }} /> : <Spinner size="sm" />}
               </div>
               <div>
                 <h2 id="cadena-title" className="text-xl font-black tracking-tight text-on-background">
@@ -1798,7 +1798,8 @@ const ExtractosPage = () => {
             {syncResult.status === 'success' ? (
               <>
                 <div className="mb-4 flex items-start gap-3 text-on-surface1">
-                  <CheckCircle size={28} className="shrink-0 text-success" />
+                  {/* Verde fluorescente que brille (03/10/2026, petición del usuario). */}
+                  <CheckCircle size={28} strokeWidth={2.75} className="shrink-0" style={{ color: '#39ff14', filter: 'drop-shadow(0 0 4px #39ff14) drop-shadow(0 0 10px #39ff14)' }} />
                   <div>
                     <h2 className="text-xl font-bold">
                       {syncResult.credential ? t('credential_protected') : syncResult.connection ? t('session_renewed') : syncResult.manual ? t('upload_completed') : t('download_completed')}

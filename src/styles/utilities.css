@@ -539,35 +539,93 @@ select:-webkit-autofill:active {
 /* ═══════════════════════════════════════════════════════
    Tabs - Variantes
    ═══════════════════════════════════════════════════════ */
+/*
+ * Pestañas: TODAS las pestañas de la aplicación usan estas clases
+ * (03/10/2026, petición del usuario). Son las variables de «Pestañas de
+ * Navegación» del editor de temas:
+ *   --color-tab            Fondo Pestaña          (barra y pestaña normal)
+ *   --color-on-tab         Texto Pestaña
+ *   --color-tab-hover      Pestaña (Hover)        (al pasar y la elegida)
+ *   --color-on-tab-hover   Texto Pestaña (Hover)
+ *   --color-tab-indicator  Indicador Pestaña Activa (raya bajo la elegida)
+ *   --color-tab-content    Fondo Contenido Pestaña
+ *   --color-on-tab-content Texto Contenido
+ *
+ *   <div role="tablist" class="tab-bar">
+ *     <button class="tab-base [tab-active]">…</button>
+ *   </div>
+ *   <div role="tabpanel" class="tab-content">…</div>
+ */
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem 0.25rem 0;
+  background-color: var(--color-tab);
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+
+.tab-bar-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background-color: var(--color-tab);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+}
+
 .tab-base {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   background-color: var(--color-tab);
   color: var(--color-on-tab);
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
-  font-weight: 600;
-  transition-property: background-color, color, border-color;
+  font-weight: 700;
+  border-radius: 0.5rem 0.5rem 0 0;
+  transition-property: background-color, color, box-shadow;
   transition-duration: 150ms;
   transition-timing-function: ease-in-out;
   position: relative;
+  cursor: pointer;
 }
 
-.tab-base:hover:not(.tab-active) {
+.tab-bar-vertical .tab-base {
+  border-radius: 0.5rem;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.tab-base:hover:not(.tab-active):not(:disabled) {
   background-color: var(--color-tab-hover);
   color: var(--color-on-tab-hover);
 }
 
+.tab-base:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* La elegida: fondo resaltado y la raya del indicador debajo. */
 .tab-active {
+  background-color: var(--color-tab-hover);
   color: var(--color-on-tab-hover);
-  border-bottom: 4px solid var(--color-tab-indicator);
-  margin-bottom: -2px;
+  box-shadow: inset 0 -3px 0 var(--color-tab-indicator);
+}
+
+.tab-bar-vertical .tab-active {
+  box-shadow: inset 3px 0 0 var(--color-tab-indicator);
 }
 
 .tab-content {
   background-color: var(--color-tab-content);
   color: var(--color-on-tab-content);
-  border: 2px solid var(--color-border);
-  border-top: none;
-  border-radius: 0 0 0.5rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0 0 0.75rem 0.75rem;
 }
 
 /* ═══════════════════════════════════════════════════════

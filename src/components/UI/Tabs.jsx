@@ -67,17 +67,10 @@ export const Tabs = ({
       {/* Tab List */}
       <div
         ref={containerRef}
-        className={`relative flex ${isVertical ? 'flex-col border-r border-border' : 'flex-row border-b border-border'} shrink-0`}
+        /* Colores de pestaña del tema (styles/utilities.css, 03/10/2026). */
+        className={`relative shrink-0 ${isVertical ? 'tab-bar-vertical' : 'tab-bar'}`}
         role="tablist"
       >
-        {/* Animated Indicator */}
-        <div
-          className="absolute bg-tab-indicator rounded-full transition-all duration-300 ease-in-out z-10"
-          style={{
-            ...indicatorStyle,
-            backgroundColor: 'var(--color-tab-indicator)'
-          }}
-        />
 
         {tabs.map((tab, index) => {
           const isActive = activeTab === tab.id;
@@ -91,15 +84,7 @@ export const Tabs = ({
               aria-selected={isActive}
               disabled={isDisabled}
               onClick={() => !isDisabled && handleTabClick(tab.id)}
-              className={`
-                relative px-6 py-4 text-sm font-bold transition-all duration-300
-                flex items-center gap-3 outline-none border-b border-border/50
-                ${isVertical ? 'text-left justify-start border-r border-transparent' : 'text-center flex-col md:flex-row'}
-                ${isActive 
-                  ? 'text-on-tab-hover bg-tab-hover' 
-                  : 'text-on-tab hover:text-on-tab-hover hover:bg-tab-hover'}
-                ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-              `}
+              className={`tab-base outline-none ${isActive ? 'tab-active' : ''}`}
             >
               {tab.icon && <span className="shrink-0">{tab.icon}</span>}
               <span>{tab.label}</span>
@@ -110,7 +95,7 @@ export const Tabs = ({
       </div>
 
       {/* Tab Content */}
-      <div className={`flex-1 min-w-0 animate-fade-in ${isVertical ? '' : 'mt-4'}`}>
+      <div role="tabpanel" className={`tab-content flex-1 min-w-0 animate-fade-in p-4 ${isVertical ? 'rounded-xl' : ''}`}>
         {activeTabData?.content}
       </div>
     </div>

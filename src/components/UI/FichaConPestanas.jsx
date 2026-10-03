@@ -27,7 +27,7 @@ export default function FichaConPestanas({ titulo, subtitulo, pestanas, guardado
           <div className="min-w-0">
             <h2 className="truncate text-xl font-black leading-none tracking-tight text-on-background">{titulo}</h2>
             {subtitulo && <p className="mt-2 text-xs font-bold uppercase tracking-widest text-on-surface2">{subtitulo}</p>}
-            <div role="tablist" className="mt-4 flex flex-wrap gap-1">
+            <div role="tablist" className="tab-bar mt-4">
               {pestanas.map((p) => {
                 const desactivada = p.requiereGuardado && !guardado;
                 return (
@@ -35,10 +35,8 @@ export default function FichaConPestanas({ titulo, subtitulo, pestanas, guardado
                     key={p.id} type="button" role="tab" aria-selected={p.id === activa} disabled={desactivada}
                     title={desactivada ? p.ayudaDesactivada : undefined}
                     onClick={() => setActiva(p.id)}
-                    className={`rounded-t-xl border border-b-0 px-4 py-2 text-sm font-bold transition-all duration-200
-                      ${desactivada ? 'cursor-not-allowed border-transparent bg-disabled text-on-disabled'
-                        : p.id === activa ? 'border-border bg-tab-hover text-on-tab-hover'
-                          : 'border-transparent text-on-tab hover:bg-tab-hover hover:text-on-tab-hover'}`}
+                    /* Colores de pestaña del tema (styles/utilities.css, 03/10/2026). */
+                    className={`tab-base ${!desactivada && p.id === activa ? 'tab-active' : ''}`}
                   >
                     {p.etiqueta}{p.contador != null ? ` · ${p.contador}` : ''}
                   </button>
@@ -48,7 +46,7 @@ export default function FichaConPestanas({ titulo, subtitulo, pestanas, guardado
           </div>
           <button type="button" onClick={onCerrar} aria-label={etiquetaCerrar} className="mt-1 rounded-full p-2 text-on-surface2 transition-colors hover:bg-surface-hover hover:text-on-surface-hover"><X size={20} /></button>
         </div>
-        <div role="tabpanel" className="custom-scrollbar flex-1 overflow-y-auto p-6 text-on-surface1">{actual?.contenido}</div>
+        <div role="tabpanel" className="tab-content custom-scrollbar flex-1 overflow-y-auto rounded-none border-0 p-6">{actual?.contenido}</div>
       </div>
     </div>
   );

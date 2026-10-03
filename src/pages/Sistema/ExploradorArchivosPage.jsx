@@ -123,9 +123,10 @@ export default function ExploradorArchivosPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <CabeceraPagina icono={<FolderTree size={24} />} titulo={t('titulo', 'Explorador de archivos')} subtitulo={t('subtitulo', 'Todos los documentos: por tipo, por entidad y tal como están guardados en R2.')} />
 
-      <nav className="flex flex-wrap gap-2" aria-label={t('titulo', 'Explorador de archivos')}>
+      {/* Pestañas del tema (styles/utilities.css, 03/10/2026). */}
+      <nav role="tablist" className="tab-bar rounded-xl pb-1" aria-label={t('titulo', 'Explorador de archivos')}>
         {PESTANAS.filter((p) => p !== 'carpetas' || adminSistema).map((p) => (
-          <Button key={p} size="sm" variant={p === pestana ? 'primary' : 'outline'} onClick={() => setPestana(p)}>{t(`pestana_${p}`, p)}</Button>
+          <button key={p} type="button" role="tab" aria-selected={p === pestana} className={`tab-base rounded-lg ${p === pestana ? 'tab-active' : ''}`} onClick={() => setPestana(p)}>{t(`pestana_${p}`, p)}</button>
         ))}
       </nav>
 

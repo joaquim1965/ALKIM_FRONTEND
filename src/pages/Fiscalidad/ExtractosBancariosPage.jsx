@@ -4,6 +4,7 @@ import { useTmTr } from '../../contexts/TmTrContext';
 import { Button, Spinner, Tooltip } from '../../components/UI';
 import { apiFetch, authHeaders } from '../../services/api';
 import useEmpresaActiva, { esDeLaEmpresa } from '../../hooks/useEmpresaActiva';
+import JustificantesTab from './JustificantesTab';
 
 /**
  * Fiscalidad → Extractos bancarios (25/09/2026).
@@ -91,6 +92,9 @@ function FilaPeriodos({ c, anio, onAbrir, ultimoDia, tituloMesFn }) {
   const hoy = new Date();
   const hoyIso = `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}`;
   const corte = c.corte || 7;
+  // Apertura de la cuenta: la da el backend (primer movimiento o primer día
+  // del primer justificante, lo que sea antes). 03/10/2026.
+  const apertura = c.apertura || c.primera;
   const limite = c.intervalo === 'resumenes' ? ultimoDia(hoy, corte) : null;
   const COMPLETOS = ['pdf', 'sin_movimientos', 'vacio'];
   const pinta = (color) => ({ background: color, border: `1px solid ${color}` });
@@ -105,14 +109,17 @@ function FilaPeriodos({ c, anio, onAbrir, ultimoDia, tituloMesFn }) {
     const fecha = `${anio}-${pad(m.mes)}-${pad(d)}`;
     const k = periodoDe(m.mes, d);
     const color = k % 2 === 0 ? AZUL : VERDE;
+    if (m.estado === 'previo') return estiloDia('previo');
     if (c.intervalo === 'resumenes') {
       if ((m.cubiertos || []).includes(d)) return pinta(color);
+      if (apertura && fecha < apertura) return estiloDia('previo');
       if (fecha > limite) return pinta(BLANCO);
-      if (c.primera && fecha < c.primera) return estiloDia('previo');
       return pinta(ROJO_CLARO);
     }
+    // Un PDF que cubre el mes manda (el trimestral cubre también los días
+    // antes del primer movimiento: ROSA ALEJANDRIA, 1 de enero).
     if (COMPLETOS.includes(m.estado)) return pinta(color);
-    if (c.primera && fecha < c.primera) return estiloDia('previo');
+    if (apertura && fecha < apertura) return estiloDia('previo');
     if (m.estado === 'falta') return pinta(ROJO_CLARO);
     if (m.estado === 'curso' || m.estado === 'futuro' || fecha > hoyIso) return pinta(BLANCO);
     return pinta(ROJO_CLARO);
@@ -123,7 +130,7 @@ function FilaPeriodos({ c, anio, onAbrir, ultimoDia, tituloMesFn }) {
     const total = new Date(anio, m.mes, 0).getDate();
     return (
       <button
-        key={m.mes} type="button" onClick={() => onAbrir(m)} aria-disabled={!m.fichero}
+        key={m.mes} type="button" onClick={() => onAbrir(m)}
         aria-label={tituloMesFn(c, m)} title={tituloMesFn(c, m)}
         className={`grid w-fit justify-self-center grid-cols-[repeat(7,7px)] gap-[2px] rounded-md p-1 transition-transform ${m.fichero ? 'cursor-pointer hover:scale-105' : 'cursor-default'}`}
       >
@@ -136,7 +143,7 @@ function FilaPeriodos({ c, anio, onAbrir, ultimoDia, tituloMesFn }) {
   });
 }
 
-const ExtractosBancariosPage = () => {
+const SituacionTab = () => {
   const { t } = useTmTr('Fiscalidad');
   const empresaActiva = useEmpresaActiva();
   const anioActual = new Date().getFullYear();
@@ -165,7 +172,7 @@ const ExtractosBancariosPage = () => {
       const res = await respuesta.json().catch(() => {
         throw new Error(`${t('no_server', 'El servidor no ha contestado')} (${respuesta.status}).`);
       });
-      if (!res.success) throw new Error(res.message);
+      if (!res.success) throw new Error(res.message || res.error?.message || `${t('no_server', 'El servidor no ha contestado')} (${respuesta.status}).`);
       setCuentas(res.data.cuentas || []);
     } catch (error) {
       setAviso({ tipo: 'error', texto: error.message });
@@ -184,7 +191,8 @@ const ExtractosBancariosPage = () => {
 
   // Un mes cuenta si está cerrado y la cuenta ya existía.
   const cuenta = (c) => {
-    const primeraMes = c.primera ? c.primera.slice(0, 7) : null;
+    const inicio = c.apertura || c.primera;
+    const primeraMes = inicio ? inicio.slice(0, 7) : null;
     const validos = c.meses.filter((m) => ['pdf', 'sin_movimientos', 'vacio', 'falta'].includes(m.estado)
       && (!primeraMes || `${anio}-${pad(m.mes)}` >= primeraMes));
     const hechos = validos.filter((m) => m.estado !== 'falta').length;
@@ -293,11 +301,12 @@ const ExtractosBancariosPage = () => {
     // la cuenta está al día y cuenta como completo (26/09/2026).
     const completo = ['pdf', 'sin_movimientos', 'vacio', 'curso'].includes(m.estado);
     const fecha = t('month_year', '{mes} de {anio}').replace('{mes}', mes).replace('{anio}', anio);
+    if (m.estado === 'previo') return `${fecha}. ${t('before_opening', 'Antes de abrir la cuenta')}`;
     return `${fecha}. ${completo ? t('complete', 'Completo') : t('incomplete', 'Incompleto')}`;
   };
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-5">
       {/* Cabecera */}
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -455,6 +464,48 @@ const ExtractosBancariosPage = () => {
         <Landmark size={14} />
         {t('footer', 'Los justificantes se guardan al terminar cada descarga. Un mes en curso no tiene extracto hasta que termina.')}
       </p>
+    </div>
+  );
+};
+
+/**
+ * Dos pestañas (03/10/2026, petición del usuario):
+ *   · «Situación»     el calendario de cobertura de siempre;
+ *   · «Justificantes» la lista de ficheros guardados, para verlos y eliminarlos.
+ * La pestaña elegida se recuerda en este navegador.
+ */
+const PESTANAS = ['situacion', 'justificantes'];
+const ExtractosBancariosPage = () => {
+  const { t } = useTmTr('Fiscalidad');
+  const anioActual = new Date().getFullYear();
+  const anios = Array.from({ length: Math.max(1, anioActual - 2026 + 1) }, (_, i) => anioActual - i);
+  const [pestana, setPestana] = useState(() => {
+    try { const p = localStorage.getItem('fiscal.extractos.pestana'); return PESTANAS.includes(p) ? p : 'situacion'; } catch { return 'situacion'; }
+  });
+  const elegir = (p) => {
+    setPestana(p);
+    try { localStorage.setItem('fiscal.extractos.pestana', p); } catch { /* sin almacenamiento */ }
+  };
+  const rotulos = { situacion: t('tab_status', 'Situación'), justificantes: t('tab_receipts', 'Justificantes') };
+  return (
+    <div className="space-y-5 p-6">
+      {/* Pestañas del tema: clases tab-bar / tab-base / tab-active /
+          tab-content de styles/utilities.css (03/10/2026). */}
+      <div>
+      <div role="tablist" className="tab-bar">
+        {PESTANAS.map((p) => (
+          <button
+            key={p} type="button" role="tab" aria-selected={pestana === p} onClick={() => elegir(p)}
+            className={`tab-base ${pestana === p ? 'tab-active' : ''}`}
+          >
+            {rotulos[p]}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" className="tab-content p-5">
+        {pestana === 'situacion' ? <SituacionTab /> : <JustificantesTab anios={anios} />}
+      </div>
+      </div>
     </div>
   );
 };

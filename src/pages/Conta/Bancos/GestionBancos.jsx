@@ -168,12 +168,8 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
         }
     };
 
-    const tabClass = (id) => `
-        shrink-0 px-6 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors
-        ${activeTab === id 
-            ? 'border-primary text-primary bg-primary/5' 
-            : 'border-transparent text-on-surface2 hover:text-on-surface1 hover:border-border'}
-    `;
+    // Colores de pestaña del tema (styles/utilities.css, 03/10/2026).
+    const tabClass = (id) => `tab-base shrink-0 ${activeTab === id ? 'tab-active' : ''}`;
 
     return (
         <div className="flex flex-col h-full space-y-4 animate-in fade-in">
@@ -182,7 +178,7 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
             <div className="bg-surface1 border border-border rounded-xl shadow-sm overflow-hidden flex flex-col flex-1">
                 {/* Tabs Header */}
                 {!hideTabs && (
-                    <div className="flex border-b border-border bg-surface2 overflow-x-auto custom-scrollbar">
+                    <div role="tablist" className="tab-bar flex-nowrap overflow-x-auto custom-scrollbar rounded-none border-0 border-b">
                         <button onClick={() => setActiveTab('entidades')} className={tabClass('entidades')}>
                             <Landmark size={18} /> Entidades / Bancos
                         </button>
