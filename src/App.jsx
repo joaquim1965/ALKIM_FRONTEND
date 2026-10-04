@@ -51,6 +51,7 @@ import MovimientosPage from "./pages/Tesoreria/MovimientosPage";
 import ExploradorArchivosPage from "./pages/Sistema/ExploradorArchivosPage";
 import EntidadesPage from "./pages/Gestion/EntidadesPage";
 import TercerosPage from "./pages/Gestion/TercerosPage";
+import CalendarioPage from "./pages/Gestion/CalendarioPage";
 import PropiedadesPage from "./pages/Cartera/PropiedadesPage";
 import RecibosPage from "./pages/Cartera/RecibosPage";
 
@@ -183,6 +184,14 @@ function AppContent() {
             }
           />
           <Route path="/themeeditor" element={<ThemeEditor />} />
+          <Route
+            path="/gestion/calendario"
+            element={
+              <ProtectedRoute table="m_event">
+                <CalendarioPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/gestion/empresas"
             element={

@@ -65,7 +65,9 @@ export default defineConfig(({ mode }) => {
         // API de Fiscalidad. No «/fiscalidad»: esa es la ruta de la pantalla.
         '^/fiscal(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         // Tareas programadas (27/09/2026). La pantalla es «/sistema/tareas».
-        '^/tareas(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
+        '^/tareas(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        // Calendario (04/10/2026). La pantalla es «/gestion/calendario».
+        '^/calendario(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
       }
     },
     build: {
