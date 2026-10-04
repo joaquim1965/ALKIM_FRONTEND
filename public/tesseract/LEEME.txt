@@ -1,0 +1,5 @@
+Tesseract.js 5.1.1 (Apache-2.0) servido desde la propia web (04/10/2026).
+Lo usa FRONTEND/src/utils/lectorDni.js para leer las líneas «<<<» del DNI en el navegador.
+  tesseract.min.js, worker.min.js        -> paquete tesseract.js@5.1.1 (dist)
+  tesseract-core-*-lstm.wasm.js          -> paquete tesseract.js-core@5.1.1
+  lang/eng.traineddata.gz                -> paquete @tesseract.js-data/eng 1.0.0 (4.0.0_best_int)

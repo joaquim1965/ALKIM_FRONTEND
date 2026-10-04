@@ -84,6 +84,9 @@ export default function EntidadesPage() {
   // y se trae a la vista. Antes salía arriba del todo y, con la página
   // desplazada, parecía que el botón de borrar no hacía nada.
   const [errorBorrar, setErrorBorrar] = useState('');
+  // Campos rellenados con datos del DNI y aún sin guardar (04/10/2026).
+  const [pendientes, setPendientes] = useState(new Set());
+  const marca = (k) => (pendientes.has(k) ? ' ring-2 ring-warning-border' : '');
   const refErrorBorrar = useRef(null);
   useEffect(() => {
     if (errorBorrar) refErrorBorrar.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -105,6 +108,7 @@ export default function EntidadesPage() {
     setForm(entidad
       ? Object.fromEntries(Object.keys(VACIA).map((k) => [k, k.startsWith('fecha') ? fecha(entidad[k]) : (entidad[k] ?? '')]))
       : VACIA);
+    setPendientes(new Set());
     setModal({ tipo: 'ficha', entidad, pestana });
   };
 
@@ -128,6 +132,7 @@ export default function EntidadesPage() {
         method: edita ? 'PUT' : 'POST', body: JSON.stringify({ ...form, nombre: form.nombre.trim() }),
       });
       if (b.avisos?.length) setAviso(b.avisos.join(' '));
+      setPendientes(new Set());
       setModal(null);
       await cargar();
       window.dispatchEvent(new Event('empresa-activa-cambiada'));
@@ -246,12 +251,18 @@ export default function EntidadesPage() {
           subtitulo={modal.entidad ? etiquetaTipo(modal.entidad.tipo) : undefined}
           etiquetaCerrar={t('cerrar', 'Cerrar')}
           ancho="max-w-4xl"
+          key={modal.vez || 0}
           inicial={modal.pestana}
           guardado={Boolean(modal.entidad)}
-          onCerrar={() => !guardando && setModal(null)}
+          onCerrar={() => {
+            if (guardando) return;
+            if (pendientes.size && !window.confirm(t('sin_guardar_dni', 'Hay datos del DNI sin guardar. ¿Cerrar sin guardar?'))) return;
+            setModal(null);
+          }}
           pestanas={[
             { id: 'datos', etiqueta: t('pestana_datos', 'Datos'), contenido: (
               <>
+            {pendientes.size > 0 && <div className="mb-4"><AvisoAtencion>{t('dni_pendiente', 'Datos leídos del DNI: revisa los campos marcados y pulsa «Guardar».')}</AvisoAtencion></div>}
             <AvisoError>{error}</AvisoError>
             {/* La ficha cambia según la forma (04/10/2026). Los campos que se
                 ocultan NO se borran: se conservan por si se vuelve a cambiar. */}
@@ -265,7 +276,7 @@ export default function EntidadesPage() {
                   </select>
                 </Campo>
                 <div className={esPF ? 'sm:col-span-2' : ''}>
-                  <Campo etiqueta={esPF ? t('nombre_completo', 'Nombre y apellidos (como en el documento)') : t('razon_social_pj', 'Razón social')}><input value={form.razon_social} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, razon_social: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                  <Campo etiqueta={esPF ? t('nombre_completo', 'Nombre y apellidos (como en el documento)') : t('razon_social_pj', 'Razón social')}><input value={form.razon_social} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, razon_social: e.target.value }))} className={CLASE_INPUT + marca('razon_social')} /></Campo>
                 </div>
                 {!esPF && <Campo etiqueta={t('nif_pj', 'NIF')}><input value={form.nif} maxLength={20} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} /></Campo>}
               </fieldset>
@@ -274,25 +285,25 @@ export default function EntidadesPage() {
                 <fieldset className="grid gap-4 sm:grid-cols-3">
                   <Leyenda>{t('bloque_documento', 'Documento de identidad')}</Leyenda>
                   <Campo etiqueta={t('tipo_documento', 'Tipo de documento')}>
-                    <select value={form.tipo_documento} onChange={(e) => setForm((f) => ({ ...f, tipo_documento: e.target.value }))} className={CLASE_INPUT}>
+                    <select value={form.tipo_documento} onChange={(e) => setForm((f) => ({ ...f, tipo_documento: e.target.value }))} className={CLASE_INPUT + marca('tipo_documento')}>
                       <option value="">—</option>
                       {TIPOS_DOCUMENTO.map((v) => <option key={v} value={v}>{t(`doc_${v.toLowerCase()}`, v)}</option>)}
                     </select>
                   </Campo>
-                  <Campo etiqueta={t('numero_documento', 'Nº de documento')}><input value={form.nif} maxLength={20} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} /></Campo>
-                  <Campo etiqueta={t('fecha_caducidad_doc', 'Caducidad del documento')}><input type="date" value={form.fecha_caducidad_doc} onChange={(e) => setForm((f) => ({ ...f, fecha_caducidad_doc: e.target.value }))} className={CLASE_INPUT} /></Campo>
-                  <Campo etiqueta={t('fecha_nacimiento', 'Fecha de nacimiento')}><input type="date" max={hoy()} value={form.fecha_nacimiento} onChange={(e) => setForm((f) => ({ ...f, fecha_nacimiento: e.target.value }))} className={CLASE_INPUT} /></Campo>
-                  <Campo etiqueta={t('nacionalidad', 'Nacionalidad (código país)')}><input value={form.nacionalidad} maxLength={2} onChange={(e) => setForm((f) => ({ ...f, nacionalidad: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} /></Campo>
+                  <Campo etiqueta={t('numero_documento', 'Nº de documento')}><input value={form.nif} maxLength={20} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono${marca('nif')}`} /></Campo>
+                  <Campo etiqueta={t('fecha_caducidad_doc', 'Caducidad del documento')}><input type="date" value={form.fecha_caducidad_doc} onChange={(e) => setForm((f) => ({ ...f, fecha_caducidad_doc: e.target.value }))} className={CLASE_INPUT + marca('fecha_caducidad_doc')} /></Campo>
+                  <Campo etiqueta={t('fecha_nacimiento', 'Fecha de nacimiento')}><input type="date" max={hoy()} value={form.fecha_nacimiento} onChange={(e) => setForm((f) => ({ ...f, fecha_nacimiento: e.target.value }))} className={CLASE_INPUT + marca('fecha_nacimiento')} /></Campo>
+                  <Campo etiqueta={t('nacionalidad', 'Nacionalidad (código país)')}><input value={form.nacionalidad} maxLength={2} onChange={(e) => setForm((f) => ({ ...f, nacionalidad: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono${marca('nacionalidad')}`} /></Campo>
                   <Campo etiqueta={t('fecha_baja', 'Fecha de baja')}><input type="date" value={form.fecha_baja} onChange={(e) => setForm((f) => ({ ...f, fecha_baja: e.target.value }))} className={CLASE_INPUT} /></Campo>
                 </fieldset>
               )}
 
               <fieldset className="grid gap-4 sm:grid-cols-3">
                 <Leyenda>{esPF ? t('domicilio_pf', 'Domicilio') : t('bloque_domicilio', 'Domicilio fiscal')}</Leyenda>
-                <div className="sm:col-span-3"><Campo etiqueta={t('domicilio', 'Dirección')}><input value={form.domicilio} maxLength={255} onChange={(e) => setForm((f) => ({ ...f, domicilio: e.target.value }))} className={CLASE_INPUT} /></Campo></div>
+                <div className="sm:col-span-3"><Campo etiqueta={t('domicilio', 'Dirección')}><input value={form.domicilio} maxLength={255} onChange={(e) => setForm((f) => ({ ...f, domicilio: e.target.value }))} className={CLASE_INPUT + marca('domicilio')} /></Campo></div>
                 <Campo etiqueta={t('codigo_postal', 'Código postal')}><input value={form.codigo_postal} maxLength={10} onChange={(e) => setForm((f) => ({ ...f, codigo_postal: e.target.value }))} className={CLASE_INPUT} /></Campo>
-                <Campo etiqueta={t('municipio', 'Municipio')}><input value={form.municipio} maxLength={100} onChange={(e) => setForm((f) => ({ ...f, municipio: e.target.value }))} className={CLASE_INPUT} /></Campo>
-                <Campo etiqueta={t('provincia', 'Provincia')}><input value={form.provincia} maxLength={100} onChange={(e) => setForm((f) => ({ ...f, provincia: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('municipio', 'Municipio')}><input value={form.municipio} maxLength={100} onChange={(e) => setForm((f) => ({ ...f, municipio: e.target.value }))} className={CLASE_INPUT + marca('municipio')} /></Campo>
+                <Campo etiqueta={t('provincia', 'Provincia')}><input value={form.provincia} maxLength={100} onChange={(e) => setForm((f) => ({ ...f, provincia: e.target.value }))} className={CLASE_INPUT + marca('provincia')} /></Campo>
               </fieldset>
 
               <fieldset className="grid gap-4 sm:grid-cols-2">
@@ -345,10 +356,26 @@ export default function EntidadesPage() {
               contenido: modal.entidad && (
                 <DocumentosObjeto
                   tabla="m_company" id={modal.entidad.id} soloLectura={!puedeEditar(modal.entidad)}
+                  ficha={form}
+                  // Los datos elegidos del DNI van al formulario y a la pestaña
+                  // Datos; se guardan con «Guardar» (decidido con el usuario).
+                  onDatosDocumento={(cambios) => {
+                    setForm((f) => ({ ...f, ...cambios }));
+                    setPendientes(new Set(Object.keys(cambios)));
+                    setModal((m) => ({ ...m, pestana: 'datos', vez: (m.vez || 0) + 1 }));
+                  }}
                   // Al subir el DNI se actualiza la ficha: también el formulario
                   // abierto, para que «Guardar» en Datos no pise lo nuevo.
                   onDocumentoIdentidad={(doc) => {
-                    setForm((f) => ({ ...f, tipo_documento: doc.tipo_documento, nif: doc.nif ?? f.nif, fecha_caducidad_doc: doc.fecha_caducidad_doc ?? f.fecha_caducidad_doc }));
+                    // Todos los datos leídos del DNI (04/10/2026): antes faltaban
+                    // nacimiento y nacionalidad, y «Guardar» en Datos los habría
+                    // dejado vacíos.
+                    setForm((f) => ({
+                      ...f, tipo_documento: doc.tipo_documento, nif: doc.nif ?? f.nif,
+                      fecha_caducidad_doc: doc.fecha_caducidad_doc ?? f.fecha_caducidad_doc,
+                      fecha_nacimiento: doc.fecha_nacimiento ?? f.fecha_nacimiento,
+                      nacionalidad: doc.nacionalidad ?? f.nacionalidad,
+                    }));
                     cargar();
                   }}
                 />
