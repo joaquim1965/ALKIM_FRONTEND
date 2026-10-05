@@ -14,7 +14,7 @@ import SidebarSubItem from '../UI/SidebarSubItem';
 import AppBreadcrumbs from '../UI/AppBreadcrumbs';
 import { 
     LayoutDashboard, Briefcase, FileText, Wallet, CalendarClock, 
-    Settings2, History, Building2, Warehouse, Users, ScrollText,
+    Settings2, History, Building2, Sparkles, FileSignature,
     Receipt, Landmark, PiggyBank, Calendar, Contact2, Key,
     ReceiptEuro, HelpCircle, Cpu, Scale, FileCheck
 } from 'lucide-react';
@@ -24,7 +24,9 @@ import useMenuSpeech from '../../hooks/useMenuSpeech';
 import GlobalActionTooltip from '../UI/GlobalActionTooltip';
 
 export const MainLayout = ({ children }) => {
-    const { isAuthenticated, can } = useStore();
+    const { isAuthenticated, can, user } = useStore();
+    // Claves de IA: solo superadmin y sysadmin (05/10/2026).
+    const verClavesIa = Number(user?.rol) >= 3;
     const { t } = useTmTr('Sidebar');
     useMenuSpeech();
 
@@ -111,24 +113,13 @@ export const MainLayout = ({ children }) => {
                             label="Cartera" 
                             collapsed={!sidebarOpen}
                         >
+                            {/* Cartera y Documentación unidas (04/10/2026). Los inquilinos
+                                están en Gestión ▸ Terceros; Plantillas e Historial volverán
+                                cuando existan sus pantallas. */}
                             <SidebarSubItem to="/cartera/propiedades" icon={<Building2 size={13}/>} label="Propiedades" />
+                            <SidebarSubItem to="/cartera/contratos" icon={<FileSignature size={13}/>} label="Contratos" />
                             <SidebarSubItem to="/cartera/recibos" icon={<Receipt size={13}/>} label="Recibos" />
-                            <SidebarSubItem to="/cartera/unidades" icon={<Warehouse size={13}/>} label="Unid. Facturación (UF)" />
-                            <SidebarSubItem to="/cartera/inquilinos" icon={<Users size={13}/>} label="Inquilinos" />
-                            <SidebarSubItem to="/cartera/plantillas" icon={<ScrollText size={13}/>} label="Plantillas" />
-                            <SidebarSubItem to="/cartera/historial" icon={<History size={13}/>} label="Historial" />
-                        </SidebarGroup>
-
-                        {/* 4. Documentación */}
-                        <SidebarGroup 
-                            icon={<FileText size={18} />} 
-                            label="Documentación" 
-                            collapsed={!sidebarOpen}
-                        >
-                            <SidebarSubItem to="/docs/propiedades" label="Propiedades" />
-                            <SidebarSubItem to="/docs/uf" label="UF" />
-                            <SidebarSubItem to="/docs/inquilinos" label="Inquilinos" />
-                            <SidebarSubItem to="/sistema/archivos" label="Explorador de archivos" />
+                            <SidebarSubItem to="/sistema/archivos" icon={<FileText size={13}/>} label="Documentos" />
                         </SidebarGroup>
 
                         {/* 5. Contabilidad (filtrado por permisos) */}
@@ -189,6 +180,7 @@ export const MainLayout = ({ children }) => {
                         >
                             {verContactos && <SidebarSubItem to="/aux/contactos" icon={<Contact2 size={13}/>} label="Contactos" />}
                             <SidebarSubItem to="/aux/llaves" icon={<Key size={13}/>} label="Control de llaves" />
+                            {verClavesIa && <SidebarSubItem to="/aux/ia" icon={<Sparkles size={13}/>} label="Claves de IA" />}
                         </SidebarGroup>
 
                         {/* Espaciado / Ayuda */}

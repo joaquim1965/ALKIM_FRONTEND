@@ -15,7 +15,7 @@ import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { formatImporte, formatPorcentaje } from '../../utils/format';
 import {
-  Campo, Casilla, AvisoError, Ayuda, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD,
+  Campo, Casilla, AvisoError, Ayuda, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, BotonAnadir,
 } from '../../components/UI/TemaPagina';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
@@ -88,8 +88,8 @@ export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
     <div className="space-y-5">
       <AvisoError>{error}</AvisoError>
       <div className="flex items-center gap-3">
+        {puedeEscribir && !form && <BotonAnadir texto={t('nuevo', 'Nuevo préstamo')} onClick={() => setForm({ ...VACIO })} pequeno />}
         <p className="flex-1 text-sm font-bold">{t('ayuda', 'Los intereses de cada préstamo se reparten entre quienes lo pagan, según su %.')}</p>
-        {puedeEscribir && !form && <Button leftIcon={<Plus size={16} />} onClick={() => setForm({ ...VACIO })}>{t('nuevo', 'Nuevo préstamo')}</Button>}
       </div>
 
       {form && (

@@ -336,7 +336,7 @@ export function TableDataEditor({ tableName, mode, onClose }) {
                     {viewMode === 'row' && (
                         <button 
                             onClick={() => setShowInsertRow(!showInsertRow)}
-                            className={`ml-2 p-1.5 rounded transition-colors ${showInsertRow ? 'bg-success text-on-success' : 'bg-surface1 text-on-surface1 border border-border hover:bg-surface-hover'}`}
+                            className={`ml-2 p-1.5 rounded transition-colors ${showInsertRow ? 'bg-success text-on-success' : 'bg-surface1 text-on-surface1 border border-border hover:bg-surface-hover hover:text-on-surface-hover'}`}
                             title={t(translations.toggleInsertRow) || 'Alternar fila de inserción'}
                         >
                             <Plus size={16} />
@@ -344,10 +344,10 @@ export function TableDataEditor({ tableName, mode, onClose }) {
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={loadTableData} className="p-1.5 hover:bg-surface-hover rounded transition-colors" title="Refrescar">
+                    <button onClick={loadTableData} className="p-1.5 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors" title="Refrescar">
                         <Edit2 size={16} />
                     </button>
-                    <button onClick={onClose} className="p-1.5 hover:bg-surface-hover rounded transition-colors text-destructive">
+                    <button onClick={onClose} className="p-1.5 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors text-destructive">
                         <X size={18} />
                     </button>
                 </div>

@@ -203,7 +203,7 @@ function FilaCuenta({ cuenta, vista, t, limites, techo, hoy, diasAtraso, onCuent
       type="button" onClick={() => onCuenta && onCuenta(cuenta)}
       title={`${cuenta.clave} · ${valor == null ? t('sin_datos') : eurExacto(valor, cuenta.moneda)}${
         cuantos != null ? ` · ${cuantos} d` : ''}`}
-      className={`grid w-full grid-cols-[minmax(84px,104px)_1fr_74px] items-center gap-2 rounded px-1 py-0.5 text-left transition-colors hover:bg-surface2 ${
+      className={`grid w-full grid-cols-[minmax(84px,104px)_1fr_74px] items-center gap-2 rounded px-1 py-0.5 text-left transition-colors hover:bg-surface2 hover:text-on-surface2 ${
         // La fila entera con el color de su contador (■ rojo, ▲ ámbar, ● verde,
         // ◆ azul), para ver de un vistazo qué cuenta cumple cada condición
         // (26/09/2026). Solo en Saldo: en Gastos e Ingresos no hay zonas.

@@ -67,7 +67,14 @@ export default defineConfig(({ mode }) => {
         // Tareas programadas (27/09/2026). La pantalla es «/sistema/tareas».
         '^/tareas(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         // Calendario (04/10/2026). La pantalla es «/gestion/calendario».
-        '^/calendario(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
+        '^/calendario(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        // Cartera y Terceros (04/10/2026): faltaban y en local no llegaban al backend.
+        '^/propiedades(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        '^/recibos(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        '^/terceros(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        '^/avisos(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        // Proveedores de IA (05/10/2026). La pantalla es «/sistema/ia».
+        '^/ia(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
       }
     },
     build: {

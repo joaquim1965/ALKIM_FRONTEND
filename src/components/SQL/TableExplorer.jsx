@@ -381,7 +381,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
           <button
             onClick={loadAll}
             disabled={loading}
-            className="p-1.5 text-primary hover:bg-surface-hover rounded transition-colors"
+            className="p-1.5 text-primary hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors"
             title="Actualizar esquema"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -431,10 +431,10 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                 return (
                   <div key={tableName} className="text-sm">
                     {/* Table Name */}
-                    <div className="flex items-center group/table hover:bg-surface-hover rounded transition-colors">
+                    <div className="flex items-center group/table hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors">
                       <button
                         onClick={() => toggleTable(tableName)}
-                        className={`p-1 hover:bg-surface-hover rounded transition-colors ${
+                        className={`p-1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors ${
                           activeTable === tableName ? 'text-on-primary' : 'text-primary'
                         }`}
                       >
@@ -450,7 +450,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                         className={`flex-1 flex items-center gap-2 py-1.5 px-2 text-left rounded-r transition-all ${
                           activeTable === tableName 
                           ? 'bg-primary text-on-primary border-l-4 border-primary shadow-sm' 
-                          : 'text-on-surface1 hover:bg-surface-hover'
+                          : 'text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover'
                         }`}
                       >
                         <Database size={14} className={activeTable === tableName ? 'text-on-primary' : 'text-primary'} />
@@ -488,7 +488,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                                   <button
                                     onClick={(e) => handleFieldClick(tableName, column.name, e)}
                                     onContextMenu={(e) => handleContextMenu(e, column.name, 'field', { column, tableName })}
-                                    className="flex-1 flex items-center gap-2 px-2 py-1 text-primary hover:bg-surface-hover rounded transition-colors text-left group"
+                                    className="flex-1 flex items-center gap-2 px-2 py-1 text-primary hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors text-left group"
                                   >
                                     {isPrimaryKey && !isForeignKey && (
                                       <Key size={12} className="flex-shrink-0" />
@@ -517,7 +517,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                                   <Tooltip content={isForeignKey ? "Ver detalles de FK" : "Ver detalles de PK"}>
                                     <button
                                       onClick={(e) => handleToggleForeignKey(tableName, column.name, e)}
-                                      className="p-1 hover:bg-surface-hover rounded transition-colors flex-shrink-0 text-primary"
+                                      className="p-1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors flex-shrink-0 text-primary"
                                     >
                                       {isFieldExpanded ? (
                                         <ChevronDown size={12} />
@@ -615,7 +615,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                             <button
                               onClick={() => toggleTrigger(trigger.name)}
                               onContextMenu={(e) => handleContextMenu(e, trigger.name, 'trigger')}
-                              className="flex-1 flex items-center gap-2 px-2 py-1.5 text-primary hover:bg-surface-hover rounded-l transition-colors text-left min-w-0"
+                              className="flex-1 flex items-center gap-2 px-2 py-1.5 text-primary hover:bg-surface-hover hover:text-on-surface-hover rounded-l transition-colors text-left min-w-0"
                             >
                               {isTriggerExpanded ? (
                                 <ChevronDown size={14} className="flex-shrink-0" />
@@ -632,7 +632,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                             {/* Botón eliminar — visible al hover */}
                             <button
                               title={`Eliminar trigger ${trigger.name}`}
-                              className="invisible group-hover/trigger:visible px-1.5 py-1 text-primary hover:bg-surface-hover rounded-r transition-all flex items-center"
+                              className="invisible group-hover/trigger:visible px-1.5 py-1 text-primary hover:bg-surface-hover hover:text-on-surface-hover rounded-r transition-all flex items-center"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const rect = e.currentTarget.getBoundingClientRect();
@@ -687,7 +687,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                     {/* Event Name */}
                     <button
                       onClick={() => toggleEvent(event.name)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 text-on-surface1 hover:bg-surface-hover rounded transition-colors text-left"
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors text-left"
                     >
                       {isEventExpanded ? (
                         <ChevronDown size={14} className="flex-shrink-0 text-primary" />
@@ -763,7 +763,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => toggleView(view.name)}
-                        className="p-1 hover:bg-surface-hover rounded transition-colors flex-shrink-0"
+                        className="p-1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors flex-shrink-0"
                       >
                         {isViewExpanded ? (
                           <ChevronDown size={14} />
@@ -777,7 +777,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                         className={`flex-1 flex items-center gap-2 py-1.5 px-2 text-on-surface1 text-left rounded-r transition-all ${
                           activeTable === view.name 
                           ? 'bg-primary border-l-2 border-primary text-on-primary' 
-                          : 'hover:bg-surface-hover'
+                          : 'hover:bg-surface-hover hover:text-on-surface-hover'
                         }`}
                         title="Ver y editar vista"
                       >
@@ -823,7 +823,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
             {contextMenu.itemType === 'table' && (
               <>
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover transition-colors"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors"
                   onClick={() => {
                     if (onExecuteQuery) {
                       onExecuteQuery(`SELECT * FROM \`${contextMenu.itemName}\``);
@@ -834,7 +834,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                   {t(translations.viewTable) || 'Ver la tabla'}
                 </button>
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover transition-colors"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors"
                   onClick={() => {
                     if (onExecuteQuery) {
                       onExecuteQuery(`SELECT * FROM \`${contextMenu.itemName}\` LIMIT 100`);
@@ -845,7 +845,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                   {t(translations.view100Rows) || 'Ver 100 filas'}
                 </button>
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover transition-colors"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors"
                   onClick={async () => {
                     const tableName = contextMenu.itemName;
                     setContextMenu(prev => ({ ...prev, visible: false }));
@@ -873,7 +873,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                 </button>
                 <div className="border-t border-border my-1" />
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover transition-colors flex items-center gap-2"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors flex items-center gap-2"
                   onClick={() => {
                     if (fileInputRef.current) {
                       fileInputRef.current.click();
@@ -896,7 +896,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
 
                 {/* Eliminar columna */}
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover transition-colors flex items-center gap-2"
+                  className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover hover:text-on-surface-hover transition-colors flex items-center gap-2"
                   onClick={() => {
                     const sql = `ALTER TABLE \`${contextMenu.tableName}\` DROP COLUMN \`${contextMenu.itemName}\`;`;
                     setContextMenu(prev => ({ ...prev, visible: false }));
@@ -992,7 +992,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                 </div>
 
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover transition-colors"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors"
                   onClick={() => {
                     if (onExecuteQuery) {
                       onExecuteQuery(`SELECT * FROM \`${contextMenu.itemName}\``);
@@ -1003,7 +1003,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                   {t(translations.viewTable) || 'Ver datos'}
                 </button>
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover transition-colors"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors"
                   onClick={() => {
                     if (onExecuteQuery) {
                       onExecuteQuery(`SELECT * FROM \`${contextMenu.itemName}\` LIMIT 100`);
@@ -1016,7 +1016,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
 
                 {/* Ver estructura */}
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover transition-colors"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors"
                   onClick={async () => {
                     const name = contextMenu.itemName;
                     setContextMenu(prev => ({ ...prev, visible: false }));
@@ -1044,7 +1044,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
 
                 {/* Eliminar vista */}
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover transition-colors font-medium"
+                  className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover hover:text-on-surface-hover transition-colors font-medium"
                   onClick={(e) => {
                     e.stopPropagation();
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -1063,7 +1063,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
             {/* Opciones exclusivas de TRIGGER */}
             {contextMenu.itemType === 'trigger' && (
               <button
-                className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover transition-colors font-medium flex items-center gap-2"
+                className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover hover:text-on-surface-hover transition-colors font-medium flex items-center gap-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   const rect = e.currentTarget.getBoundingClientRect();

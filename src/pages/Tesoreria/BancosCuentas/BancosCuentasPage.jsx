@@ -115,7 +115,7 @@ const Modal = ({ titulo, icono, onClose, children }) => {
                         <div className="rounded-2xl border-2 border-border bg-surface2 p-2 text-on-background">{icono}</div>
                         <h2 className="text-xl font-black leading-none tracking-tight text-on-background">{titulo}</h2>
                     </div>
-                    <button onClick={onClose} aria-label={t('cerrar')} className="rounded-full p-2 text-on-surface2 transition-colors hover:bg-surface3 hover:text-on-surface1">
+                    <button onClick={onClose} aria-label={t('cerrar')} className="rounded-full p-2 text-on-surface2 transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
                         <CloseIcon size={20} />
                     </button>
                 </div>
@@ -561,7 +561,7 @@ const BancosCuentasPage = () => {
                 <div className={`animate-in slide-in-from-top flex items-center justify-between rounded-2xl border p-4 shadow-lg duration-300
                     ${aviso.tipo === 'ok' ? 'border-success bg-success text-on-success' : 'border-destructive bg-destructive text-on-destructive'}`}>
                     <span className="font-bold">{aviso.texto}</span>
-                    <button onClick={() => setAviso(null)} aria-label={t('cerrar_aviso')} className="rounded-full p-1 transition-colors hover:bg-surface-hover">
+                    <button onClick={() => setAviso(null)} aria-label={t('cerrar_aviso')} className="rounded-full p-1 transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
                         <CloseIcon size={18} />
                     </button>
                 </div>
@@ -613,14 +613,14 @@ const BancosCuentasPage = () => {
                         <div className="relative">
                             <select
                                 id="selector-banco"
-                                className="input-base h-[45px] w-full appearance-none rounded-xl border-border bg-background px-4 pr-10 text-sm font-bold"
+                                className="input-base h-[45px] w-full appearance-none rounded-xl border-border bg-background px-4 text-sm font-bold"
                                 value={bancoId}
                                 onChange={(e) => setBancoId(e.target.value)}
                             >
                                 {bancos.length === 0 && <option value="">{t('sin_bancos_opcion')}</option>}
                                 {bancos.map((b) => <option key={b.id} value={b.id}>{b.nombre}</option>)}
                             </select>
-                            <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-on-surface2/50" />
+                            
                         </div>
                     </div>
                 </div>

@@ -33,7 +33,7 @@ const ControlPanelLayoutStyled = ({
                       w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-all duration-200
                       ${isActive 
                         ? 'bg-surface-hover text-on-surface-hover font-medium shadow-sm' 
-                        : 'text-on-surface1 hover:bg-surface-hover'}
+                        : 'text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover'}
                     `}
                   >
                     <span className={`${isActive ? 'text-primary' : 'text-secondary'}`}>

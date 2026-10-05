@@ -56,7 +56,7 @@ export default function ZonaArchivos({
               <span className="shrink-0 font-mono text-xs">{formatTamano(f.size)}</span>
               <button type="button" aria-label={`${textoQuitar} ${f.name}`} title={textoQuitar}
                 onClick={() => onCambio(ficheros.filter((_, j) => j !== i))}
-                className="rounded-full p-1 hover:bg-surface-hover hover:text-destructive">
+                className="rounded-full p-1 hover:bg-surface-hover hover:text-on-surface-hover">
                 <X size={16} />
               </button>
             </li>

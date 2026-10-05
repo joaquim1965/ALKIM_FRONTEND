@@ -112,7 +112,7 @@ export default function RecibosPage() {
           <Campo etiqueta={t('contrato', 'Contrato')} ancho="sm:col-span-2">
             <select required value={gen.contrato_id} onChange={(e) => setGen((s) => ({ ...s, contrato_id: e.target.value }))} className={CLASE_INPUT}>
               <option value="">—</option>
-              {contratos.map((c) => <option key={c.id} value={c.id}>{c.unidad_codigo} · {c.inquilino || '?'} · {euros(c.renta_mensual)}€ · {c.arrendador_nombre}</option>)}
+              {contratos.map((c) => <option key={c.id} value={c.id}>{c.propiedad_codigo} · {c.que_se_alquila} · {c.inquilino || '?'} · {euros(c.renta_mensual)}€ · {c.arrendador_nombre}</option>)}
             </select>
           </Campo>
           <Campo etiqueta={t('mes', 'Mes')}><input required type="month" value={gen.mes} onChange={(e) => setGen((s) => ({ ...s, mes: e.target.value }))} className={CLASE_INPUT} /></Campo>
@@ -130,13 +130,13 @@ export default function RecibosPage() {
           </select>
         </CabeceraPanel>
         <div className="p-3">
-          <TablaTema columnas={[{ texto: t('col_numero', 'Número') }, { texto: t('col_periodo', 'Periodo') }, { texto: t('col_unidad', 'Unidad') }, { texto: t('col_inquilino', 'Inquilino') }, { texto: t('col_entidad', 'Emite') }, { texto: t('col_total', 'Total (€)'), derecha: true }, { texto: t('col_cobrado', 'Cobrado (€)'), derecha: true }, { texto: t('col_estado', 'Estado') }]}>
+          <TablaTema columnas={[{ texto: t('col_numero', 'Número') }, { texto: t('col_periodo', 'Periodo') }, { texto: t('col_que', 'Qué se alquila') }, { texto: t('col_inquilino', 'Inquilino') }, { texto: t('col_entidad', 'Emite') }, { texto: t('col_total', 'Total (€)'), derecha: true }, { texto: t('col_cobrado', 'Cobrado (€)'), derecha: true }, { texto: t('col_estado', 'Estado') }]}>
               {(recibos || []).map((r, i) => (
                 <tr key={r.id} tabIndex={0} onClick={() => abrir(r.id)} onKeyDown={(e) => e.key === 'Enter' && abrir(r.id)}
                   className={claseFila(i, { seleccionada: abierto?.id === r.id, clic: true })}>
                   <td className={`${TD} font-mono font-black`}>{r.serie}/{r.numero}</td>
                   <td className={`${TD} font-mono`}>{r.periodo_desde} → {r.periodo_hasta}</td>
-                  <td className={TD}>{r.unidad_codigo} · {r.unidad_nombre}</td>
+                  <td className={TD}>{r.propiedad_codigo} · {r.que_se_alquila}</td>
                   <td className={`${TD} font-black tracking-tight`}>{r.inquilino || <SinDato />}</td>
                   <td className={TD}>{r.entidad_nombre}</td>
                   <td className={`${TD} text-right font-mono`}>{euros(r.total)}</td>
@@ -154,7 +154,7 @@ export default function RecibosPage() {
           <div className="flex flex-wrap items-start gap-3" aria-label={t('detalle', 'Detalle del recibo')}>
             <div className="flex-1 space-y-1">
               <h2 className="text-xl font-black tracking-tight">{t('recibo', 'Recibo')} <span className="font-mono">{abierto.serie}/{abierto.numero}</span> · {t(`estado_${String(abierto.estado).toLowerCase()}`, abierto.estado)}</h2>
-              <p className="text-sm font-bold">{abierto.entidad_nombre}{abierto.entidad_nif ? ` (${abierto.entidad_nif})` : ''} → {abierto.inquilino || t('sin_inquilino', 'sin inquilino')} · {abierto.propiedad_codigo} {abierto.unidad_codigo} · {t('contrato', 'Contrato')} <span className="font-mono">{abierto.contrato_codigo}</span></p>
+              <p className="text-sm font-bold">{abierto.entidad_nombre}{abierto.entidad_nif ? ` (${abierto.entidad_nif})` : ''} → {abierto.inquilino || t('sin_inquilino', 'sin inquilino')} · {abierto.propiedad_codigo} · {abierto.que_se_alquila} · {t('contrato', 'Contrato')} <span className="font-mono">{abierto.contrato_codigo}</span></p>
               <p className="text-sm font-bold">{t('col_total', 'Total (€)')}: <span className="font-mono">{euros(abierto.total)}</span> · {t('col_cobrado', 'Cobrado (€)')}: <span className="font-mono">{euros(abierto.pagado)}</span> · {t('pendiente', 'Pendiente (€)')}: <span className="font-mono">{euros(Number(abierto.total) - Number(abierto.pagado))}</span></p>
             </div>
             {puedeGenerar && abierto.estado !== 'ANULADO' && !abierto.cobros.length && <Button size="sm" variant="outline" leftIcon={<Ban size={15} />} onClick={anular}>{t('anular', 'Anular')}</Button>}

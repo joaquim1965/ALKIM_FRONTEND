@@ -122,13 +122,13 @@ export default function EditorGrupos({ config, cuentas, t, onGuardar, guardando 
                 type="button" disabled={guardando || !vecinaDe(cuenta.clave, -1)}
                 onClick={() => desplazar(cuenta.clave, -1)}
                 aria-label={`${t('subir', 'Subir')} ${cuenta.clave}`}
-                className="grid h-6 w-5 place-items-center rounded hover:bg-surface2 disabled:opacity-25"
+                className="grid h-6 w-5 place-items-center rounded hover:bg-surface2 hover:text-on-surface2 disabled:opacity-25"
               ><ChevronUp size={14} /></button>
               <button
                 type="button" disabled={guardando || !vecinaDe(cuenta.clave, 1)}
                 onClick={() => desplazar(cuenta.clave, 1)}
                 aria-label={`${t('bajar', 'Bajar')} ${cuenta.clave}`}
-                className="grid h-6 w-5 place-items-center rounded hover:bg-surface2 disabled:opacity-25"
+                className="grid h-6 w-5 place-items-center rounded hover:bg-surface2 hover:text-on-surface2 disabled:opacity-25"
               ><ChevronDown size={14} /></button>
             </span>
           </div>

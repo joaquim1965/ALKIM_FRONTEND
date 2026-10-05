@@ -22,7 +22,7 @@ import { useTmTr } from '../../contexts/TmTrContext';
 import DocumentosObjeto from '../../components/Documentos/DocumentosObjeto';
 import {
   CabeceraPagina, Panel, CabeceraPanel, Campo, Leyenda, Casilla, AvisoError, AvisoAtencion, SinDato,
-  VentanaModal, CLASE_INPUT, Recuadro, Rotulo,
+  VentanaModal, CLASE_INPUT, Recuadro, Rotulo, BotonAnadir,
 } from '../../components/UI/TemaPagina';
 
 const PAPELES = ['inquilino', 'proveedor', 'todos'];
@@ -152,7 +152,7 @@ export default function TercerosPage() {
   ];
   // Reactivar va con las demás acciones, en la primera columna (CRITERIOS «Los botones van SIEMPRE en la primera columna»).
   const accionReactivar = (x) => (!Number(x.activo)
-    ? <button type="button" onClick={() => reactivar(x)} title={t('reactivar', 'Reactivar')} aria-label={t('reactivar', 'Reactivar')} className="rounded p-1 transition-all hover:bg-surface-hover"><RotateCcw size={12} /></button>
+    ? <button type="button" onClick={() => reactivar(x)} title={t('reactivar', 'Reactivar')} aria-label={t('reactivar', 'Reactivar')} className="rounded p-1 transition-all hover:bg-surface-hover hover:text-on-surface-hover"><RotateCcw size={12} /></button>
     : null);
 
   const titulos = { inquilino: t('titulo_inquilinos', 'Inquilinos'), proveedor: t('titulo_proveedores', 'Proveedores'), todos: t('titulo_todos', 'Todos los terceros') };
@@ -163,7 +163,6 @@ export default function TercerosPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <CabeceraPagina icono={<Contact size={24} />} titulo={t('titulo', 'Terceros')} subtitulo={t('subtitulo', 'Inquilinos, proveedores y demás personas o empresas con las que trabajas. Una persona, una ficha por papel.')}>
-        <Button variant="primary" size="lg" leftIcon={<Plus size={18} />} onClick={() => abrir()}>{botonNuevo[papel]}</Button>
       </CabeceraPagina>
 
       <nav className="flex flex-wrap gap-2" aria-label={t('titulo', 'Terceros')}>
@@ -176,7 +175,7 @@ export default function TercerosPage() {
       <AvisoAtencion>{aviso}</AvisoAtencion>
 
       <Panel className="overflow-hidden">
-        <CabeceraPanel icono={iconos[papel]} titulo={titulos[papel]}
+        <CabeceraPanel anadir={{ texto: botonNuevo[papel], onClick: () => abrir() }} icono={iconos[papel]} titulo={titulos[papel]}
           contador={`${terceros.length} ${terceros.length === 1 ? t('tercero', 'tercero') : t('terceros', 'terceros')}`}>
           <Casilla etiqueta={t('ver_bajas', 'Ver bajas')} checked={bajas} onChange={setBajas} />
         </CabeceraPanel>

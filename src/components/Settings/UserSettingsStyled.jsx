@@ -136,7 +136,7 @@ const AccountSection = ({ sections, onSave, t, label, loading, user, getEnumLabe
                 <div className="relative group flex items-center gap-2">
                     <div className="relative flex-1">
                         <select 
-                            className={`input-base w-full px-4 h-[45px] pr-10 appearance-none bg-surface2 border-border font-bold text-sm rounded-xl ${myRol >= 3 ? 'hover:bg-surface1 transition-all focus:ring-2 focus:ring-primary' : 'opacity-70'}`}
+                            className={`input-base w-full px-4 h-[45px] pr-10 appearance-none bg-surface2 border-border font-bold text-sm rounded-xl ${myRol >= 3 ? 'hover:bg-surface1 hover:text-on-surface1 transition-all focus:ring-2 focus:ring-primary' : 'opacity-70'}`}
                             value={sections.account.rol} 
                             disabled={myRol < 3}
                             onChange={(e) => onSave('account', { rol: parseInt(e.target.value) }, false)}
@@ -156,7 +156,6 @@ const AccountSection = ({ sections, onSave, t, label, loading, user, getEnumLabe
                                 <option value={sections.account.rol}>{getEnumLabel('s_user', 'rol', sections.account.rol)}</option>
                             )}
                         </select>
-                        {myRol >= 3 && <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface2 group-hover:text-primary transition-colors" />}
                     </div>
                 </div>
             </div>
@@ -235,14 +234,13 @@ const DetailsSection = ({ sections, onSave, t, label, loading, getEnumLabel, enu
             <div className="space-y-1.5 flex flex-col">
                 <label className="text-[11px] font-black text-on-surface1 tracking-wider ml-1">{t('TC s_userdata:idioma')}</label>
                 <div className="relative group">
-                    <select className="input-base w-full px-4 h-[45px] pr-10 appearance-none bg-surface2 border-border font-bold text-sm rounded-xl focus:ring-2 focus:ring-primary transition-all hover:bg-surface2" value={sections.details.idioma} onChange={(e) => onSave('details', { idioma: parseInt(e.target.value) }, false)}>
+                    <select className="input-base w-full px-4 h-[45px] pr-10 appearance-none bg-surface2 border-border font-bold text-sm rounded-xl focus:ring-2 focus:ring-primary transition-all hover:bg-surface2 hover:text-on-surface2" value={sections.details.idioma} onChange={(e) => onSave('details', { idioma: parseInt(e.target.value) }, false)}>
                         {languagesList.length > 0 && (
                             languagesList.map(l => (
                                 <option key={l.lid} value={l.lid}>{l.nombre} {l.codigo === 'es' ? '🇪🇸' : l.codigo === 'en' ? '🇺🇸' : l.codigo === 'ca' ? '🇦nd' : l.codigo === 'fr' ? '🇫🇷' : ''}</option>
                             ))
                         )}
                     </select>
-                    <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface2 group-hover:text-primary transition-colors" />
                 </div>
             </div>
 
@@ -259,7 +257,6 @@ const DetailsSection = ({ sections, onSave, t, label, loading, getEnumLabel, enu
                                 ))
                         )}
                     </select>
-                    <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface2" />
                 </div>
             </div>
 
@@ -298,7 +295,6 @@ const DetailsSection = ({ sections, onSave, t, label, loading, getEnumLabel, enu
                             position="left"
                             showChevron={false}
                         />
-                        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface2 group-hover:text-primary transition-colors hover:text-primary" />
                     </div>
                 </div>
             </div>
@@ -314,7 +310,6 @@ const DetailsSection = ({ sections, onSave, t, label, loading, getEnumLabel, enu
                             ))
                         )}
                     </select>
-                    <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface2" />
                 </div>
             </div>
 
@@ -429,7 +424,6 @@ const GroupUsersSection = ({ isSysAdmin, selectedGroup, groups, onGroupChange, l
                                     <option value={user?.grupo}>{user?.grupo}</option>
                                 )}
                             </select>
-                            <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface2/50" />
                         </div>
                     </div>
                     <Button variant="primary" size="lg" onClick={() => onSave('account', { grupo: selectedGroup })} loading={loading} leftIcon={<Save size={20} />}>

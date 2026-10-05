@@ -72,7 +72,7 @@ export function DeleteConfirmPopover({ message, onConfirm, onCancel, triggerRef 
             <div className="flex items-center justify-end gap-2">
                 <button
                     onClick={onCancel}
-                    className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs text-on-surface2 hover:bg-surface-hover rounded transition-colors"
+                    className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs text-on-surface2 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors"
                 >
                     Cancelar
                 </button>

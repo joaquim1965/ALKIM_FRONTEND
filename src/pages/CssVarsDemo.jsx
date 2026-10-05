@@ -180,15 +180,15 @@ function CssVarsDemo() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="hover:bg-table-row-hover">
+                <tr className="hover:bg-table-row-hover hover:text-on-table-row-hover">
                   <td className="p-2">{t('Item1')}</td>
                   <td className="p-2">{t('Active')}</td>
                 </tr>
-                <tr className="bg-table-row-striped hover:bg-table-row-hover">
+                <tr className="bg-table-row-striped hover:bg-table-row-hover hover:text-on-table-row-hover">
                   <td className="p-2">{t('Item2')}</td>
                   <td className="p-2">{t('Pending')}</td>
                 </tr>
-                <tr className="hover:bg-table-row-hover">
+                <tr className="hover:bg-table-row-hover hover:text-on-table-row-hover">
                   <td className="p-2">{t('Item3')}</td>
                   <td className="p-2">{t('Active')}</td>
                 </tr>

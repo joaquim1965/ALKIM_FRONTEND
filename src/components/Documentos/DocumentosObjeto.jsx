@@ -15,15 +15,17 @@
  * Textos: s_dictionary, contexto «Documentos» y «CategoriaArchivo» (4 idiomas).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Upload, Download, Trash2, Pencil, Link2, Unlink, AlertTriangle, Lock, CheckCircle2, X, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Upload, Download, Trash2, Pencil, Plus, ChevronDown, Link2, Unlink, AlertTriangle, Lock, CheckCircle2, X, Eye, EyeOff, KeyRound } from 'lucide-react';
 import ZonaArchivos, { VentanaEmergente } from '../UI/ZonaArchivos';
+import TiposDocumento from './TiposDocumento';
 import Button from '../UI/Button';
+import Tooltip from '../UI/Tooltip';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { formatTamano } from '../../utils/format';
 import { leerDocumentoIdentidad, leerDomicilio } from '../../utils/lectorDni';
 import { normalizarImagen, LADO_DNI, LADO_A4 } from '../../utils/imagenes';
-import { Campo, Casilla, AvisoError, AvisoOk, CLASE_INPUT, Recuadro, claseFila, BotonFila } from '../UI/TemaPagina';
+import { Campo, Casilla, AvisoError, AvisoOk, CLASE_INPUT, Recuadro, claseFila, BotonFila , BotonAnadir } from '../UI/TemaPagina';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 // Fecha AAAA-MM-DD en hora LOCAL (04/10/2026). El servidor manda las DATE como
@@ -61,12 +63,13 @@ const LADO_PEQUENO = ['DNI', 'DNI_ANVERSO', 'DNI_REVERSO', 'FIRMA'];
 // Sin plantilla (Sin clasificar…), se queda el nombre original del archivo.
 const PLANTILLAS = {
   DNI_ANVERSO: 'DNI {E} Anverso', DNI_REVERSO: 'DNI {E} Reverso', FIRMA: 'Firma {E}', DNI: 'DNI {E}',
-  NIF_ENTIDAD: 'NIF {E}', ESCRITURA_CONSTITUCION: 'Constitucion {E}', ESTATUTOS: 'Estatutos {E}',
-  PACTO_SOCIOS: 'Pacto de socios {E}', ALTA_CENSAL: '036 {E} {F}', TITULARIDAD_REAL: 'Titularidad real {E}',
+  NIF_ENTIDAD: 'NIF {E}', ESCRITURA_CONSTITUCION: 'Docs constitucion {E}', ESTATUTOS: 'Estatutos {E}',
+  PACTO_SOCIOS: 'Pacto de socios {E}', ALTA_CENSAL: 'Alta M036 {E} {F}', TITULARIDAD_REAL: 'Titularidad real {E}',
   NOMBRAMIENTO_ADMIN: 'Nombramiento administradores {E} {F}', PODERES: 'Poderes {E} {F}',
   CERT_BANCARIO: 'Certificado bancario {E} {D}', CUENTAS_ANUALES: 'Cuentas anuales {E} {A}', ACTAS: 'Acta {E} {F}',
   CONTRATO_GESTORIA: 'Contrato gestoria {E}', ESCRITURA_PARTICIPACIONES: 'Participaciones {S} {E}',
   CERT_DIGITAL: 'Certificado digital {E}',
+  DESIGNACION_REPRESENTANTES: 'Designacion representantes {E} {F}',
 };
 function nombrePropuesto(codigo, objeto, s) {
   const plantilla = PLANTILLAS[codigo];
@@ -95,7 +98,7 @@ function CampoContrasena({ valor, onCambio, etiquetaVer, etiquetaOcultar, ...res
     <div className="flex gap-2">
       <input type={ver ? 'text' : 'password'} value={valor} autoComplete="new-password" onChange={(e) => onCambio(e.target.value)} className={`${CLASE_INPUT} font-mono`} {...resto} />
       <button type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? etiquetaOcultar : etiquetaVer} title={ver ? etiquetaOcultar : etiquetaVer}
-        className="rounded-xl border border-border px-3 hover:bg-surface-hover">{ver ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+        className="rounded-xl border border-border px-3 hover:bg-surface-hover hover:text-on-surface-hover">{ver ? <EyeOff size={18} /> : <Eye size={18} />}</button>
     </div>
   );
 }
@@ -119,7 +122,9 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const [subida, setSubida] = useState(null);          // formulario de subida
+  const [subida, setSubida] = useState(null);
+  const [editandoTipos, setEditandoTipos] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState('');   // '' = todos los grupos   // lápiz de «Tipos de documentos»          // formulario de subida
   const [edicion, setEdicion] = useState(null);        // { archivo, campos }
   const [vinculo, setVinculo] = useState(null);        // { archivo, entidad_id }
   const [entidades, setEntidades] = useState([]);
@@ -216,7 +221,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     const filas = Object.entries(leido).filter(([, v]) => v).map(([k, v]) => {
       const enFicha = fichaDoc?.[k] ? (k.startsWith('fecha') ? fecha(fichaDoc[k]) : fichaDoc[k]) : '';
       const igual = enFicha && igualTexto(enFicha, v);
-      if (usar[k] === undefined) usar[k] = !enFicha;
+      // El domicilio (texto libre) nunca va marcado de salida: hay que revisarlo.
+      if (usar[k] === undefined) usar[k] = !enFicha && !REVISAR.includes(k);
       return { campo: k, ficha: enFicha, leido: v, igual, distinto: Boolean(enFicha) && !igual, revisar: REVISAR.includes(k) };
     });
     return { ...s, detalles, mrz, filas, usar };
@@ -358,6 +364,25 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     catch (e) { setError(e.message); }
   };
 
+  // Papelera del recuadro: borra el tipo elegido en el desplegable (04/10/2026).
+  const TIPOS_FIJOS = ['SIN_CLASIFICAR', 'DNI', 'DNI_ANVERSO', 'DNI_REVERSO', 'FIRMA', 'CERT_DIGITAL'];
+  const borrarTipoElegido = async () => {
+    const c = datos?.categorias.find((x) => x.codigo === filtroTipo);
+    if (!c) return;
+    setError('');
+    try {
+      const { data } = await pedir(`/files/categorias/${c.id}/uso?objeto=${encodeURIComponent(tabla)}`);
+      const n = Number(data.archivos);
+      const pregunta = n
+        ? t('aviso_huerfanos', 'Hay documentos en este grupo que quedarán huérfanos ({n}). Pasarán a «Sin clasificar». ¿Borrar el tipo «{tipo}»?').replace('{n}', n).replace('{tipo}', nombreCat(c))
+        : t('confirmar_borrar_tipo', '¿Borrar el tipo «{tipo}»?').replace('{tipo}', nombreCat(c));
+      if (!window.confirm(pregunta)) return;
+      await pedir(`/files/categorias/${c.id}?objeto=${encodeURIComponent(tabla)}`, { method: 'DELETE' });
+      setFiltroTipo('');
+      await cargar();
+    } catch (e) { setError(e.message); }
+  };
+
   const guardarEdicion = async (ev) => {
     ev.preventDefault();
     setOcupado(true); setError('');
@@ -407,28 +432,48 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       <AvisoOk>{aviso}</AvisoOk>
 
       {datos && (
-        <Recuadro as="section" aria-label={t('que_falta', 'Qué falta')} className="text-on-surface2">
-          <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
-            {datos.faltan.length ? <AlertTriangle size={16} className="text-warning-border" /> : <CheckCircle2 size={16} className="text-success-border" />}
-            {t('que_falta', 'Qué falta')}
-          </h3>
-          {datos.faltan.length
-            ? (
-              <ul className="mt-2 flex flex-wrap gap-2">
-                {datos.faltan.map((c) => (
-                  <li key={c.id}>
-                    <Button size="xs" variant="outline" leftIcon={<Upload size={14} />} disabled={soloLectura} onClick={() => nuevaSubida(c)}>{nombreCat(c)}</Button>
-                  </li>
-                ))}
-              </ul>
-            )
-            : <p className="mt-2 text-sm font-bold">{t('nada_falta', 'Están todos los documentos obligatorios.')}</p>}
+        <Recuadro as="section" aria-label={t('grupos_documentos', 'Grupos de documentos')} className="text-on-surface2">
+          {/* Como Bancos y cuentas (04/10/2026): los 3 botones redondos al
+              principio y, al lado, el desplegable que filtra los grupos.
+                + subir (con el tipo elegido) · lápiz: tipos de documento
+                (el elegido, o la lista) · papelera: borrar el tipo elegido. */}
+          <div className="flex w-full flex-col items-end gap-4 md:flex-row">
+            {!soloLectura && (
+              <div className="flex shrink-0 items-center gap-4">
+                <BotonAnadir texto={t('subir', 'Subir documentos')} onClick={() => nuevaSubida(datos.categorias.find((c) => c.codigo === filtroTipo) || null)} />
+                <Tooltip texto={t('editar_tipos', 'Añadir, cambiar o borrar tipos de documento')}>
+                  <Button variant="secondary" isIconOnly rounded="full" onClick={() => setEditandoTipos(filtroTipo || true)}
+                    aria-label={t('editar_tipos', 'Añadir, cambiar o borrar tipos de documento')} className="h-[45px] w-[45px] shrink-0">
+                    <Pencil size={18} />
+                  </Button>
+                </Tooltip>
+                <Tooltip texto={filtroTipo ? t('borrar_tipo', 'Borrar el tipo elegido') : t('elige_tipo_borrar', 'Elige un tipo en el desplegable para borrarlo')}>
+                  <button type="button" onClick={borrarTipoElegido} disabled={!filtroTipo || TIPOS_FIJOS.includes(filtroTipo)}
+                    aria-label={t('borrar_tipo', 'Borrar el tipo elegido')}
+                    className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-destructive-border bg-destructive text-on-destructive transition-colors hover:border-on-background disabled:cursor-not-allowed disabled:opacity-40">
+                    <Trash2 size={19} />
+                  </button>
+                </Tooltip>
+              </div>
+            )}
+            <div className="w-full flex-1 space-y-1.5">
+              <label htmlFor={`filtro-tipo-${tabla}-${id}`} className="ml-1 text-[11px] font-black uppercase tracking-widest">{t('grupos_documentos', 'Grupos de documentos')}</label>
+              <div className="relative">
+                <select id={`filtro-tipo-${tabla}-${id}`} value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}
+                  className="input-base h-[45px] w-full appearance-none rounded-xl border-border bg-background px-4 text-sm font-bold">
+                  <option value="">{t('todos_tipos', 'Todos los tipos')}</option>
+                  {datos.categorias.map((c) => {
+                    const falta = datos.faltan.some((f) => f.id === c.id);
+                    const n = (datos.archivos || []).filter((x) => x.categoria_id === c.id).length;
+                    return <option key={c.id} value={c.codigo}>{nombreCat(c)}{Number(c.obligatorio) ? ' *' : ''} · {falta ? `⚠ ${t('falta', 'falta')}` : n}</option>;
+                  })}
+                </select>
+              </div>
+            </div>
+          </div>
         </Recuadro>
       )}
 
-      {!soloLectura && !subida && (
-        <Button variant="primary" leftIcon={<Upload size={16} />} onClick={() => nuevaSubida()}>{t('subir', 'Subir documentos')}</Button>
-      )}
 
       {/* Subida en ventana emergente estándar: zona para arrastrar o elegir del
           explorador (03/10/2026). */}
@@ -436,6 +481,19 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         <VentanaEmergente titulo={t('subir', 'Subir documentos')} etiquetaCerrar={t('cerrar', 'Cerrar')} onCerrar={() => !ocupado && setSubida(null)}>
         <form onSubmit={subir} className="space-y-4">
           <AvisoError>{error}</AvisoError>
+          {/* Primer campo: el tipo de documento (04/10/2026). Vale para los
+              archivos que se añadan; cada uno se puede cambiar abajo. */}
+          <Campo etiqueta={t('categoria', 'Tipo de documento')}>
+            <select autoFocus value={subida.categoria_id} onChange={(e) => {
+              const c = datos.categorias.find((x) => String(x.id) === e.target.value);
+              setSubida((x) => ({
+                ...x, categoria_id: e.target.value, confidencial: Boolean(Number(c?.confidencial)),
+                detalles: x.detalles.map((d) => (d.categoriaManual ? d : { ...d, categoria_id: e.target.value })),
+              }));
+            }} className={CLASE_INPUT}>
+              {datos.categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c)}{Number(c.obligatorio) ? ' *' : ''}</option>)}
+            </select>
+          </Campo>
           <Campo etiqueta={t('ficheros', 'Archivos (PDF, imagen, Word, Excel; máx. 20 MB cada uno)')}>
             <ZonaArchivos
               ficheros={subida.ficheros} onCambio={(lista) => setSubida((s) => { const ficheros = lista.map(conTipo); return { ...s, ficheros, detalles: detallesPara(ficheros, { ...s, detalles: s.ficheros.length === ficheros.length ? s.detalles : s.detalles.filter((_, i) => s.ficheros[i] && ficheros.some((f) => f.name === s.ficheros[i].name && f.size === s.ficheros[i].size)) }) }; })}
@@ -578,9 +636,25 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
 
       {porCategoria.length === 0 && <p className="text-xs font-bold uppercase tracking-widest">{t('sin_documentos', 'Todavía no hay documentos.')}</p>}
 
-      {porCategoria.map((g) => (
+      {filtroTipo && !porCategoria.some((g) => g.codigo === filtroTipo) && (
+        <p className="flex items-center gap-2 text-sm font-bold">
+          {t('sin_docs_tipo', 'No hay documentos de este tipo.')}
+          {!soloLectura && <Button size="xs" leftIcon={<Upload size={14} />} onClick={() => nuevaSubida(datos.categorias.find((c) => c.codigo === filtroTipo))}>{t('subir', 'Subir documentos')}</Button>}
+        </p>
+      )}
+      {porCategoria.filter((g) => !filtroTipo || g.codigo === filtroTipo).map((g) => (
         <section key={g.codigo} className="overflow-hidden rounded-2xl border border-border">
-          <h3 className="border-b border-border bg-table-header px-4 py-3 text-[11px] font-black uppercase tracking-widest text-on-table-header">{nombreCat(g)} · {g.archivos.length}</h3>
+          <h3 className="flex items-center gap-3 border-b border-border bg-table-header px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-on-table-header">
+            {/* «+» delante del nombre del grupo: subir otro documento de este tipo (04/10/2026). */}
+            {!soloLectura && (
+              <button type="button" onClick={() => nuevaSubida(datos.categorias.find((c) => c.codigo === g.codigo) || null)}
+                aria-label={t('subir_tipo', 'Subir «{tipo}»').replace('{tipo}', nombreCat(g))} title={t('subir_tipo', 'Subir «{tipo}»').replace('{tipo}', nombreCat(g))}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-on-table-header transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
+                <Plus size={16} />
+              </button>
+            )}
+            <span>{nombreCat(g)} · {g.archivos.length}</span>
+          </h3>
           <ul>
             {g.archivos.map((a, i) => (
               <li key={a.id} className={`flex flex-wrap items-center gap-3 px-4 py-2 ${claseFila(i)}`}>
@@ -590,7 +664,6 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                   <BotonFila icono={<Download size={15} />} titulo={t('descargar', 'Descargar')} onClick={() => (Number(a.cifrado) ? descargarCifrado(a) : descargar(a))} />
                   {!soloLectura && <>
                     <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, campos: { nombre: String(a.nombre_original || '').replace(/\.[^.]+$/, ''), categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)) } })} />
-                    <BotonFila icono={<Link2 size={15} />} titulo={t('vincular', 'Vincular a otra entidad')} onClick={() => abrirVinculo(a)} />
                     {a.principal && <BotonFila icono={<Trash2 size={15} />} titulo={t('papelera', 'Mover a la papelera')} onClick={() => papelera(a)} />}
                   </>}
                 </span>
@@ -612,7 +685,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                       {t('contrasena_cert', 'Contraseña del certificado')}:
                       <span className="font-mono">{claves[a.id] ?? '••••••••'}</span>
                       <button type="button" onClick={() => verContrasena(a)} aria-label={claves[a.id] ? t('ocultar_contrasena', 'Ocultar contraseña') : t('ver_contrasena', 'Ver contraseña')}
-                        title={claves[a.id] ? t('ocultar_contrasena', 'Ocultar contraseña') : t('ver_contrasena', 'Ver contraseña')} className="rounded p-1 hover:bg-surface-hover">
+                        title={claves[a.id] ? t('ocultar_contrasena', 'Ocultar contraseña') : t('ver_contrasena', 'Ver contraseña')} className="rounded p-1 hover:bg-surface-hover hover:text-on-surface-hover">
                         {claves[a.id] ? <EyeOff size={14} /> : <Eye size={14} />}
                       </button>
                     </p>
@@ -639,6 +712,13 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             <h3 className="font-black tracking-tight">{t('editar_titulo', 'Editar «{nombre}»').replace('{nombre}', edicion.archivo.nombre_original)}</h3>
             <BotonFila icono={<X size={18} />} titulo={t('cerrar', 'Cerrar')} onClick={() => setEdicion(null)} />
           </div>
+          {/* El tipo (etiqueta) es el primer campo (04/10/2026). */}
+          <Campo etiqueta={t('categoria', 'Tipo de documento')}>
+            <select autoFocus value={edicion.campos.categoria_id} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(e.target.value) } }))} className={CLASE_INPUT}>
+              {!datos.categorias.some((c) => c.id === Number(edicion.campos.categoria_id)) && <option value={edicion.campos.categoria_id}>{edicion.archivo.categoria_nombre}</option>}
+              {datos.categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c)}</option>)}
+            </select>
+          </Campo>
           <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
             <div className="flex gap-2">
               <input value={edicion.campos.nombre} maxLength={190} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, nombre: e.target.value } }))} className={CLASE_INPUT} />
@@ -655,11 +735,6 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             </Campo>
           )}
           <div className="grid gap-3 sm:grid-cols-3">
-            <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-              <select value={edicion.campos.categoria_id} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(e.target.value) } }))} className={CLASE_INPUT}>
-                {datos.categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c)}</option>)}
-              </select>
-            </Campo>
             <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><input type="date" value={edicion.campos.fecha_documento} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_documento: e.target.value } }))} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={edicion.campos.ejercicio} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, ejercicio: e.target.value } }))} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><input type="date" value={edicion.campos.fecha_caducidad} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_caducidad: e.target.value } }))} className={CLASE_INPUT} /></Campo>
@@ -671,6 +746,11 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>
         </Recuadro>
+      )}
+
+      {editandoTipos && (
+        <TiposDocumento tabla={tabla} t={t} nombreCat={nombreCat} onCerrar={() => setEditandoTipos(false)} onCambio={cargar}
+          editarCodigo={typeof editandoTipos === 'string' ? editandoTipos : null} />
       )}
 
       {vinculo && (

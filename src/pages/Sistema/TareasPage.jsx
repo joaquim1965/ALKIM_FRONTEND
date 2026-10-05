@@ -17,6 +17,7 @@ import Button from '../../components/UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 
+import { BotonAnadir } from '../../components/UI/TemaPagina';
 // Como el backend: 1 = lunes … 7 = domingo.
 const DIAS = [null, 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 const DIAS_ES = [null, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -268,7 +269,6 @@ const TareasPage = () => {
                         <p className="text-sm">{t('subtitulo', 'Lo que el servidor hace solo: informes, avisos y comprobaciones.')}</p>
                     </div>
                 </div>
-                <Button onClick={() => setEditando(null)} disabled={!datos}><Plus size={16} className="mr-1" />{t('nueva', 'Nueva')}</Button>
             </div>
 
             {datos && !datos.programadorActivo && (
@@ -297,6 +297,12 @@ const TareasPage = () => {
                 </div>
             )}
 
+            {/* «+» en la cabecera de la lista, no en el título de la página (04/10/2026). */}
+            <div className="mb-3 flex items-center gap-3">
+                <BotonAnadir texto={t('nueva', 'Nueva')} onClick={() => setEditando(null)} disabled={!datos} />
+                <h2 className="text-lg font-black">{t('lista_tareas', 'Tareas')}</h2>
+                {datos && <span className="text-xs font-bold uppercase tracking-widest">{datos.tareas.length}</span>}
+            </div>
             {!datos && !error && <p>{t('cargando', 'Cargando…')}</p>}
             {datos && datos.tareas.length === 0 && <p>{t('sin_tareas', 'No hay tareas. Crea una con «Nueva».')}</p>}
             {datos && datos.tareas.length > 0 && (
@@ -328,16 +334,16 @@ const TareasPage = () => {
                                     </td>
                                     <td className="p-2">
                                         <div className="flex justify-end gap-1">
-                                            <button type="button" className="p-1.5 rounded hover:bg-surface-hover disabled:opacity-40"
+                                            <button type="button" className="p-1.5 rounded hover:bg-surface-hover hover:text-on-surface-hover disabled:opacity-40"
                                                 title={t('ejecutar_ahora', 'Ejecutar ahora')} disabled={ejecutando !== null}
                                                 onClick={() => ejecutar(tarea)}>
                                                 <Play size={18} className={ejecutando === tarea.id ? 'animate-pulse' : ''} />
                                             </button>
-                                            <button type="button" className="p-1.5 rounded hover:bg-surface-hover" title={t('historial', 'Historial')}
+                                            <button type="button" className="p-1.5 rounded hover:bg-surface-hover hover:text-on-surface-hover" title={t('historial', 'Historial')}
                                                 onClick={() => setViendo(tarea)}><History size={18} /></button>
-                                            <button type="button" className="p-1.5 rounded hover:bg-surface-hover" title={t('editar', 'Editar')}
+                                            <button type="button" className="p-1.5 rounded hover:bg-surface-hover hover:text-on-surface-hover" title={t('editar', 'Editar')}
                                                 onClick={() => setEditando(tarea)}><Pencil size={18} /></button>
-                                            <button type="button" className="p-1.5 rounded hover:bg-surface-hover" title={t('borrar', 'Borrar')}
+                                            <button type="button" className="p-1.5 rounded hover:bg-surface-hover hover:text-on-surface-hover" title={t('borrar', 'Borrar')}
                                                 onClick={() => borrar(tarea)}><Trash2 size={18} className="text-danger" /></button>
                                         </div>
                                     </td>

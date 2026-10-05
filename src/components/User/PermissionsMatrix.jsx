@@ -166,7 +166,6 @@ const PermissionsMatrix = () => {
                             </option>
                         ))}
                     </select>
-                    <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface2" />
                 </div>
             </div>
 
@@ -201,7 +200,7 @@ const PermissionsMatrix = () => {
                             <button onClick={() => setNivelModulo(modulo, 'Read')} className="px-2 py-1 rounded-md border border-info text-info hover:bg-info hover:text-on-info transition-colors">
                                 {t('SoloLectura') || 'Solo lectura'}
                             </button>
-                            <button onClick={() => setNivelModulo(modulo, 'None')} className="px-2 py-1 rounded-md border border-border text-on-surface2 hover:bg-surface-hover transition-colors">
+                            <button onClick={() => setNivelModulo(modulo, 'None')} className="px-2 py-1 rounded-md border border-border text-on-surface2 hover:bg-surface-hover hover:text-on-surface-hover transition-colors">
                                 {t('Ninguno') || 'Ninguno'}
                             </button>
                         </div>
@@ -229,7 +228,7 @@ const PermissionsMatrix = () => {
                                                 className={`px-3 py-1.5 text-xs font-semibold transition-colors border-r last:border-r-0 border-border ${
                                                     nivelActual === nivel
                                                         ? NIVEL_STYLES[nivel]
-                                                        : 'bg-surface1 text-on-surface2 hover:bg-surface-hover'
+                                                        : 'bg-surface1 text-on-surface2 hover:bg-surface-hover hover:text-on-surface-hover'
                                                 }`}
                                             >
                                                 {t(`Nivel${nivel}`) || nivel}

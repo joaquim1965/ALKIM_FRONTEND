@@ -172,7 +172,6 @@ const UserModal = ({ user, mode, onClose }) => {
                 <select className={sFld} defaultValue={value} disabled={isView}>
                     {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
-                <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface2 pointer-events-none"/>
             </div>
         </div>
     );
@@ -283,7 +282,7 @@ const UserModal = ({ user, mode, onClose }) => {
                             <p className="text-xs text-on-surface2">@{user.usuario} · {ROL_MAP[user.rol]}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-1.5 hover:bg-surface3 rounded-full transition-colors text-on-surface2">
+                    <button onClick={onClose} className="p-1.5 hover:bg-surface-hover hover:text-on-surface-hover rounded-full transition-colors text-on-surface2">
                         <CloseIcon size={16}/>
                     </button>
                 </div>
@@ -313,7 +312,7 @@ const AddUserModal = ({ onClose }) => {
                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center"><Plus size={14} className="text-on-primary"/></div>
                         <h3 className="font-bold text-on-background">Agregar usuario</h3>
                     </div>
-                    <button onClick={onClose} className="p-1.5 hover:bg-surface3 rounded-full transition-colors text-on-surface2"><CloseIcon size={16}/></button>
+                    <button onClick={onClose} className="p-1.5 hover:bg-surface-hover hover:text-on-surface-hover rounded-full transition-colors text-on-surface2"><CloseIcon size={16}/></button>
                 </div>
                 <div className="p-5 space-y-4 overflow-auto">
                     <div className="grid grid-cols-2 gap-4">
@@ -335,7 +334,6 @@ const AddUserModal = ({ onClose }) => {
                                 <option value={1}>Usuario</option>
                                 <option value={2}>Admin</option>
                             </select>
-                            <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface2 pointer-events-none"/>
                         </div>
                     </div>
                 </div>

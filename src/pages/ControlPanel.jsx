@@ -163,7 +163,7 @@ const ControlPanel = () => {
                     <button
                         key={mode}
                         onClick={() => handleThemeChange(mode)}
-                        className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all duration-200 transform hover:scale-105 ${theme === mode ? "border-primary bg-primary text-on-primary shadow-lg shadow-primary" : "border-border hover:bg-surface2"}`}
+                        className={`p-6 rounded-2xl border-2 flex flex-col items-center gap-4 transition-all duration-200 transform hover:scale-105 ${theme === mode ? "border-primary bg-primary text-on-primary shadow-lg shadow-primary" : "border-border hover:bg-surface2 hover:text-on-surface2"}`}
                     >
                         {mode === 'light' ? <Sun size={32} /> : mode === 'dark' ? <Moon size={32} /> : <Zap size={32} />}
                         <span className="font-bold capitalize">{tr.themes?.[mode] || t(mode) || mode}</span>

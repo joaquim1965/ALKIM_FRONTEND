@@ -89,7 +89,7 @@ export const ReconciliationView = ({ movements, ingresos, gastos, onRefresh }) =
                                     p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all
                                     ${selectedMovement?.id === m.id 
                                         ? 'border-primary ring-2 ring-primary/20 bg-primary/5' 
-                                        : 'border-border bg-surface1 hover:border-primary/50 hover:bg-surface2'}
+                                        : 'border-border bg-surface1 hover:border-primary/50 hover:bg-surface2 hover:text-on-surface2'}
                                 `}
                             >
                                 <div>
@@ -180,8 +180,8 @@ export const ReconciliationView = ({ movements, ingresos, gastos, onRefresh }) =
                                             ${selectedRecord?.id === r.id 
                                                 ? 'border-success ring-2 ring-success/20 bg-success/5' 
                                                 : (suggestedRecord?.id === r.id && !selectedRecord) 
-                                                    ? 'border-success/50 bg-surface1 hover:bg-surface2' 
-                                                    : 'border-border bg-surface1 hover:border-primary/50 hover:bg-surface2'}
+                                                    ? 'border-success/50 bg-surface1 hover:bg-surface2 hover:text-on-surface2' 
+                                                    : 'border-border bg-surface1 hover:border-primary/50 hover:bg-surface2 hover:text-on-surface2'}
                                         `}
                                     >
                                         <div className="flex justify-between items-start w-full">

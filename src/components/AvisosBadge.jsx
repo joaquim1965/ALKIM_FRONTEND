@@ -94,7 +94,7 @@ const AvisosBadge = () => {
         type="button"
         onClick={alternar}
         aria-label={contador.total ? `${contador.total} avisos pendientes` : 'Sin avisos'}
-        className="relative rounded-lg p-2 text-on-surface1 transition-colors hover:bg-surface-hover"
+        className="relative rounded-lg p-2 text-on-surface1 transition-colors hover:bg-surface-hover hover:text-on-surface-hover"
       >
         <Bell size={20} />
         {contador.total > 0 && (
@@ -138,7 +138,7 @@ const AvisosBadge = () => {
                   key={aviso.avid}
                   onClick={() => abrirAviso(aviso)}
                   className={`flex gap-3 border-b border-border px-4 py-3 transition-colors
-                    ${aviso.enlace ? 'cursor-pointer hover:bg-surface-hover' : ''}`}
+                    ${aviso.enlace ? 'cursor-pointer hover:bg-surface-hover hover:text-on-surface-hover' : ''}`}
                 >
                   <span className="mt-0.5 shrink-0">{ICONOS[aviso.severidad] || ICONOS.info}</span>
                   <div className="min-w-0 flex-1">

@@ -15,7 +15,7 @@ import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { formatImporte, formatPorcentaje } from '../../utils/format';
 import {
-  Campo, AvisoError, Ayuda, Rotulo, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, FilaVacia, BotonFila,
+  Campo, AvisoError, Ayuda, Rotulo, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, FilaVacia, BotonFila, BotonAnadir,
 } from '../../components/UI/TemaPagina';
 
 const DERECHOS = ['PLENO_DOMINIO', 'NUDA_PROPIEDAD', 'USUFRUCTO'];
@@ -128,11 +128,11 @@ export default function TitularesPestana({ propiedadId, puedeEscribir, onCambio 
     <div className="space-y-5">
       <AvisoError>{error}</AvisoError>
       <div className="flex flex-wrap items-center gap-3">
+        {puedeEscribir && !form && !venta && <BotonAnadir texto={t('anadir', 'Añadir titular')} onClick={() => setForm({ ...VACIA, porcentaje: Math.max(0, 100 - Number(datos?.suma_vigente?.PLENO_DOMINIO || 0)) || '' })} pequeno />}
         <p className="flex-1 text-sm font-bold">
           {t('suma_vigente', 'Vigente hoy')}: {Object.entries(datos?.suma_vigente || {}).map(([d, s]) => `${t(`derecho_${d.toLowerCase()}`, d)} ${pct(s)}`).join(' · ') || t('sin_cuotas', 'Sin cuotas.')}
         </p>
         {puedeEscribir && !form && !venta && <>
-          <Button leftIcon={<Plus size={16} />} onClick={() => setForm({ ...VACIA, porcentaje: Math.max(0, 100 - Number(datos?.suma_vigente?.PLENO_DOMINIO || 0)) || '' })}>{t('anadir', 'Añadir titular')}</Button>
           {vigentes.length > 0 && <Button variant="outline" leftIcon={<HandCoins size={16} />} onClick={() => setVenta({ propiedad: true, fecha: hoy(), precio: '', gastos: '' })}>{t('vender_propiedad', 'Vender la propiedad')}</Button>}
         </>}
       </div>

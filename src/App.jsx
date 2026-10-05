@@ -54,6 +54,8 @@ import TercerosPage from "./pages/Gestion/TercerosPage";
 import CalendarioPage from "./pages/Gestion/CalendarioPage";
 import PropiedadesPage from "./pages/Cartera/PropiedadesPage";
 import RecibosPage from "./pages/Cartera/RecibosPage";
+import ContratosPage from "./pages/Cartera/ContratosPage";
+import IaPage from "./pages/Sistema/IaPage";
 
 /**
  * ProtectedRoute (Fase 1)
@@ -211,6 +213,9 @@ function AppContent() {
           <Route path="/coloreditor" element={<ThemeEditor />} />
           <Route path="/sql-console" element={<SQLConsole />} />
           <Route path="/sistema/tareas" element={<TareasPage />} />
+          {/* Auxiliares → Claves de IA (05/10/2026) */}
+          <Route path="/aux/ia" element={<IaPage />} />
+          <Route path="/sistema/ia" element={<Navigate to="/aux/ia" replace />} />
           {/* Navegador del servidor al grabar guiones, en ventana aparte (27/09/2026) */}
           <Route path="/pantalla-remota" element={<ProtectedRoute><PantallaRemotaPage /></ProtectedRoute>} />
           {/* Cartera → Propiedades (fase 1, 01/10/2026) */}
@@ -231,6 +236,16 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          {/* Cartera → Contratos (05/10/2026, sustituye a Unidades: ya no hay UF) */}
+          <Route
+            path="/cartera/contratos"
+            element={
+              <ProtectedRoute table="im_contract">
+                <ContratosPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/cartera/unidades" element={<Navigate to="/cartera/contratos" replace />} />
           <Route path="/cartera/activos" element={<Navigate to="/cartera/propiedades" replace />} />
           {/* Explorador de archivos (fase 0c, 30/09/2026): sustituye a «Documentación → Archivos» */}
           <Route

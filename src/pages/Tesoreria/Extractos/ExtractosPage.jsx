@@ -741,25 +741,6 @@ const ExtractosPage = () => {
             <p className="text-[11px] font-bold uppercase tracking-widest">{t('subtitle')}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="primary" onClick={() => navigate(bancoFiltro ? `/tesoreria/extractos/programacion?banco=${encodeURIComponent(bancoFiltro)}` : '/tesoreria/extractos/programacion')}>
-            <CalendarClock size={16} /> {t('scheduled_downloads')}
-          </Button>
-          {/* Los documentos de verdad: el que se acaba de bajar y los que se
-              guardan para Hacienda. Hasta ahora la pantalla contaba lo que
-              había pasado con cada descarga, pero el fichero no se podía abrir
-              desde ningún sitio. */}
-          <Tooltip texto={t('tip_open_last_statement')}>
-            <Button variant="primary" onClick={() => setVisor('ultimo')}>
-              <FileText size={16} /> {t('last_statement')}
-            </Button>
-          </Tooltip>
-          <Tooltip texto={t('tip_open_quarterly')}>
-            <Button variant="primary" onClick={() => setVisor('trimestral')}>
-              <FileText size={16} /> {t('quarterly_statement')}
-            </Button>
-          </Tooltip>
-        </div>
       </header>
 
       {avisoAlta && (
@@ -810,6 +791,26 @@ const ExtractosPage = () => {
           </select>
         </label>
       )}
+      {/* Botones que estaban en el título de la página (04/10/2026). */}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button variant="primary" onClick={() => navigate(bancoFiltro ? `/tesoreria/extractos/programacion?banco=${encodeURIComponent(bancoFiltro)}` : '/tesoreria/extractos/programacion')}>
+            <CalendarClock size={16} /> {t('scheduled_downloads')}
+          </Button>
+          {/* Los documentos de verdad: el que se acaba de bajar y los que se
+              guardan para Hacienda. Hasta ahora la pantalla contaba lo que
+              había pasado con cada descarga, pero el fichero no se podía abrir
+              desde ningún sitio. */}
+          <Tooltip texto={t('tip_open_last_statement')}>
+            <Button variant="primary" onClick={() => setVisor('ultimo')}>
+              <FileText size={16} /> {t('last_statement')}
+            </Button>
+          </Tooltip>
+          <Tooltip texto={t('tip_open_quarterly')}>
+            <Button variant="primary" onClick={() => setVisor('trimestral')}>
+              <FileText size={16} /> {t('quarterly_statement')}
+            </Button>
+          </Tooltip>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-border bg-surface2 shadow-2xl">

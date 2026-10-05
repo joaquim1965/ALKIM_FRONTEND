@@ -318,7 +318,10 @@ const SituacionTab = () => {
             <p className="text-[11px] font-bold uppercase tracking-widest">{t('subtitle', 'Justificantes en PDF del banco, por cuenta y por día')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+      </header>
+
+        {/* Año y descarga: estaban en el título de la página (04/10/2026). */}
+      <div className="flex flex-wrap items-center gap-3">
           {/* El año en curso por defecto; en el desplegable, los anteriores
               hasta 2026 (25/09/2026). */}
           <div className="relative">
@@ -330,7 +333,6 @@ const SituacionTab = () => {
             >
               {anios.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
-            <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-on-surface2/50" />
           </div>
           <Tooltip texto={t('download_all_hint', 'Descarga, banco por banco, las cuentas con meses cerrados sin PDF')}>
             <Button variant="primary" size="lg" onClick={() => descargar(todasDescargables())} disabled={lanzando || Boolean(proceso) || !totales.faltan} leftIcon={lanzando ? <Spinner size="xs" /> : <Download size={18} />}>
@@ -338,12 +340,11 @@ const SituacionTab = () => {
             </Button>
           </Tooltip>
         </div>
-      </header>
 
       {aviso && (
         <div className={`flex items-center justify-between rounded-2xl border p-4 font-bold ${aviso.tipo === 'ok' ? 'border-success bg-success text-on-success' : aviso.tipo === 'info' ? 'border-2 border-border bg-surface2 text-on-background' : 'border-destructive bg-destructive text-on-destructive'}`}>
           <span className="flex items-center gap-2">{aviso.tipo === 'info' && proceso && <Spinner size="xs" />}{aviso.texto}</span>
-          <button type="button" onClick={() => setAviso(null)} aria-label={t('close', 'Cerrar')} className="rounded-full px-2 hover:bg-surface-hover">×</button>
+          <button type="button" onClick={() => setAviso(null)} aria-label={t('close', 'Cerrar')} className="rounded-full px-2 hover:bg-surface-hover hover:text-on-surface-hover">×</button>
         </div>
       )}
 
@@ -385,7 +386,6 @@ const SituacionTab = () => {
             <option value="">{t('all', 'Todos')}</option>
             {bancos.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
-          <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-on-surface2/50" />
         </div>
       </div>
 

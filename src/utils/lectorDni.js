@@ -73,6 +73,33 @@ async function preparar(file, desde, ancho = 1400) {
   return c;
 }
 
+/** Parte superior (0..`hasta`) a `ancho` px, en blanco y negro con umbral de Otsu. */
+async function binarizar(file, hasta, ancho) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const alto = bmp.height * hasta; const escala = ancho / bmp.width;
+  const c = document.createElement('canvas');
+  c.width = ancho; c.height = Math.max(1, Math.round(alto * escala));
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, 0, 0, bmp.width, alto, 0, 0, c.width, c.height);
+  bmp.close?.();
+  const img = ctx.getImageData(0, 0, c.width, c.height); const d = img.data;
+  const gris = new Uint8ClampedArray(d.length / 4); const h = new Array(256).fill(0);
+  for (let i = 0; i < gris.length; i += 1) { const g = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]; gris[i] = g; h[gris[i]] += 1; }
+  let suma = 0; for (let i = 0; i < 256; i += 1) suma += i * h[i];
+  let sB = 0; let wB = 0; let max = 0; let umbral = 128;
+  for (let i = 0; i < 256; i += 1) {
+    wB += h[i]; if (!wB) continue;
+    const wF = gris.length - wB; if (!wF) break;
+    sB += i * h[i];
+    const v = wB * wF * ((sB / wB) - ((suma - sB) / wF)) ** 2;
+    if (v > max) { max = v; umbral = i; }
+  }
+  for (let i = 0; i < gris.length; i += 1) { const v = gris[i] < umbral ? 0 : 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
 /**
  * Lee una imagen. Devuelve { valida, pareceReverso, ...datos de la MRZ }.
  * Prueba la mitad inferior y, si no sale, la imagen entera (foto con márgenes).
@@ -97,6 +124,8 @@ export async function leerDocumentoIdentidad(file) {
 export async function leerDomicilio(file) {
   if (!/^image\/(jpeg|jpg|png|webp)$/.test(file.type)) return {};
   const w = await obtenerTrabajadorEs();
-  const { data } = await w.recognize(await preparar(file, 0, 2000));
+  // Mitad superior (el domicilio), ampliada y en blanco y negro (umbral de Otsu):
+  // en el DNI 4.0 el texto va sobre un fondo con dibujo que confunde al lector.
+  const { data } = await w.recognize(await binarizar(file, 0.62, 2400));
   return { ...leerReverso(data.text), texto: data.text };
 }

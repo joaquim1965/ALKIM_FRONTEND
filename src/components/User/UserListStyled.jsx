@@ -176,7 +176,7 @@ const UserListStyled = ({
                 <div className={`p-4 mb-4 rounded-xl border shadow-lg flex justify-between items-center animate-in slide-in-from-top duration-300
                     ${message.type === 'success' ? 'bg-success text-on-success border-success' : 'bg-destructive text-on-destructive border-destructive'}`}>
                     <span className="font-medium">{message.text}</span>
-                    <button onClick={() => setMessage(null)} className="p-1 hover:bg-surface3 rounded-full transition-colors"><CloseIcon size={18} /></button>
+                    <button onClick={() => setMessage(null)} className="p-1 hover:bg-surface-hover hover:text-on-surface-hover rounded-full transition-colors"><CloseIcon size={18} /></button>
                 </div>
             )}
 
@@ -202,7 +202,7 @@ const UserListStyled = ({
                     <div className="bg-surface1 border border-border rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
                         <button 
                             onClick={() => setEditUser(null)} 
-                            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-surface2 text-on-surface2 hover:bg-surface-hover transition-colors"
+                            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-surface2 text-on-surface2 hover:bg-surface-hover hover:text-on-surface-hover transition-colors"
                         >
                             <CloseIcon size={20} />
                         </button>
@@ -252,7 +252,7 @@ const AddUserModal = ({ onClose, onCreate, t }) => {
                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center"><Plus size={14} className="text-on-primary" /></div>
                         <h3 className="font-bold text-on-background">Agregar usuario</h3>
                     </div>
-                    <button onClick={onClose} className="p-1.5 hover:bg-surface3 rounded-full transition-colors text-on-surface2"><CloseIcon size={16} /></button>
+                    <button onClick={onClose} className="p-1.5 hover:bg-surface-hover hover:text-on-surface-hover rounded-full transition-colors text-on-surface2"><CloseIcon size={16} /></button>
                 </div>
                 <div className="p-4 space-y-3 overflow-auto">
                     <div className="grid grid-cols-2 gap-4">

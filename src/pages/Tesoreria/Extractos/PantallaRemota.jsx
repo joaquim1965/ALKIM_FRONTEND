@@ -103,7 +103,7 @@ const PantallaRemota = ({ onTerminada = null }) => {
     };
   }, []);
 
-  const boton = 'flex items-center gap-1 rounded border border-border bg-surface1 px-2 py-1 text-xs text-on-surface1 hover:bg-surface-hover';
+  const boton = 'flex items-center gap-1 rounded border border-border bg-surface1 px-2 py-1 text-xs text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover';
   return (
     <div ref={caja} className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-background">
       <div ref={marco} className="h-full w-full" />

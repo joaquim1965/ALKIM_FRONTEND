@@ -15,8 +15,12 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
-export default function FichaConPestanas({ titulo, subtitulo, pestanas, guardado = true, inicial, onCerrar, etiquetaCerrar = 'Cerrar', ancho = 'max-w-5xl' }) {
-  const [activa, setActiva] = useState(inicial || pestanas[0]?.id);
+// `activa` + `onActiva` (opcionales, 05/10/2026): la pantalla puede cambiar de
+// pestaña ella misma (p. ej. «Alquilar» en Espacios abre Contratos).
+export default function FichaConPestanas({ titulo, subtitulo, pestanas, guardado = true, inicial, onCerrar, etiquetaCerrar = 'Cerrar', ancho = 'max-w-5xl', activa: activaFuera, onActiva }) {
+  const [activaDentro, setActivaDentro] = useState(inicial || pestanas[0]?.id);
+  const activa = activaFuera ?? activaDentro;
+  const setActiva = (id) => { setActivaDentro(id); onActiva?.(id); };
   useEffect(() => { if (!pestanas.some((p) => p.id === activa)) setActiva(pestanas[0]?.id); }, [pestanas, activa]);
   const actual = pestanas.find((p) => p.id === activa);
 

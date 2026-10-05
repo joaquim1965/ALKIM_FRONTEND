@@ -73,7 +73,7 @@ const Pagination = ({ total, page, perPage, onChange }) => {
         p === 1 || p === totalPages || (p >= page - 1 && p <= page + 1)
     );
 
-    const btnCls = "p-1.5 rounded-md bg-surface2 border border-border text-on-surface2 hover:bg-surface3 hover:text-on-surface3 disabled:cursor-not-allowed transition-all";
+    const btnCls = "p-1.5 rounded-md bg-surface2 border border-border text-on-surface2 hover:bg-surface-hover hover:text-on-surface-hover disabled:cursor-not-allowed transition-all";
 
     return (
         <div className="flex items-center gap-3 px-3 py-2 border-t border-border bg-surface1 flex-wrap">
@@ -90,7 +90,7 @@ const Pagination = ({ total, page, perPage, onChange }) => {
                                 className={`min-w-[26px] h-6 px-1 rounded-md text-xs font-medium border transition-all
                                     ${p === page
                                         ? 'bg-primary text-on-primary border-primary'
-                                        : 'bg-surface2 border-border text-on-surface2 hover:bg-surface3 hover:text-on-surface3'
+                                        : 'bg-surface2 border-border text-on-surface2 hover:bg-surface-hover hover:text-on-surface-hover'
                                     }`}>
                                 {p}
                             </button>
@@ -201,7 +201,7 @@ const FilterModal = ({ filterFields = [], filters, onApply, onClose }) => {
                             <h3 className="font-semibold text-on-background text-base">Filtros Avanzados</h3>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-surface3 rounded-full transition-colors text-on-surface2">
+                    <button onClick={onClose} className="p-2 hover:bg-surface-hover hover:text-on-surface-hover rounded-full transition-colors text-on-surface2">
                         <CloseIcon size={18}/>
                     </button>
                 </div>
@@ -302,6 +302,7 @@ const FilterModal = ({ filterFields = [], filters, onApply, onClose }) => {
  * @param {Function} filterFn      - (row, filters) => bool
  * @param {Function} extraActions  - (row) => ReactNode  (acciones extra opcionales)
  * @param {string}   emptyMessage  - Texto cuando no hay resultados
+ * @param {boolean}  sinBarra      - true = sin la fila de buscador y contador (04/10/2026)
  */
 export function DataTable({
     columns       = [],
@@ -320,6 +321,7 @@ export function DataTable({
     striped       = true,
     hoverable     = true,
     selectedId    = null,
+    sinBarra      = false,
 }) {
     // ── Estado ────────────────────────────────────────────
     const [searchInput, setSearchInput] = useState('');
@@ -400,6 +402,7 @@ export function DataTable({
     return (
         <div className="flex flex-col gap-3">
             {/* Toolbar */}
+            {!sinBarra && (
             <div className="bg-surface1 border border-border rounded-lg p-2 flex items-center gap-2 shadow-sm flex-wrap">
 
                 {/* Añadir */}
@@ -407,7 +410,7 @@ export function DataTable({
                     <button onClick={onAdd} title="Añadir"
                         className="w-8 h-8 rounded-full bg-surface2 border border-border text-on-surface2
                             flex items-center justify-center shrink-0
-                            hover:bg-surface3 hover:text-on-surface1 active:scale-95 transition-all">
+                            hover:bg-surface-hover hover:text-on-surface-hover active:scale-95 transition-all">
                         <Plus size={15} strokeWidth={2.5}/>
                     </button>
                 )}
@@ -418,7 +421,7 @@ export function DataTable({
                         className={`relative w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-all
                             ${hasFilters
                                 ? 'bg-primary border-primary text-on-primary hover:bg-primary-hover'
-                                : 'bg-surface2 border-border text-on-surface2 hover:bg-surface3 hover:text-on-surface1'
+                                : 'bg-surface2 border-border text-on-surface2 hover:bg-surface-hover hover:text-on-surface-hover'
                             }`}>
                         <Filter size={13}/>
                         {hasFilters && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-success"/>}
@@ -440,6 +443,7 @@ export function DataTable({
                     {processed.length} {processed.length === 1 ? 'registro' : 'registros'}
                 </span>
             </div>
+            )}
 
             {/* Tabla */}
             <div className="bg-surface1 border border-border rounded-lg shadow-sm overflow-hidden">
@@ -534,13 +538,13 @@ export function DataTable({
                                                     <div className="flex items-center gap-0.5">
                                                         {onView && (
                                                             <button onClick={() => onView(row)} title="Ver"
-                                                                className="p-1 rounded hover:bg-surface-hover hover:text-primary transition-all">
+                                                                className="p-1 rounded hover:bg-surface-hover hover:text-on-surface-hover transition-all">
                                                                 <Eye size={12}/>
                                                             </button>
                                                         )}
                                                         {onEdit && (
                                                             <button onClick={() => onEdit(row)} title="Editar"
-                                                                className="p-1 rounded hover:bg-surface-hover hover:text-primary transition-all">
+                                                                className="p-1 rounded hover:bg-surface-hover hover:text-on-surface-hover transition-all">
                                                                 <Edit size={12}/>
                                                             </button>
                                                         )}
@@ -553,7 +557,7 @@ export function DataTable({
                                                                 setConfirmDel({ row, pos: r });
                                                             }}
                                                             title="Eliminar"
-                                                            className="p-1 rounded hover:bg-surface-hover hover:text-destructive transition-all">
+                                                            className="p-1 rounded hover:bg-surface-hover hover:text-on-surface-hover transition-all">
                                                                 <Trash2 size={12}/>
                                                         </button>
                                                     )}

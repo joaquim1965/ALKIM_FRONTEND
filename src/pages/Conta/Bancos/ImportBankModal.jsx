@@ -80,7 +80,7 @@ const ImportBankModal = ({ isOpen, onClose, onImport, cuentas }) => {
                     <h3 className="text-xl font-bold flex items-center gap-2">
                         <UploadCloud className="text-primary" /> Importar Movimientos
                     </h3>
-                    <button onClick={onClose} className="p-2 hover:bg-surface2 rounded-full transition-colors">
+                    <button onClick={onClose} className="p-2 hover:bg-surface2 hover:text-on-surface2 rounded-full transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -102,7 +102,7 @@ const ImportBankModal = ({ isOpen, onClose, onImport, cuentas }) => {
                     </div>
 
                     {/* File Upload */}
-                    <div className="border-2 border-dashed border-border rounded-xl p-8 text-center bg-surface2/50 hover:bg-surface2 transition-colors cursor-pointer relative">
+                    <div className="border-2 border-dashed border-border rounded-xl p-8 text-center bg-surface2/50 hover:bg-surface2 hover:text-on-surface2 transition-colors cursor-pointer relative">
                         <input 
                             type="file" 
                             accept=".csv"

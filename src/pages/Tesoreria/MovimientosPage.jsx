@@ -156,13 +156,14 @@ export default function MovimientosPage() {
           <h1 className="text-3xl font-bold text-on-background">{t('title')}</h1>
           <p className="mt-1 text-on-surface1">{t('subtitle')}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="primary" onClick={load} leftIcon={<RefreshCw size={16} />}>{t('reload', 'Recargar')}</Button>
-          <Button variant="primary" onClick={downloadCsv} disabled={!visibles.length} leftIcon={<Download size={16} />}>{t('download_csv')}</Button>
-        </div>
       </header>
 
       <Card className="p-4">
+        {/* Botones que estaban en el título de la página (04/10/2026). */}
+        <div className="mb-3 flex flex-wrap gap-2">
+          <Button variant="primary" onClick={load} leftIcon={<RefreshCw size={16} />}>{t('reload', 'Recargar')}</Button>
+          <Button variant="primary" onClick={downloadCsv} disabled={!visibles.length} leftIcon={<Download size={16} />}>{t('download_csv')}</Button>
+        </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <select className="input-base" name="cuenta" value={filters.cuenta} onChange={update} aria-label={t('filter_account')}>
             <option value="">{t('all_accounts')}</option>

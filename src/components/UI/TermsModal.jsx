@@ -74,7 +74,7 @@ export function TermsModal({ isOpen, onClose, terms }) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-surface-hover transition-colors text-on-surface1"
+            className="p-2 rounded-lg hover:bg-surface-hover hover:text-on-surface-hover transition-colors text-on-surface1"
             aria-label="Cerrar"
           >
             <X size={24} />

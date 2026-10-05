@@ -24,32 +24,39 @@ export function tituloEs(texto) {
   }).join(' ');
 }
 
-const limpiar = (l) => String(l).replace(/[’`´]/g, "'").replace(/[^A-Za-zÀ-ÿÑñÇç0-9 .,'ºª/-]/g, ' ').replace(/\s+/g, ' ').trim();
-const util = (l) => l.length >= 3 && (l.match(/[A-Za-zÀ-ÿ]/g) || []).length >= 3 && !l.includes('<');
+const limpiar = (l) => recortarSeguro(String(l).replace(/[’`´]/g, "'").replace(/[^A-Za-zÀ-ÿÑñÇç0-9 .,'ºª/-]/g, ' ').replace(/\s+/g, ' ').trim());
+// En la calle se conserva el número final («C. Mayor 2»): solo se quitan restos de 1 carácter.
+const recortarSeguro = (l) => l.replace(/^([^A-Za-z0-9À-ÿ]\s*)+/, '').replace(/(\s+[^A-Za-z0-9À-ÿ])+$/, '').trim();
+// Línea con sentido: sin «<», mayoría de letras y al menos una palabra de 4 letras
+// en MAYÚSCULAS (el DNI imprime todo en mayúsculas; la basura del fondo, no).
+const util = (l) => {
+  if (l.length < 3 || l.includes('<')) return false;
+  const letras = (l.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+  const mayusculas = (l.match(/[A-ZÀ-ÝÑÇ]/g) || []).length;
+  return letras / l.replace(/\s/g, '').length >= 0.6 && mayusculas / Math.max(1, letras) >= 0.8 && /[A-ZÀ-ÝÑÇ]{4,}/.test(l);
+};
+
+// Municipio y provincia no llevan números: fuera los restos («11 BARCELONA»).
+const sinNumeros = (l) => l.replace(/\b\d+\b/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Texto OCR del reverso → { domicilio, municipio, provincia, nacimiento_lugar } (lo que se encuentre). */
 export function leerReverso(texto) {
   const lineas = String(texto || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const iDom = lineas.findIndex((l) => /DOMIC/i.test(l));
   if (iDom < 0) return {};
-  const iNac = lineas.findIndex((l, i) => i > iDom && /LUGAR|NACIM/i.test(l));
+  const iNac = lineas.findIndex((l, i) => i > iDom && /LUGAR|NACIM|HIJO|HIO\/A|FILL/i.test(l));
   const fin = iNac > 0 ? iNac : Math.min(lineas.length, iDom + 4);
   const bloque = [];
   // Si el OCR juntó la etiqueta y el dato en la misma línea, lo de detrás vale.
   const resto = limpiar(lineas[iDom].replace(/.*DOMIC\S*/i, ''));
   if (util(resto)) bloque.push(resto);
   for (let i = iDom + 1; i < fin; i += 1) { const l = limpiar(lineas[i]); if (util(l)) bloque.push(l); }
+  // El DNI imprime el domicilio en 3 líneas: calle, municipio y provincia.
   const r = {};
-  if (bloque.length >= 3) {
-    r.domicilio = bloque.slice(0, bloque.length - 2).join(' ');
-    r.municipio = bloque[bloque.length - 2];
-    r.provincia = bloque[bloque.length - 1];
-  } else if (bloque.length === 2) {
-    [r.domicilio, r.municipio] = bloque;
-  } else if (bloque.length === 1) {
-    [r.domicilio] = bloque;
-  }
-  if (iNac > 0) {
+  if (bloque[0]) r.domicilio = bloque[0];
+  if (bloque[1]) r.municipio = sinNumeros(bloque[1]);
+  if (bloque[2]) r.provincia = sinNumeros(bloque[2]);
+  if (iNac > 0 && /LUGAR|NACIM/i.test(lineas[iNac])) {
     const nac = [];
     for (let i = iNac + 1; i < lineas.length && nac.length < 2; i += 1) {
       if (/HIJO|EQUIPO|</i.test(lineas[i])) break;

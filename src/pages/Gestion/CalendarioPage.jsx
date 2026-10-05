@@ -270,7 +270,7 @@ export default function CalendarioPage() {
       <button
         type="button" onClick={(ev) => { ev.stopPropagation(); abrir(e.id); }}
         title={`${e.titulo}${e.entidad_nombre ? ` · ${e.entidad_nombre}` : ''}`}
-        className="flex w-full items-center gap-1.5 truncate rounded-md border-l-4 bg-surface2 px-1.5 py-0.5 text-left text-xs font-bold text-on-surface1 hover:bg-surface-hover"
+        className="flex w-full items-center gap-1.5 truncate rounded-md border-l-4 bg-surface2 px-1.5 py-0.5 text-left text-xs font-bold text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover"
         style={{ borderLeftColor: e.tipo_color || '#ffffff' }}
       >
         {conHora && !Number(e.todo_el_dia) && <span className="shrink-0 font-mono">{hora(ini)}</span>}
@@ -295,7 +295,7 @@ export default function CalendarioPage() {
           const fuera = d.getMonth() !== ref.getMonth();
           return (
             <div key={clave(d)} role="button" tabIndex={0} onClick={() => nuevo(d)} onKeyDown={(e) => e.key === 'Enter' && nuevo(d)}
-              className={`min-h-[110px] cursor-pointer space-y-1 border-b border-r border-border p-1.5 hover:bg-surface-hover ${fuera ? 'opacity-50' : ''}`}>
+              className={`min-h-[110px] cursor-pointer space-y-1 border-b border-r border-border p-1.5 hover:bg-surface-hover hover:text-on-surface-hover ${fuera ? 'opacity-50' : ''}`}>
               <div className={`mb-1 inline-grid h-7 w-7 place-items-center rounded-full text-sm font-black ${mismoDia(d, hoy) ? 'bg-primary text-on-primary' : 'text-on-surface1'}`}>{d.getDate()}</div>
               {lista.slice(0, 3).map((e) => <Chip key={`${e.id}-${e.ocurrencia_inicio}`} e={e} />)}
               {lista.length > 3 && (
@@ -323,7 +323,7 @@ export default function CalendarioPage() {
       <div className="grid min-h-[420px] grid-cols-7">
         {Array.from({ length: 7 }, (_, i) => sumarDias(desde, i)).map((d) => (
           <div key={clave(d)} role="button" tabIndex={0} onClick={() => nuevo(d)} onKeyDown={(e) => e.key === 'Enter' && nuevo(d)}
-            className="cursor-pointer space-y-1.5 border-r border-border p-1.5 hover:bg-surface-hover">
+            className="cursor-pointer space-y-1.5 border-r border-border p-1.5 hover:bg-surface-hover hover:text-on-surface-hover">
             {(porDia.get(clave(d)) || []).map((e) => <Chip key={`${e.id}-${e.ocurrencia_inicio}`} e={e} />)}
           </div>
         ))}
@@ -348,7 +348,7 @@ export default function CalendarioPage() {
                 return (
                   <button key={clave(d)} type="button" title={n ? (porDia.get(clave(d)) || []).map((e) => e.titulo).join(' · ') : undefined}
                     onClick={() => { setRef(d); setVista('semana'); }}
-                    className={`relative grid h-7 place-items-center rounded-full text-xs font-bold text-on-surface1 hover:bg-surface-hover ${mismoDia(d, hoy) ? 'bg-primary text-on-primary' : ''}`}
+                    className={`relative grid h-7 place-items-center rounded-full text-xs font-bold text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover ${mismoDia(d, hoy) ? 'bg-primary text-on-primary' : ''}`}
                     style={n ? { boxShadow: `inset 0 0 0 2px ${color}` } : undefined}>
                     {d.getDate()}
                   </button>
@@ -376,7 +376,7 @@ export default function CalendarioPage() {
               <ul className="space-y-2">
                 {porDia.get(k).map((e) => (
                   <li key={`${e.id}-${e.ocurrencia_inicio}`}>
-                    <button type="button" onClick={() => abrir(e.id)} className="flex w-full flex-wrap items-center gap-3 rounded-xl border-l-4 bg-surface2 px-3 py-2 text-left hover:bg-surface-hover" style={{ borderLeftColor: e.tipo_color || '#ffffff' }}>
+                    <button type="button" onClick={() => abrir(e.id)} className="flex w-full flex-wrap items-center gap-3 rounded-xl border-l-4 bg-surface2 px-3 py-2 text-left hover:bg-surface-hover hover:text-on-surface-hover" style={{ borderLeftColor: e.tipo_color || '#ffffff' }}>
                       <span className="w-14 shrink-0 font-mono text-sm font-bold text-on-surface1">{Number(e.todo_el_dia) ? t('todo_el_dia', 'Todo el día') : hora(leer(e.ocurrencia_inicio))}</span>
                       <span className="min-w-0 flex-1 text-sm font-black text-on-surface1">{e.titulo}</span>
                       <span className="text-xs font-bold text-on-surface1">{[nombreTipo(e), e.entidad_nombre].filter(Boolean).join(' · ')}</span>
@@ -409,8 +409,8 @@ export default function CalendarioPage() {
             </button>
           </Tooltip>
           <Button variant="secondary" size="sm" onClick={() => setRef(new Date())}>{t('hoy', 'Hoy')}</Button>
-          <button type="button" onClick={() => mover(-1)} aria-label={t('anterior', 'Anterior')} className="rounded-full p-2 text-on-surface1 hover:bg-surface-hover"><ChevronLeft size={22} /></button>
-          <button type="button" onClick={() => mover(1)} aria-label={t('siguiente', 'Siguiente')} className="rounded-full p-2 text-on-surface1 hover:bg-surface-hover"><ChevronRight size={22} /></button>
+          <button type="button" onClick={() => mover(-1)} aria-label={t('anterior', 'Anterior')} className="rounded-full p-2 text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover"><ChevronLeft size={22} /></button>
+          <button type="button" onClick={() => mover(1)} aria-label={t('siguiente', 'Siguiente')} className="rounded-full p-2 text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover"><ChevronRight size={22} /></button>
           <h2 className="min-w-[200px] text-xl font-black capitalize tracking-tight text-on-surface1">{tituloPeriodo()}</h2>
           {cargando && <span className="text-xs font-bold uppercase tracking-widest text-on-surface1">{t('cargando', 'Cargando…')}</span>}
 
@@ -426,7 +426,7 @@ export default function CalendarioPage() {
             <div role="tablist" className="flex overflow-hidden rounded-xl border border-border">
               {VISTAS.map((v) => (
                 <button key={v} type="button" role="tab" aria-selected={vista === v} onClick={() => setVista(v)}
-                  className={`px-3 py-2 text-sm font-black ${vista === v ? 'bg-primary text-on-primary' : 'text-on-surface1 hover:bg-surface-hover'}`}>
+                  className={`px-3 py-2 text-sm font-black ${vista === v ? 'bg-primary text-on-primary' : 'text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover'}`}>
                   {t(`vista_${v}`, { anyo: 'Año', mes: 'Mes', semana: 'Semana', lista: 'Lista' }[v])}
                 </button>
               ))}

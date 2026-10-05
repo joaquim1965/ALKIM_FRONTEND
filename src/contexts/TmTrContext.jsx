@@ -116,10 +116,16 @@ export function useTmTr(pageName) {
       }
     }
 
-    // 2. Intentar clave directa (global)
+    // 2. Si la pantalla tiene contexto propio y trae texto por defecto, se usa
+    //    ese texto antes que la clave corta global: la clave corta es la de
+    //    CUALQUIER contexto («guardar» salía «Guardar Tema» y «titulo» salía
+    //    «Bancos, cuentas y tarjetas» en Claves de IA, 05/10/2026).
+    if (!val && pageName && fallback) return fallback;
+
+    // 3. Intentar clave directa (global)
     if (!val && context.tr[key]) val = context.tr[key];
 
-    // 3. Fallback: devolver el valor encontrado, el fallback proporcionado o la clave
+    // 4. Fallback: devolver el valor encontrado, el fallback proporcionado o la clave
     return val || fallback || key;
   };
 

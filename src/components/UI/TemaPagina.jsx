@@ -17,7 +17,8 @@
  * Textos: s_dictionary, contexto «Comun» (BACKEND/migrations/2026.10.07 - textos comunes.sql).
  */
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
+import Tooltip from './Tooltip';
 import Toggle from './Toggle';
 import { useTmTr } from '../../contexts/TmTrContext';
 
@@ -27,9 +28,27 @@ export const CLASE_INPUT = 'input-base w-full px-3 py-2 text-sm';
 export const MICRO = 'text-[11px] font-black uppercase tracking-widest';
 
 /** Cabecera de página: distintivo con icono, título y descripción; acciones a la derecha. */
-export const CabeceraPagina = ({ icono, titulo, subtitulo, children }) => (
+/**
+ * Botón «+» de añadir (04/10/2026, petición del usuario): el círculo del tema,
+ * SIEMPRE delante del título, a la izquierda. Se usa a través de la prop
+ * `anadir={{ texto, onClick, disabled }}` de CabeceraPagina, CabeceraPanel y
+ * VentanaModal, o suelto delante del título de una pestaña.
+ */
+export const BotonAnadir = ({ texto, onClick, disabled = false, pequeno = false }) => (
+  <Tooltip texto={texto}>
+    <button
+      type="button" onClick={onClick} disabled={disabled} aria-label={texto}
+      className={`grid ${pequeno ? 'h-10 w-10' : 'h-[45px] w-[45px]'} shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background disabled:cursor-not-allowed disabled:opacity-40`}
+    >
+      <Plus size={20} />
+    </button>
+  </Tooltip>
+);
+
+export const CabeceraPagina = ({ icono, titulo, subtitulo, children, anadir }) => (
   <header className="flex flex-wrap items-center justify-between gap-4">
     <div className="flex items-center gap-4">
+      {anadir && <BotonAnadir {...anadir} />}
       <div className="rounded-2xl border-2 border-border bg-surface2 p-2.5 text-on-background shadow-sm">{icono}</div>
       <div>
         <h1 className="mb-1 text-2xl font-black leading-none tracking-tight text-on-background">{titulo}</h1>
@@ -46,8 +65,9 @@ export const Panel = ({ children, className = '' }) => (
 );
 
 /** Cabecera de un panel: icono, título y contador; controles a la derecha. */
-export const CabeceraPanel = ({ icono, titulo, contador, children }) => (
+export const CabeceraPanel = ({ icono, titulo, contador, children, anadir }) => (
   <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
+    {anadir && <BotonAnadir {...anadir} />}
     {icono && <div className="flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-border bg-surface2 text-on-background">{icono}</div>}
     <div className="flex-1">
       <h2 className="font-black tracking-tight text-on-background">{titulo}</h2>
@@ -104,13 +124,14 @@ export const SinDato = ({ texto }) => {
 };
 
 /** Ventana modal: la de Tesorería → Bancos y cuentas. */
-export const VentanaModal = ({ titulo, icono, onCerrar, ancho = 'max-w-3xl', children }) => {
+export const VentanaModal = ({ titulo, icono, onCerrar, ancho = 'max-w-3xl', children, anadir }) => {
   const { t } = useTmTr('Comun');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-modal-backdrop/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={typeof titulo === 'string' ? titulo : undefined}>
       <div className={`animate-in zoom-in-95 flex max-h-[92vh] w-full ${ancho} flex-col overflow-hidden rounded-3xl border border-border bg-surface1 shadow-2xl duration-200`}>
         <div className="flex items-center justify-between gap-4 border-b border-border bg-surface2 p-5">
           <div className="flex min-w-0 items-center gap-3">
+            {anadir && <BotonAnadir {...anadir} />}
             {icono && <div className="rounded-2xl border-2 border-border bg-surface2 p-2 text-on-background">{icono}</div>}
             <h2 className="truncate text-xl font-black leading-none tracking-tight text-on-background">{titulo}</h2>
           </div>

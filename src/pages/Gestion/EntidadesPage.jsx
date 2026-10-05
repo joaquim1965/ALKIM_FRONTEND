@@ -23,7 +23,7 @@ import DocumentosObjeto from '../../components/Documentos/DocumentosObjeto';
 import FichaConPestanas from '../../components/UI/FichaConPestanas';
 import {
   CabeceraPagina, Panel, CabeceraPanel, Campo, Leyenda, AvisoError, AvisoAtencion, Ayuda, SinDato,
-  VentanaModal, TablaTema, claseFila, TD, FilaVacia, CLASE_INPUT, Recuadro, BotonFila,
+  VentanaModal, TablaTema, claseFila, TD, FilaVacia, CLASE_INPUT, Recuadro, BotonFila, BotonAnadir,
 } from '../../components/UI/TemaPagina';
 import { formatPorcentaje } from '../../utils/format';
 
@@ -207,24 +207,12 @@ export default function EntidadesPage() {
 
       <Panel className="overflow-hidden">
         <CabeceraPanel icono={<Building2 size={20} />} titulo={t('mis_entidades', 'Mis entidades')}
+          anadir={{ texto: t('nueva', 'Nueva entidad'), onClick: () => abrirFicha() }}
           contador={`${entidades.length} ${entidades.length === 1 ? t('entidad', 'entidad') : t('entidades', 'entidades')}`} />
         {cargando
           ? <div className="px-5 py-12 text-center text-xs font-bold uppercase tracking-widest text-on-surface2">{t('cargando', 'Cargando…')}</div>
           : (
             <div className="space-y-3 p-3">
-              {/* Nueva entidad: el círculo azul con «+» a la izquierda, igual que
-                  en Bancos y cuentas (01/10/2026). Antes era un botón con texto
-                  en la cabecera. */}
-              <div className="flex items-center gap-4">
-                <Tooltip texto={t('nueva', 'Nueva entidad')}>
-                  <button
-                    type="button" onClick={() => abrirFicha()} aria-label={t('nueva', 'Nueva entidad')}
-                    className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background"
-                  >
-                    <Plus size={20} />
-                  </button>
-                </Tooltip>
-              </div>
               {errorBorrar && (
                 <div ref={refErrorBorrar} className="flex items-start gap-3">
                   <div className="flex-1"><AvisoError>{errorBorrar}</AvisoError></div>
@@ -232,7 +220,7 @@ export default function EntidadesPage() {
                 </div>
               )}
               <DataTable
-                columns={columnas} data={entidades} keyField="id" rowsPerPage={10}
+                columns={columnas} data={entidades} keyField="id" rowsPerPage={10} sinBarra
                 searchFn={(x, q) => `${x.nombre} ${x.nif || ''}`.toLowerCase().includes(q)}
                 onEdit={(x) => (puedeEditar(x) ? abrirFicha(x) : null)}
                 onDelete={(x) => (puedeEditar(x) ? eliminar(x) : null)}
@@ -385,7 +373,8 @@ export default function EntidadesPage() {
       )}
 
       {modal?.tipo === 'socios' && (
-        <VentanaModal icono={<Users size={20} />} titulo={t('socios_de', 'Socios de {entidad}').replace('{entidad}', modal.entidad.nombre)} onCerrar={() => setModal(null)}>
+        <VentanaModal icono={<Users size={20} />} titulo={t('socios_de', 'Socios de {entidad}').replace('{entidad}', modal.entidad.nombre)} onCerrar={() => setModal(null)}
+          anadir={puedeEditar(modal.entidad) && !formSocio ? { texto: t('anadir_socio', 'Añadir socio'), onClick: nuevoSocio } : null}>
             <p className="text-sm font-bold text-on-surface1">{t('suma_vigente', 'Participación vigente: {n} %').replace('{n} %', formatPorcentaje(sumaVigente)).replace('{n}', formatPorcentaje(sumaVigente).slice(0, -2))}</p>
             <div className="mt-4"><AvisoError>{error}</AvisoError></div>
 
@@ -409,18 +398,6 @@ export default function EntidadesPage() {
                 {!socios.length && <FilaVacia columnas={6}>{t('sin_socios', 'Sin socios registrados.')}</FilaVacia>}
             </TablaTema>
 
-            {puedeEditar(modal.entidad) && !formSocio && (
-              <div className="mt-4">
-                <Tooltip texto={t('anadir_socio', 'Añadir socio')}>
-                  <button
-                    type="button" onClick={nuevoSocio} aria-label={t('anadir_socio', 'Añadir socio')}
-                    className="grid h-[45px] w-[45px] shrink-0 place-items-center rounded-full border-2 border-primary-border bg-primary text-on-primary transition-colors hover:border-on-background"
-                  >
-                    <Plus size={20} />
-                  </button>
-                </Tooltip>
-              </div>
-            )}
 
             {formSocio && (
               <Recuadro as="form" onSubmit={guardarSocio} className="mt-5 grid gap-4 sm:grid-cols-3">

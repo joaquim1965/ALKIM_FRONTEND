@@ -45,11 +45,12 @@ const CompanyDropdown = () => {
   return (
     <label className="relative flex items-center gap-2 rounded-lg border border-border px-2 py-1 text-sm text-on-navbar">
       <Building2 size={16} />
-      {visible ? <span>{visible}</span> : <select aria-label="Empresa activa" value={selected} onChange={change} className="appearance-none bg-transparent pr-4 font-bold outline-none">
+      {/* Flecha a la izquierda, delante del texto (04/10/2026). */}
+      {!visible && <ChevronDown size={14} className="pointer-events-none" />}
+      {visible ? <span>{visible}</span> : <select aria-label="Empresa activa" value={selected} onChange={change} className="select-propia appearance-none bg-transparent font-bold outline-none">
         <option value="todas">Todas las empresas</option>
         {companies.map((company) => <option key={company.id} value={company.id}>{company.nombre}</option>)}
       </select>}
-      {!visible && <ChevronDown size={14} className="pointer-events-none absolute right-1" />}
     </label>
   );
 };

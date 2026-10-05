@@ -36,7 +36,6 @@ const Selector = ({ id, rotulo, valor, onChange, children, ancho = 'min-w-[200px
       >
         {children}
       </select>
-      <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-on-surface2/50" />
     </div>
   </div>
 );
