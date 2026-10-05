@@ -581,27 +581,27 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-border text-[11px] uppercase tracking-widest">
-                      <th className="py-1 pr-2">{t('usar', 'Usar')}</th><th className="py-1 pr-2">{t('campo', 'Campo')}</th>
-                      <th className="py-1 pr-2">{t('en_ficha', 'En la ficha')}</th><th className="py-1">{t('en_dni', 'Leído del DNI')}</th>
+                    <tr className="border-b border-border bg-table-header text-[11px] uppercase tracking-widest text-on-table-header">
+                      <th className="px-2 py-1">{t('usar', 'Usar')}</th><th className="px-2 py-1">{t('campo', 'Campo')}</th>
+                      <th className="px-2 py-1">{t('en_ficha', 'En la ficha')}</th><th className="px-2 py-1">{t('en_dni', 'Leído del DNI')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {subida.filas.map((f) => (
-                      <tr key={f.campo} className="border-b border-border align-top">
-                        <td className="py-1.5 pr-2">
+                    {subida.filas.map((f, i) => (
+                      <tr key={f.campo} className={`border-b border-border align-top ${i % 2 ? 'bg-table-row-striped text-on-table-row-striped' : 'bg-table-row text-on-table-row'}`}>
+                        <td className="px-2 py-1.5">
                           {f.igual ? <span className="text-xs">{t('igual', 'igual')}</span> : (
                             <input type="checkbox" className="h-5 w-5" aria-label={`${t('usar', 'Usar')} ${ETIQUETAS_DOC[f.campo]}`}
                               checked={Boolean(subida.usar?.[f.campo])}
                               onChange={(e) => setSubida((x) => ({ ...x, usar: { ...x.usar, [f.campo]: e.target.checked } }))} />
                           )}
                         </td>
-                        <td className="py-1.5 pr-2">{ETIQUETAS_DOC[f.campo]}
+                        <td className="px-2 py-1.5">{ETIQUETAS_DOC[f.campo]}
                           {f.revisar && <span className="ml-1 rounded-full border border-warning-border px-1.5 text-[10px] uppercase">{t('revisar', 'revisar')}</span>}
                           {f.distinto && <span className="ml-1 rounded-full border border-destructive px-1.5 text-[10px] uppercase">{t('distinto', 'distinto')}</span>}
                         </td>
-                        <td className="py-1.5 pr-2 font-mono">{verValor(f.campo, f.ficha)}</td>
-                        <td className="py-1.5 font-mono">{verValor(f.campo, f.leido)}</td>
+                        <td className="px-2 py-1.5 font-mono">{verValor(f.campo, f.ficha)}</td>
+                        <td className="px-2 py-1.5 font-mono">{verValor(f.campo, f.leido)}</td>
                       </tr>
                     ))}
                   </tbody>
