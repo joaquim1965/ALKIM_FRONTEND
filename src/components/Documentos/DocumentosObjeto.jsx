@@ -15,9 +15,11 @@
  * Textos: s_dictionary, contexto «Documentos» y «CategoriaArchivo» (4 idiomas).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Upload, Download, Trash2, Pencil, Plus, ChevronDown, Link2, Unlink, AlertTriangle, Lock, CheckCircle2, X, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Upload, Download, Trash2, Pencil, Plus, ChevronDown, ChevronRight, ScanText, Link2, Unlink, AlertTriangle, Lock, CheckCircle2, X, Eye, EyeOff, KeyRound } from 'lucide-react';
 import ZonaArchivos, { VentanaEmergente } from '../UI/ZonaArchivos';
+import SelectLista from '../UI/SelectLista';
 import TiposDocumento from './TiposDocumento';
+import { ordenArbol } from './ordenTipos';
 import Button from '../UI/Button';
 import Tooltip from '../UI/Tooltip';
 import { apiFetch, authHeaders } from '../../services/api';
@@ -26,6 +28,7 @@ import { formatTamano } from '../../utils/format';
 import { leerDocumentoIdentidad, leerDomicilio } from '../../utils/lectorDni';
 import { normalizarImagen, LADO_DNI, LADO_A4 } from '../../utils/imagenes';
 import { Campo, Casilla, AvisoError, AvisoOk, CLASE_INPUT, Recuadro, claseFila, BotonFila , BotonAnadir } from '../UI/TemaPagina';
+import CampoFecha from '../UI/CampoFecha';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 // Fecha AAAA-MM-DD en hora LOCAL (04/10/2026). El servidor manda las DATE como
@@ -88,6 +91,8 @@ const esP12 = (f) => /\.(p12|pfx)$/i.test(f?.name || '');
 const conTipo = (f) => {
   if (/\.(p12|pfx)$/i.test(f.name) && f.type !== 'application/x-pkcs12') return new File([f], f.name, { type: 'application/x-pkcs12' });
   if (/\.(cer|crt)$/i.test(f.name) && f.type !== 'application/pkix-cert') return new File([f], f.name, { type: 'application/pkix-cert' });
+  // .zip (06/10/2026): según el navegador llega como x-zip-compressed, octet-stream o sin tipo.
+  if (/\.zip$/i.test(f.name) && f.type !== 'application/zip') return new File([f], f.name, { type: 'application/zip' });
   return f;
 };
 
@@ -111,11 +116,15 @@ const REVISAR = ['domicilio', 'municipio', 'provincia'];
 
 /**
  * @param ficha               (opcional) datos ACTUALES de la ficha abierta, para comparar.
+ * @param onSubido            (opcional) recibe cada archivo recién subido (fila de s_files con categoria_codigo).
+ * @param leibles / onLeer     (opcional) tipos que se pueden leer (nota simple, escrituras, facturas) y qué hacer
+ *                             al pulsar «Leer datos» en la fila de uno ya subido (06/10/2026).
+ *                            Lo usa la propiedad para leer la nota simple sola (05/10/2026).
  * @param onDatosDocumento    (opcional) recibe los datos leídos del DNI que el usuario
  *                            eligió: la ficha los muestra y se guardan con «Guardar».
  *                            Sin él, se guardan al subir (PATCH /companies/:id/documento).
  */
-export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDocumentoIdentidad, ficha = null, onDatosDocumento }) {
+export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDocumentoIdentidad, ficha = null, onDatosDocumento, onSubido, leibles = [], onLeer }) {
   const { t } = useTmTr('Documentos');
   const { t: tc } = useTmTr('CategoriaArchivo');
   const [datos, setDatos] = useState(null);
@@ -124,6 +133,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   const [ocupado, setOcupado] = useState(false);
   const [subida, setSubida] = useState(null);
   const [editandoTipos, setEditandoTipos] = useState(false);
+  const [plegados, setPlegados] = useState(() => new Set());   // grupos y subgrupos plegados: no se ven sus documentos ni sus subgrupos (06/10/2026)
   const [filtroTipo, setFiltroTipo] = useState('');   // '' = todos los grupos   // lápiz de «Tipos de documentos»          // formulario de subida
   const [edicion, setEdicion] = useState(null);        // { archivo, campos }
   const [vinculo, setVinculo] = useState(null);        // { archivo, entidad_id }
@@ -133,7 +143,11 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
 
   const cargar = useCallback(async () => {
     setError('');
-    try { setDatos((await pedir(`/files/objeto/${tabla}/${id}`)).data); }
+    try {
+      // Tipos en el orden del catálogo, cada subtipo bajo su tipo (06/10/2026).
+      const d = (await pedir(`/files/objeto/${tabla}/${id}`)).data;
+      setDatos({ ...d, categorias: ordenArbol(d.categorias || []) });
+    }
     catch (e) { setError(e.message); }
   }, [tabla, id]);
   useEffect(() => { cargar(); }, [cargar]);
@@ -145,8 +159,33 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       if (!grupos.has(k)) grupos.set(k, { codigo: k, nombre: a.categoria_nombre, archivos: [] });
       grupos.get(k).archivos.push(a);
     }
-    return [...grupos.values()];
+    // Mismo orden que «Tipos de documentos» (arrastrando filas); los subtipos, sangrados.
+    const pos = new Map((datos?.categorias || []).map((c, i) => [c.codigo, i]));
+    return [...grupos.values()]
+      .map((g) => ({ ...g, nivel: datos?.categorias?.find((c) => c.codigo === g.codigo)?.nivel || 0 }))
+      .sort((a, b) => (pos.get(a.codigo) ?? Infinity) - (pos.get(b.codigo) ?? Infinity));
   }, [datos]);
+  // Grupos con sus subgrupos (06/10/2026): un grupo sale si tiene documentos él o alguno de sus subtipos;
+  // la flecha de su cabecera pliega o despliega los subgrupos.
+  const arbol = useMemo(() => {
+    const cats = datos?.categorias || [];
+    const porCodigo = new Map(porCategoria.map((g) => [g.codigo, g]));
+    const salida = [];
+    const usados = new Set();
+    for (const c of cats.filter((x) => !x.nivel)) {
+      const hijos = cats.filter((h) => h.nivel && Number(h.padre_id) === Number(c.id)).map((h) => porCodigo.get(h.codigo)).filter(Boolean);
+      const propio = porCodigo.get(c.codigo);
+      if (!propio && !hijos.length) continue;
+      salida.push({ g: propio || { codigo: c.codigo, nombre: c.nombre, archivos: [] }, hijos });
+      usados.add(c.codigo); hijos.forEach((h) => usados.add(h.codigo));
+    }
+    for (const g of porCategoria) if (!usados.has(g.codigo)) salida.push({ g, hijos: [] });   // sin clasificar o de otro catálogo
+    if (!filtroTipo) return salida;
+    return salida.flatMap(({ g, hijos }) => (g.codigo === filtroTipo ? [{ g, hijos }] : hijos.filter((h) => h.codigo === filtroTipo).map((h) => ({ g: h, hijos: [] }))));
+  }, [datos, porCategoria, filtroTipo]);
+  const visibles = arbol.flatMap(({ g, hijos }) => [{ g, hijos, nivel: 0 }, ...(plegados.has(g.codigo) ? [] : hijos.map((h) => ({ g: h, hijos: [], nivel: 1 })))]);
+  const plegar = (codigo) => setPlegados((p) => { const n = new Set(p); if (n.has(codigo)) n.delete(codigo); else n.add(codigo); return n; });
+  const sangria = (c) => (c?.nivel ? '\u00A0\u00A0\u00A0↳ ' : '');
 
   const nuevaSubida = (categoria = null) => {
     setAviso(''); setError('');
@@ -164,6 +203,13 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   const categoria = (id) => datos?.categorias.find((x) => String(x.id) === String(id));
   const idDeCodigo = (codigo) => datos?.categorias.find((x) => x.codigo === codigo)?.id;
   const nombreDe = (d, s) => (d.nombreManual ? d.nombre.trim() : nombrePropuesto(categoria(d.categoria_id)?.codigo, datos?.objeto, s));
+  /** Tipo que parece por el nombre del archivo (solo se propone): «Nota simple…» → Nota simple; «Factura…», «Fra…», «Tasación…» → Facturas de la compra. */
+  const tipoPorNombre = (nombre = '') => {
+    if (/nota[\s_.-]*simple/i.test(nombre)) return idDeCodigo('NOTA_SIMPLE') || null;
+    if (/hipotec|pr[eé]stamo|prestec|pr[eé]stec|\bfein\b/i.test(nombre)) return idDeCodigo('ESCRITURA_HIPOTECA') || null;
+    if (/factura|\bfra\b|tasaci|taxaci/i.test(nombre)) return idDeCodigo('FACTURA_COMPRA') || null;
+    return null;
+  };
   /** Detalles por archivo al cambiar la lista: se conservan los que ya había. */
   const detallesPara = (ficheros, s) => ficheros.map((_, i) => {
     if (s.detalles?.[i]) return s.detalles[i];
@@ -172,7 +218,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     let cat = s.categoria_id;
     if (esCertificado(ficheros[i]) && idDeCodigo('CERT_DIGITAL')) return { categoria_id: idDeCodigo('CERT_DIGITAL'), nombre: '', nombreManual: false, contrasena: '' };
     if (['DNI_ANVERSO', 'DNI_REVERSO'].includes(base) && ficheros.length > 1 && i < 2) cat = idDeCodigo(i === 0 ? 'DNI_ANVERSO' : 'DNI_REVERSO') || cat;
-    return { categoria_id: cat, nombre: '', nombreManual: false };
+    // Por el nombre del archivo NO se cambia el tipo: se PREGUNTA (06/10/2026, petición del usuario; por defecto No).
+    return { categoria_id: cat, nombre: '', nombreManual: false, sugerida: tipoPorNombre(ficheros[i].name) };
   });
   // ¿Alguno de los archivos es el DNI de una persona?
   const esIdentidad = (s) => Boolean(datos?.objeto?.documento)
@@ -287,6 +334,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     ev.preventDefault();
     if (!subida.ficheros.length) return setError(t('falta_fichero', 'Elige al menos un archivo.'));
     setOcupado(true); setError('');
+    const subidos = [];
     try {
       for (const [i, fichero] of subida.ficheros.entries()) {
         const det = subida.detalles[i] || { categoria_id: subida.categoria_id, nombreManual: false, nombre: '' };
@@ -304,7 +352,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         fd.append('confidencial', subida.confidencial ? '1' : '0');
         if (nombreDe(det, subida)) fd.append('nombre', nombreDe(det, subida));
         if (det.contrasena) fd.append('contrasena', det.contrasena);
-        await pedir('/files', { method: 'POST', body: fd });
+        const subido = (await pedir('/files', { method: 'POST', body: fd })).data;
+        if (subido) subidos.push(subido);
       }
       // Datos del DNI: a la ficha abierta, que los guarda con «Guardar» (04/10/2026).
       // Sin ficha abierta (otras pantallas), se guardan ya.
@@ -320,6 +369,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       setAviso(t('subidos', '{n} archivo(s) subido(s).').replace('{n}', subida.ficheros.length));
       setSubida(null);
       await cargar();
+      subidos.forEach((a) => onSubido?.(a));
     } catch (e) { setError(e.message); }
     finally { setOcupado(false); }
   };
@@ -391,6 +441,9 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       await pedir(`/files/${edicion.archivo.id}`, { method: 'PATCH', body: JSON.stringify({ ...c, confidencial: Boolean(c.confidencial) }) });
       setEdicion(null);
       await cargar();
+      // Si se cambia a «Nota simple», se lee igual que al subirla (05/10/2026).
+      const nueva = categoria(c.categoria_id)?.codigo;
+      if (nueva !== edicion.archivo.categoria_codigo) onSubido?.({ ...edicion.archivo, categoria_id: c.categoria_id, categoria_codigo: nueva });
     } catch (e) { setError(e.message); }
     finally { setOcupado(false); }
   };
@@ -459,15 +512,13 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             <div className="w-full flex-1 space-y-1.5">
               <label htmlFor={`filtro-tipo-${tabla}-${id}`} className="ml-1 text-[11px] font-black uppercase tracking-widest">{t('grupos_documentos', 'Grupos de documentos')}</label>
               <div className="relative">
-                <select id={`filtro-tipo-${tabla}-${id}`} value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}
-                  className="input-base h-[45px] w-full appearance-none rounded-xl border-border bg-background px-4 text-sm font-bold">
-                  <option value="">{t('todos_tipos', 'Todos los tipos')}</option>
-                  {datos.categorias.map((c) => {
+                <SelectLista id={`filtro-tipo-${tabla}-${id}`} value={filtroTipo} onChange={setFiltroTipo}
+                  className="input-base h-[45px] w-full rounded-xl border-border bg-background px-4 text-sm font-bold"
+                  opciones={[{ value: '', label: t('todos_tipos', 'Todos los tipos') }, ...datos.categorias.map((c) => {
                     const falta = datos.faltan.some((f) => f.id === c.id);
                     const n = (datos.archivos || []).filter((x) => x.categoria_id === c.id).length;
-                    return <option key={c.id} value={c.codigo}>{nombreCat(c)}{Number(c.obligatorio) ? ' *' : ''} · {falta ? `⚠ ${t('falta', 'falta')}` : n}</option>;
-                  })}
-                </select>
+                    return { value: c.codigo, label: `${sangria(c)}${nombreCat(c)}${Number(c.obligatorio) ? ' *' : ''} · ${falta ? `⚠ ${t('falta', 'falta')}` : n}` };
+                  })]} />
               </div>
             </div>
           </div>
@@ -491,23 +542,25 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                 detalles: x.detalles.map((d) => (d.categoriaManual ? d : { ...d, categoria_id: e.target.value })),
               }));
             }} className={CLASE_INPUT}>
-              {datos.categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c)}{Number(c.obligatorio) ? ' *' : ''}</option>)}
+              {datos.categorias.map((c) => <option key={c.id} value={c.id}>{sangria(c)}{nombreCat(c)}{Number(c.obligatorio) ? ' *' : ''}</option>)}
             </select>
           </Campo>
-          <Campo etiqueta={t('ficheros', 'Archivos (PDF, imagen, Word, Excel; máx. 20 MB cada uno)')}>
+          <Campo etiqueta={t('ficheros_1gb', 'Archivos (PDF, imagen, Word, Excel, ZIP; máx. 1 GB cada uno)')}>
             <ZonaArchivos
               ficheros={subida.ficheros} onCambio={(lista) => setSubida((s) => { const ficheros = lista.map(conTipo); return { ...s, ficheros, detalles: detallesPara(ficheros, { ...s, detalles: s.ficheros.length === ficheros.length ? s.detalles : s.detalles.filter((_, i) => s.ficheros[i] && ficheros.some((f) => f.name === s.ficheros[i].name && f.size === s.ficheros[i].size)) }) }; })}
               textoPrincipal={t('arrastra', 'Arrastra aquí los archivos')}
               textoSecundario={t('o_elige', 'o pulsa para elegirlos del ordenador')}
               textoQuitar={t('quitar_fichero', 'Quitar')}
+              textoRepetidos={t('descartados_repetidos', 'Documentos descartados por repetidos:')}
+              textoCuenta={(n) => (n === 1 ? t('archivos_a_cargar_1', '1 archivo a cargar') : t('archivos_a_cargar', '{n} archivos a cargar').replace('{n}', n))}
             />
           </Campo>
           <div className="grid gap-3 sm:grid-cols-3">
 
-            <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><input type="date" max={hoy()} value={subida.fecha_documento} onChange={(e) => setSubida((s) => ({ ...s, fecha_documento: e.target.value }))} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><CampoFecha max={hoy()} value={subida.fecha_documento} onChange={(e) => setSubida((s) => ({ ...s, fecha_documento: e.target.value }))} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={subida.ejercicio} onChange={(e) => setSubida((s) => ({ ...s, ejercicio: e.target.value }))} className={CLASE_INPUT} /></Campo>
             {algunaCaduca(subida) && (
-              <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><input type="date" value={subida.fecha_caducidad} onChange={(e) => setSubida((s) => ({ ...s, fecha_caducidad: e.target.value }))} className={CLASE_INPUT} /></Campo>
+              <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><CampoFecha value={subida.fecha_caducidad} onChange={(e) => setSubida((s) => ({ ...s, fecha_caducidad: e.target.value }))} className={CLASE_INPUT} /></Campo>
             )}
             <div className="sm:col-span-2"><Campo etiqueta={t('descripcion', 'Descripción')}><input maxLength={500} value={subida.descripcion} onChange={(e) => setSubida((s) => ({ ...s, descripcion: e.target.value }))} className={CLASE_INPUT} /></Campo></div>
           </div>
@@ -537,9 +590,17 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                         </span>
                       )}
                     </p>
+                    {det.sugerida && String(det.sugerida) !== String(det.categoria_id) && !det.sugerenciaVista && (
+                      <div role="group" aria-label={t('cambiar_grupo', 'Cambiar de grupo')}
+                        className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning-border bg-warning px-4 py-3 text-sm font-bold text-on-warning sm:col-span-2">
+                        <span className="min-w-0 flex-1">{t('cambiar_a_grupo', '¿Cambia a grupo {grupo}?').replace('{grupo}', nombreCat(categoria(det.sugerida) || {}))}</span>
+                        <Button type="button" size="sm" variant="secondary" onClick={() => cambiar({ categoria_id: String(det.sugerida), categoriaManual: true, sugerenciaVista: true })}>{t('si', 'Sí')}</Button>
+                        <Button type="button" size="sm" onClick={() => cambiar({ sugerenciaVista: true })}>{t('no', 'No')}</Button>
+                      </div>
+                    )}
                     <Campo etiqueta={t('categoria', 'Tipo de documento')}>
                       <select value={det.categoria_id} onChange={(e) => cambiar({ categoria_id: e.target.value, categoriaManual: true })} className={CLASE_INPUT}>
-                        {datos.categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c)}{Number(c.obligatorio) ? ' *' : ''}</option>)}
+                        {datos.categorias.map((c) => <option key={c.id} value={c.id}>{sangria(c)}{nombreCat(c)}{Number(c.obligatorio) ? ' *' : ''}</option>)}
                       </select>
                     </Campo>
                     <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
@@ -621,7 +682,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                 <input value={subida.doc.nif} maxLength={20} onChange={(e) => setSubida((s) => ({ ...s, doc: { ...s.doc, nif: e.target.value.toUpperCase() } }))} className={`${CLASE_INPUT} font-mono`} />
               </Campo>
               <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}>
-                <input type="date" value={subida.doc.fecha_caducidad_doc} onChange={(e) => setSubida((s) => ({ ...s, doc: { ...s.doc, fecha_caducidad_doc: e.target.value } }))} className={CLASE_INPUT} />
+                <CampoFecha value={subida.doc.fecha_caducidad_doc} onChange={(e) => setSubida((s) => ({ ...s, doc: { ...s.doc, fecha_caducidad_doc: e.target.value } }))} className={CLASE_INPUT} />
               </Campo>
             </fieldset>
           )}
@@ -636,15 +697,24 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
 
       {porCategoria.length === 0 && <p className="text-xs font-bold uppercase tracking-widest">{t('sin_documentos', 'Todavía no hay documentos.')}</p>}
 
-      {filtroTipo && !porCategoria.some((g) => g.codigo === filtroTipo) && (
+      {filtroTipo && !arbol.length && (
         <p className="flex items-center gap-2 text-sm font-bold">
           {t('sin_docs_tipo', 'No hay documentos de este tipo.')}
           {!soloLectura && <Button size="xs" leftIcon={<Upload size={14} />} onClick={() => nuevaSubida(datos.categorias.find((c) => c.codigo === filtroTipo))}>{t('subir', 'Subir documentos')}</Button>}
         </p>
       )}
-      {porCategoria.filter((g) => !filtroTipo || g.codigo === filtroTipo).map((g) => (
-        <section key={g.codigo} className="overflow-hidden rounded-2xl border border-border">
-          <h3 className="flex items-center gap-3 border-b border-border bg-table-header px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-on-table-header">
+      {visibles.map(({ g, hijos, nivel }) => (
+        <section key={g.codigo} className={`overflow-hidden rounded-2xl border border-border ${nivel ? 'ml-8' : ''}`}>
+          <h3 className={`flex items-center gap-3 bg-table-header px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-on-table-header ${g.archivos.length && !plegados.has(g.codigo) ? 'border-b border-border' : ''}`}>
+            {/* Flecha a la izquierda en grupos y subgrupos: oculta o muestra sus documentos (y sus subgrupos) (06/10/2026). */}
+            {(hijos.length > 0 || g.archivos.length > 0) && (
+              <button type="button" onClick={() => plegar(g.codigo)} aria-expanded={!plegados.has(g.codigo)}
+                aria-label={plegados.has(g.codigo) ? t('desplegar_grupo', 'Mostrar documentos') : t('plegar_grupo', 'Ocultar documentos')}
+                title={plegados.has(g.codigo) ? t('desplegar_grupo', 'Mostrar documentos') : t('plegar_grupo', 'Ocultar documentos')}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
+                <ChevronRight size={18} className={`transition-transform ${plegados.has(g.codigo) ? '' : 'rotate-90'}`} />
+              </button>
+            )}
             {/* «+» delante del nombre del grupo: subir otro documento de este tipo (04/10/2026). */}
             {!soloLectura && (
               <button type="button" onClick={() => nuevaSubida(datos.categorias.find((c) => c.codigo === g.codigo) || null)}
@@ -653,16 +723,19 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                 <Plus size={16} />
               </button>
             )}
-            <span>{nombreCat(g)} · {g.archivos.length}</span>
+            <span>{nombreCat(g)} · {g.archivos.length + hijos.reduce((n, h) => n + h.archivos.length, 0)}</span>
           </h3>
-          <ul>
+          {g.archivos.length > 0 && !plegados.has(g.codigo) && <ul>
             {g.archivos.map((a, i) => (
               <li key={a.id} className={`flex flex-wrap items-center gap-3 px-4 py-2 ${claseFila(i)}`}>
                 {/* Acciones a la izquierda, como en todas las listas */}
                 <span className="flex shrink-0 items-center gap-0.5">
-                  {!Number(a.cifrado) && <BotonFila icono={<Eye size={15} />} titulo={t('ver', 'Ver')} onClick={() => descargar(a, 'ver')} />}
+                  {!Number(a.cifrado) && a.extension !== 'zip' && <BotonFila icono={<Eye size={15} />} titulo={t('ver', 'Ver')} onClick={() => descargar(a, 'ver')} />}
                   <BotonFila icono={<Download size={15} />} titulo={t('descargar', 'Descargar')} onClick={() => (Number(a.cifrado) ? descargarCifrado(a) : descargar(a))} />
                   {!soloLectura && <>
+                    {a.principal && leibles.includes(a.categoria_codigo) && onLeer && (
+                      <BotonFila icono={<ScanText size={15} />} titulo={t('leer_datos', 'Leer datos y pasarlos a la ficha')} onClick={() => onLeer(a)} />
+                    )}
                     <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, campos: { nombre: String(a.nombre_original || '').replace(/\.[^.]+$/, ''), categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)) } })} />
                     {a.principal && <BotonFila icono={<Trash2 size={15} />} titulo={t('papelera', 'Mover a la papelera')} onClick={() => papelera(a)} />}
                   </>}
@@ -702,7 +775,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                 </div>
               </li>
             ))}
-          </ul>
+          </ul>}
         </section>
       ))}
 
@@ -716,7 +789,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           <Campo etiqueta={t('categoria', 'Tipo de documento')}>
             <select autoFocus value={edicion.campos.categoria_id} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(e.target.value) } }))} className={CLASE_INPUT}>
               {!datos.categorias.some((c) => c.id === Number(edicion.campos.categoria_id)) && <option value={edicion.campos.categoria_id}>{edicion.archivo.categoria_nombre}</option>}
-              {datos.categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c)}</option>)}
+              {datos.categorias.map((c) => <option key={c.id} value={c.id}>{sangria(c)}{nombreCat(c)}</option>)}
             </select>
           </Campo>
           <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
@@ -735,9 +808,9 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             </Campo>
           )}
           <div className="grid gap-3 sm:grid-cols-3">
-            <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><input type="date" value={edicion.campos.fecha_documento} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_documento: e.target.value } }))} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><CampoFecha value={edicion.campos.fecha_documento} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_documento: e.target.value } }))} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={edicion.campos.ejercicio} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, ejercicio: e.target.value } }))} className={CLASE_INPUT} /></Campo>
-            <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><input type="date" value={edicion.campos.fecha_caducidad} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_caducidad: e.target.value } }))} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><CampoFecha value={edicion.campos.fecha_caducidad} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_caducidad: e.target.value } }))} className={CLASE_INPUT} /></Campo>
             <div className="sm:col-span-2"><Campo etiqueta={t('descripcion', 'Descripción')}><input maxLength={500} value={edicion.campos.descripcion} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, descripcion: e.target.value } }))} className={CLASE_INPUT} /></Campo></div>
           </div>
           <Casilla etiqueta={t('confidencial', 'Confidencial (solo lo ven quienes gestionan)')} checked={edicion.campos.confidencial} onChange={(v) => setEdicion((s) => ({ ...s, campos: { ...s.campos, confidencial: v } }))} />

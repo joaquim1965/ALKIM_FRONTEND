@@ -25,6 +25,11 @@ import TitularesPestana from './TitularesPestana';
 import PrestamosPestana from './PrestamosPestana';
 import ContratosPestana from './ContratosPestana';
 import CompraPestana from './CompraPestana';
+import ResumenCompra from './ResumenCompra';
+import LecturaNotaSimple from './LecturaNotaSimple';
+import LecturaFactura, { DESTINO_DE_CATEGORIA } from './LecturaFactura';
+import LecturaPrestamo from './LecturaPrestamo';
+import LecturaCompraventa from './LecturaCompraventa';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { useStore } from '../../hooks/useStore';
@@ -34,7 +39,7 @@ const ESTADOS = ['EN_COMPRA', 'EN_REFORMA', 'DISPONIBLE', 'EN_EXPLOTACION', 'EN_
 const VACIA = {
   entidad_gestora_id: '', codigo: '', nombre: '', tipo_id: '', ref_catastral: '', finca_registral: '', registro_propiedad: '',
   tipo_via: '', via: '', numero: '', escalera: '', planta: '', puerta: '', codigo_postal: '', municipio: '', provincia: '', pais: 'ES', direccion_corta: '',
-  superficie_construida: '', superficie_util: '', anyo_construccion: '', valor_catastral: '', valor_catastral_construccion: '',
+  superficie_construida: '', superficie_util: '', anyo_construccion: '', valor_catastral: '', valor_catastral_construccion: '', anyo_valor_catastral: '',
   catastral_revisado: true, es_de_tercero: false, estado: 'DISPONIBLE', notas: '',
 };
 const ESPACIO_VACIO = { tipo_id: '', codigo: '', nombre: '', planta: '', puerta: '', ref_catastral: '', superficie_util: '', es_comun: false, coeficiente_reparto: '', renta_objetivo: '', orden: 0 };
@@ -85,6 +90,20 @@ export default function PropiedadesPage() {
   const [contratosFicha, setContratosFicha] = useState([]);
   const [pestanaFicha, setPestanaFicha] = useState(null);
   const [alquilar, setAlquilar] = useState(null);
+  const [versionCompra, setVersionCompra] = useState(0);   // recarga el resumen de la compra
+  const [versionPrestamos, setVersionPrestamos] = useState(0);   // recarga Préstamos tras leer una escritura
+  // Documentos recién subidos que se leen y se pasan a su formulario, uno detrás de otro (05-06/10/2026):
+  // nota simple → ficha; facturas → Gastos de compra / Mejoras.
+  const [porLeer, setPorLeer] = useState({ cola: [], hechos: 0 });
+  // Documentos que se leen al subirlos (o con el botón «Leer datos» de su fila): docs/NORMAS_DESARROLLO.md §12.
+  const LEIBLES = ['NOTA_SIMPLE', 'ESCRITURA_COMPRA', 'ESCRITURA_HIPOTECA', ...Object.keys(DESTINO_DE_CATEGORIA)];
+  const encolar = (a) => {
+    if (!LEIBLES.includes(a.categoria_codigo)) return;
+    setPorLeer((x) => ({ cola: [...x.cola, a], hechos: x.cola.length ? x.hechos : 0 }));
+  };
+  const siguiente = () => setPorLeer((x) => ({ cola: x.cola.slice(1), hechos: x.hechos + 1 }));
+  const leyendo = porLeer.cola[0];
+  const posicion = porLeer.hechos + porLeer.cola.length > 1 ? `${porLeer.hechos + 1} / ${porLeer.hechos + porLeer.cola.length}` : '';
 
   // Abrir una propiedad desde otra pantalla: ?id=N[&pestana=contratos]
   // (Cartera ▸ Contratos, 05/10/2026).
@@ -186,7 +205,7 @@ export default function PropiedadesPage() {
     setError(''); setDocsEspacio(null); setPestanaEspacio('datos');
     // Tipo por defecto: Habitación (05/10/2026, petición del usuario).
     const tipo = tipos.espacio.find((x) => x.codigo === 'HABITACION') || tipos.espacio[0];
-    setEspacio({ id: null, ...ESPACIO_VACIO, tipo_id: tipo?.id || '', es_comun: Boolean(Number(tipo?.es_comun_defecto)) });
+    setEspacio({ id: null, ...ESPACIO_VACIO, tipo_id: tipo?.id || '', es_comun: false });
   };
   const editarEspacio = (n) => {
     setError(''); setDocsEspacio(null); setPestanaEspacio('datos');
@@ -244,7 +263,7 @@ export default function PropiedadesPage() {
     <form onSubmit={guardar} className="space-y-6">
       <AvisoError>{error}</AvisoError>
       <AvisoOk>{aviso}</AvisoOk>
-      <fieldset className="grid gap-4 sm:grid-cols-4">
+      <fieldset className="grid gap-4 rejilla-campos">
         <Leyenda>{t('bloque_identidad', 'Identificación')}</Leyenda>
         <Campo etiqueta={t('codigo', 'Código corto')}><input required maxLength={20} value={form.codigo} onChange={(e) => setForm((s) => ({ ...s, codigo: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} disabled={!puedeEscribir} /></Campo>
         <Campo etiqueta={t('nombre', 'Nombre')} ancho="sm:col-span-2"><input required maxLength={150} {...f('nombre')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
@@ -268,7 +287,7 @@ export default function PropiedadesPage() {
         <div className="flex items-end pb-2"><Casilla etiqueta={t('es_de_tercero', 'Es de un cliente (encargo)')} checked={form.es_de_tercero} onChange={(v) => setForm((s) => ({ ...s, es_de_tercero: v }))} /></div>
       </fieldset>
 
-      <fieldset className="grid gap-4 sm:grid-cols-6">
+      <fieldset className="grid gap-4 rejilla-campos">
         <Leyenda>{t('bloque_direccion', 'Dirección')}</Leyenda>
         <Campo etiqueta={t('tipo_via', 'Tipo de vía')}>
           <select {...f('tipo_via')} className={CLASE_INPUT} disabled={!puedeEscribir}>
@@ -276,7 +295,7 @@ export default function PropiedadesPage() {
             {TIPOS_VIA.map(([c, n]) => <option key={c} value={c}>{t(`via_${c}`, n)}</option>)}
           </select>
         </Campo>
-        <Campo etiqueta={t('via', 'Calle')} ancho="sm:col-span-3"><input maxLength={150} {...f('via')} onBlur={repartirDireccion} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
+        <Campo etiqueta={t('via', 'Calle')} ancho="sm:col-span-2"><input maxLength={150} {...f('via')} onBlur={repartirDireccion} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
         <Campo etiqueta={t('numero', 'Número')}><input maxLength={10} {...f('numero')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
         <Campo etiqueta={t('escalera', 'Escalera')}><input maxLength={10} {...f('escalera')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
         <Campo etiqueta={t('planta', 'Planta')}><input maxLength={10} {...f('planta')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
@@ -286,21 +305,21 @@ export default function PropiedadesPage() {
         <Campo etiqueta={t('provincia', 'Provincia')} ancho="sm:col-span-2"><input maxLength={100} {...f('provincia')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
         {/* Dirección abreviada (05/10/2026): vacía = la automática, que se ve
             como sugerencia. La completa se monta sola y se puede copiar. */}
-        <Campo etiqueta={t('direccion_corta', 'Dirección abreviada')} ancho="sm:col-span-3">
+        <Campo etiqueta={t('direccion_corta', 'Dirección abreviada')} ancho="sm:col-span-2">
           <input maxLength={150} {...f('direccion_corta')} placeholder={abreviarDireccion(form)} className={CLASE_INPUT} disabled={!puedeEscribir}
             title={t('direccion_corta_ayuda', 'Para contratos y documentos. Si la dejas vacía se usa la automática.')} />
         </Campo>
-        <Campo etiqueta={t('direccion_completa', 'Dirección completa')} ancho="sm:col-span-3">
+        <Campo etiqueta={t('direccion_completa', 'Dirección completa')} ancho="sm:col-span-2">
           <div className="flex gap-2">
             <input readOnly value={direccionCompleta(form)} className={`${CLASE_INPUT} flex-1`} aria-readonly="true" />
             <BotonFila icono={<Copy size={15} />} titulo={copiada ? t('copiada', 'Copiada') : t('copiar', 'Copiar')}
               onClick={() => { navigator.clipboard?.writeText(`${direccionCorta(form)}\n${direccionCompleta(form)}`).then(() => { setCopiada(true); setTimeout(() => setCopiada(false), 1500); }); }} />
           </div>
         </Campo>
-        <p className="text-xs font-bold sm:col-span-6">{t('direccion_corta_ayuda', 'Para contratos y documentos. Si la dejas vacía se usa la automática.')}</p>
+        <p className="text-xs font-bold sm:col-span-full">{t('direccion_corta_ayuda', 'Para contratos y documentos. Si la dejas vacía se usa la automática.')}</p>
       </fieldset>
 
-      <fieldset className="grid gap-4 sm:grid-cols-4">
+      <fieldset className="grid gap-4 rejilla-campos">
         <Leyenda>{t('bloque_catastro', 'Catastro y registro')}</Leyenda>
         <Campo etiqueta={t('ref_catastral', 'Referencia catastral')} ancho="sm:col-span-2"><input maxLength={25} value={form.ref_catastral} onChange={(e) => setForm((s) => ({ ...s, ref_catastral: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} disabled={!puedeEscribir} /></Campo>
         <Campo etiqueta={t('finca_registral', 'Finca registral')}><input maxLength={30} {...f('finca_registral')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
@@ -311,6 +330,7 @@ export default function PropiedadesPage() {
         <div />
         <Campo etiqueta={t('valor_catastral', 'Valor catastral (€)')}><input type="number" step="0.01" min="0" {...f('valor_catastral')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
         <Campo etiqueta={t('valor_catastral_construccion', 'De construcción (€)')}><input type="number" step="0.01" min="0" {...f('valor_catastral_construccion')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
+        <Campo etiqueta={t('anyo_valor_catastral', 'Año del recibo IBI')}><input type="number" min="1990" max="2100" {...f('anyo_valor_catastral')} className={CLASE_INPUT} disabled={!puedeEscribir} /></Campo>
         <div className="flex items-end pb-2 sm:col-span-2"><Casilla etiqueta={t('catastral_revisado', 'Valor catastral revisado (imputación 1,1 %)')} checked={form.catastral_revisado} onChange={(v) => setForm((s) => ({ ...s, catastral_revisado: v }))} /></div>
       </fieldset>
 
@@ -333,10 +353,10 @@ export default function PropiedadesPage() {
       )}
 
       {espacio && (
-        <Recuadro as="form" onSubmit={guardarEspacio} className="grid gap-3 sm:grid-cols-4">
-          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-4">{espacio.id ? t('editar_espacio', 'Editar espacio') : t('nuevo_espacio', 'Añadir espacio')}</h3>
+        <Recuadro as="form" onSubmit={guardarEspacio} className="grid gap-3 rejilla-campos">
+          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-full">{espacio.id ? t('editar_espacio', 'Editar espacio') : t('nuevo_espacio', 'Añadir espacio')}</h3>
           {/* Pestañas del formulario de espacio (05/10/2026): lo básico y «Otros datos». */}
-          <div role="tablist" className="tab-bar flex gap-1 sm:col-span-4" aria-label={t('editar_espacio', 'Editar espacio')}>
+          <div role="tablist" className="tab-bar flex gap-1 sm:col-span-full" aria-label={t('editar_espacio', 'Editar espacio')}>
             {[['datos', t('pestana_datos', 'Datos')], ['otros', t('otros_datos', 'Otros datos')]].map(([id, txt]) => (
               <button key={id} type="button" role="tab" aria-selected={pestanaEspacio === id} onClick={() => setPestanaEspacio(id)}
                 className={`tab-base ${pestanaEspacio === id ? 'tab-active' : ''}`}>{txt}</button>
@@ -345,17 +365,22 @@ export default function PropiedadesPage() {
           {pestanaEspacio === 'datos' && (<>
           <Campo etiqueta={t('tipo_espacio', 'Tipo')}>
             <select required value={espacio.tipo_id} onChange={(e) => {
-              const tipo = tipos.espacio.find((x) => String(x.id) === e.target.value);
-              setEspacio((s) => ({ ...s, tipo_id: e.target.value, es_comun: s.id ? s.es_comun : Boolean(Number(tipo?.es_comun_defecto)) }));
+              setEspacio((s) => ({ ...s, tipo_id: e.target.value }));
             }} className={CLASE_INPUT}>
               {tipos.espacio.map((x) => <option key={x.id} value={x.id}>{nombreTipoE(x.codigo, x.nombre)}</option>)}
             </select>
           </Campo>
           <Campo etiqueta={t('codigo', 'Código corto')}><input required maxLength={20} value={espacio.codigo} onChange={(e) => setEspacio((s) => ({ ...s, codigo: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} /></Campo>
           <Campo etiqueta={t('nombre', 'Nombre')} ancho="sm:col-span-2"><input required maxLength={100} {...fe('nombre')} className={CLASE_INPUT} /></Campo>
-          <div className="sm:col-span-4"><Casilla etiqueta={t('es_comun', 'Zona común (no se alquila; reparte gastos)')} checked={Boolean(espacio.es_comun)} onChange={(v) => setEspacio((s) => ({ ...s, es_comun: v }))} /></div>
           </>)}
           {pestanaEspacio === 'otros' && (<>
+          {/* Zona común: Sí/No, primer campo de «Otros datos»; por defecto No (05/10/2026). */}
+          <Campo etiqueta={t('es_comun', 'Zona común (no se alquila; reparte gastos)')}>
+            <select value={espacio.es_comun ? '1' : '0'} onChange={(e) => setEspacio((s) => ({ ...s, es_comun: e.target.value === '1' }))} className={CLASE_INPUT}>
+              <option value="0">{t('no', 'No')}</option>
+              <option value="1">{t('si', 'Sí')}</option>
+            </select>
+          </Campo>
           <Campo etiqueta={t('superficie_util', 'Superficie útil (m²)')}><input type="number" step="0.01" min="0" {...fe('superficie_util')} className={CLASE_INPUT} /></Campo>
           <Campo etiqueta={t('coeficiente_reparto', 'Coeficiente de reparto (%)')}><input type="number" step="0.0001" min="0" max="100" {...fe('coeficiente_reparto')} className={CLASE_INPUT} /></Campo>
           <Campo etiqueta={t('renta_objetivo', 'Renta objetivo (€/mes)')}><input type="number" step="0.01" min="0" {...fe('renta_objetivo')} className={CLASE_INPUT} /></Campo>
@@ -363,7 +388,7 @@ export default function PropiedadesPage() {
           <Campo etiqueta={t('puerta', 'Puerta')}><input maxLength={10} {...fe('puerta')} className={CLASE_INPUT} /></Campo>
           <Campo etiqueta={t('ref_catastral', 'Referencia catastral')} ancho="sm:col-span-2"><input maxLength={25} value={espacio.ref_catastral} onChange={(e) => setEspacio((s) => ({ ...s, ref_catastral: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} /></Campo>
           </>)}
-          <div className="flex justify-end gap-2 sm:col-span-4">
+          <div className="flex justify-end gap-2 sm:col-span-full">
             <Button type="button" variant="secondary" onClick={() => setEspacio(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={guardando}>{t('guardar', 'Guardar')}</Button>
           </div>
@@ -460,12 +485,64 @@ export default function PropiedadesPage() {
           pestanas={[
             { id: 'datos', etiqueta: t('pestana_datos', 'Datos'), contenido: pestanaDatos },
             { id: 'espacios', etiqueta: t('pestana_espacios', 'Espacios'), contador: plano.length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: pestanaEspacios },
-            ...(veContratos ? [{ id: 'contratos', etiqueta: t('pestana_contratos', 'Contratos'), contador: contratosFicha.filter((c) => ['VIGENTE', 'PRORROGADO'].includes(c.estado)).length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ContratosPestana propiedadId={ficha.id} espacios={plano} puedeEscribir={puedeContratos} preseleccion={alquilar} onPreseleccionUsada={() => setAlquilar(null)} onCambio={() => { cargarContratos(ficha.id); cargar(); }} /> }] : []),
-            { id: 'compra', etiqueta: t('pestana_compra', 'Compra'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <CompraPestana propiedadId={ficha.id} puedeEscribir={puedeEscribir} /> },
+            ...(veContratos ? [{ id: 'contratos', etiqueta: t('pestana_contratos', 'Contratos'), contador: contratosFicha.filter((c) => ['VIGENTE', 'PRORROGADO'].includes(c.estado)).length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ContratosPestana propiedadId={ficha.id} propiedadNombre={ficha.datos?.nombre} espacios={plano} puedeEscribir={puedeContratos} preseleccion={alquilar} onPreseleccionUsada={() => setAlquilar(null)} onCambio={() => { cargarContratos(ficha.id); cargar(); }} /> }] : []),
+            { id: 'compra', etiqueta: t('pestana_compra', 'Compra'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <CompraPestana propiedadId={ficha.id} version={versionCompra} puedeEscribir={puedeEscribir} onCambio={() => setVersionCompra((v) => v + 1)} cabecera={<ResumenCompra propiedadId={ficha.id} version={versionCompra} puedeEscribir={puedeEscribir} />} /> },
+            { id: 'mejoras', etiqueta: t('pestana_mejoras', 'Mejoras'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <CompraPestana tipo="mejoras" version={versionCompra} propiedadId={ficha.id} puedeEscribir={puedeEscribir} onCambio={() => setVersionCompra((v) => v + 1)} /> },
             ...(veTitulares ? [{ id: 'titulares', etiqueta: t('pestana_titulares', 'Titulares'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <TitularesPestana propiedadId={ficha.id} puedeEscribir={puedeTitulares && !Number(ficha.datos?.es_de_tercero)} onCambio={cargar} /> }] : []),
-            ...(vePrestamos ? [{ id: 'prestamos', etiqueta: t('pestana_prestamos', 'Préstamos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <PrestamosPestana propiedadId={ficha.id} puedeEscribir={puedePrestamos} /> }] : []),
-            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} /> },
+            ...(vePrestamos ? [{ id: 'prestamos', etiqueta: t('pestana_prestamos', 'Préstamos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <PrestamosPestana propiedadId={ficha.id} version={versionPrestamos} puedeEscribir={puedePrestamos} /> }] : []),
+            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} /> },
           ]}
+        />
+      )}
+      {leyendo && ficha?.id && leyendo.categoria_codigo === 'NOTA_SIMPLE' && (
+        <LecturaNotaSimple
+          key={leyendo.id}
+          propiedadId={ficha.id}
+          archivo={leyendo}
+          posicion={posicion}
+          onCerrar={siguiente}
+          onAplicado={async (cambios) => {
+            await recargarFicha(ficha.id);
+            setForm((f) => ({ ...f, ...Object.fromEntries(Object.entries(cambios).map(([k, v]) => [k, v ?? ''])) }));
+            setAviso(t('nota_aplicada', 'Datos de la nota simple guardados.'));
+            cargar();
+          }}
+        />
+      )}
+      {leyendo && ficha?.id && leyendo.categoria_codigo === 'ESCRITURA_COMPRA' && (
+        <LecturaCompraventa
+          key={leyendo.id}
+          propiedadId={ficha.id}
+          archivo={leyendo}
+          posicion={posicion}
+          onCerrar={siguiente}
+          onAplicado={async (cambios) => {
+            await recargarFicha(ficha.id);
+            setForm((f) => ({ ...f, ...Object.fromEntries(Object.entries(cambios || {}).map(([k, v]) => [k, v ?? ''])) }));
+            setVersionCompra((v) => v + 1);
+            setAviso(t('cv_aplicada', 'Datos de la escritura de compraventa guardados.'));
+            cargar();
+          }}
+        />
+      )}
+      {leyendo && ficha?.id && leyendo.categoria_codigo === 'ESCRITURA_HIPOTECA' && (
+        <LecturaPrestamo
+          key={leyendo.id}
+          propiedadId={ficha.id}
+          archivo={leyendo}
+          posicion={posicion}
+          onCerrar={siguiente}
+          onAplicado={() => setVersionPrestamos((v) => v + 1)}
+        />
+      )}
+      {leyendo && ficha?.id && DESTINO_DE_CATEGORIA[leyendo.categoria_codigo] && (
+        <LecturaFactura
+          key={leyendo.id}
+          propiedadId={ficha.id}
+          archivo={leyendo}
+          posicion={posicion}
+          onCerrar={siguiente}
+          onAplicado={() => setVersionCompra((v) => v + 1)}
         />
       )}
     </div>

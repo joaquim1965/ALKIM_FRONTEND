@@ -9,16 +9,22 @@
  *   - Borrar un tipo con documentos avisa: sus documentos quedan huérfanos y
  *     pasan a «Sin clasificar» (no se borran).
  *   - DNI, firma y certificado no se pueden borrar: los usa la aplicación.
+ *   - Orden y subtipos arrastrando filas con el ratón (06/10/2026): soltar en
+ *     el borde de arriba/abajo de otra fila cambia el orden; soltar en el
+ *     centro la deja como subtipo de esa. Solo cambia cómo se ven; los
+ *     documentos de cada tipo no se tocan.
  *
  * API: GET /files/categorias?objeto= · POST /files/categorias ·
- *      PUT /files/categorias/:id · GET /files/categorias/:id/uso · DELETE /files/categorias/:id
+ *      PUT /files/categorias/:id · PUT /files/categorias/orden · GET /files/categorias/:id/uso · DELETE /files/categorias/:id
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X, GripVertical, CornerDownRight } from 'lucide-react';
 import Button from '../UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { Campo, AvisoError, CLASE_INPUT, BotonFila, BotonAnadir } from '../UI/TemaPagina';
 import { VentanaEmergente } from '../UI/ZonaArchivos';
+import { ordenArbol, moverTipo } from './ordenTipos';
+import { useStore } from '../../hooks/useStore';
 
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: { ...authHeaders(), ...(opciones.body && !(opciones.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}) } });
@@ -35,6 +41,8 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
   const [error, setError] = useState('');
   const [form, setForm] = useState(null);        // { id?, ...campos }
   const [ocupado, setOcupado] = useState(false);
+  const [arrastrado, setArrastrado] = useState(null);   // id de la fila que se arrastra
+  const [destino, setDestino] = useState(null);         // { id, zona: 'antes' | 'despues' | 'dentro' }
 
   const FORMAS = [
     ['', t('forma_todas', 'Todas')], ['tipo=PERSONAL', t('forma_persona', 'Solo personas')],
@@ -46,7 +54,7 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
   const cargar = useCallback(async () => {
     try {
       const { data } = await pedir(`/files/categorias?objeto=${encodeURIComponent(tabla)}`);
-      setTipos((data || []).filter((c) => c.codigo !== 'SIN_CLASIFICAR'));
+      setTipos(ordenArbol((data || []).filter((c) => c.codigo !== 'SIN_CLASIFICAR')));
     } catch (e) { setError(e.message); }
   }, [tabla]);
   useEffect(() => { cargar(); }, [cargar]);
@@ -66,6 +74,10 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
     try {
       const cuerpo = JSON.stringify({ ...form, objeto_tabla: tabla, condicion: form.condicion || null });
       await pedir(form.id ? `/files/categorias/${form.id}` : '/files/categorias', { method: form.id ? 'PUT' : 'POST', body: cuerpo });
+      // El nombre que se ve sale del diccionario (s_dictionary, contexto CategoriaArchivo): el servidor
+      // lo actualiza y sube la versión del idioma; se vuelve a pedir para verlo al momento (06/10/2026).
+      const { fetchLanguage, language } = useStore.getState();
+      await fetchLanguage?.(language);
       setForm(null); await cargar(); onCambio?.();
     } catch (e) { setError(e.message); }
     finally { setOcupado(false); }
@@ -85,6 +97,43 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
     } catch (e) { setError(e.message); }
   };
 
+  // ── Arrastrar filas: orden y subtipos ──────────────────────────────────────
+  const zonaDe = (ev, c) => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    const y = (ev.clientY - r.top) / r.height;
+    const puedeDentro = moverTipo(tipos, arrastrado, c.id, 'dentro') != null;
+    if (puedeDentro && y > 0.25 && y < 0.75) return 'dentro';
+    return y < 0.5 ? 'antes' : 'despues';
+  };
+  const sobreFila = (ev, c) => {
+    if (arrastrado == null || arrastrado === c.id) return;
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+    const zona = zonaDe(ev, c);
+    if (destino?.id !== c.id || destino?.zona !== zona) setDestino({ id: c.id, zona });
+  };
+  const soltar = async (ev, c) => {
+    ev.preventDefault();
+    const nueva = destino && arrastrado != null ? moverTipo(tipos, arrastrado, c.id, destino.zona) : null;
+    setArrastrado(null); setDestino(null);
+    if (!nueva) return;
+    const antes = tipos;
+    setTipos(nueva); setError('');
+    try {
+      await pedir('/files/categorias/orden', {
+        method: 'PUT',
+        body: JSON.stringify({ objeto_tabla: tabla, tipos: nueva.map((x) => ({ id: x.id, padre_id: x.padre_id })) }),
+      });
+      onCambio?.();
+    } catch (e) { setTipos(antes); setError(e.message); }
+  };
+  const marcaDestino = (c) => {
+    if (destino?.id !== c.id) return '';
+    if (destino.zona === 'antes') return 'shadow-[inset_0_4px_0_0_currentColor]';
+    if (destino.zona === 'despues') return 'shadow-[inset_0_-4px_0_0_currentColor]';
+    return 'outline outline-2 -outline-offset-2 outline-current';
+  };
+
   const editar = (c) => setForm({
     id: c.id, nombre: nombreCat(c), obligatorio: Boolean(Number(c.obligatorio)), caduca: Boolean(Number(c.caduca)),
     meses_aviso: c.meses_aviso || 2, confidencial: Boolean(Number(c.confidencial)), condicion: c.condicion || '',
@@ -101,7 +150,10 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
         <AvisoError>{error}</AvisoError>
         <div className="flex items-center gap-3">
           {!form && <BotonAnadir texto={t('nuevo_tipo', 'Nuevo tipo de documento')} onClick={() => { setError(''); setForm({ ...VACIO }); }} pequeno />}
-          <p className="text-sm font-bold">{t('tipos_ayuda', 'Los tipos son comunes a todas las fichas de este apartado.')}</p>
+          <p className="text-sm font-bold">
+            {t('tipos_ayuda', 'Los tipos son comunes a todas las fichas de este apartado.')}{' '}
+            {t('tipos_arrastrar', 'Arrastra una fila con el ratón: al borde de otra para cambiar el orden, encima de otra para dejarla como subtipo.')}
+          </p>
         </div>
 
         {form && (
@@ -151,12 +203,25 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
             </thead>
             <tbody>
               {tipos.map((c) => (
-                <tr key={c.id} className="border-t border-border bg-table-row text-on-table-row">
+                <tr
+                  key={c.id} draggable
+                  onDragStart={(ev) => { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', String(c.id)); setArrastrado(c.id); }}
+                  onDragEnd={() => { setArrastrado(null); setDestino(null); }}
+                  onDragOver={(ev) => sobreFila(ev, c)}
+                  onDrop={(ev) => soltar(ev, c)}
+                  className={`border-t border-border bg-table-row text-on-table-row ${arrastrado === c.id ? 'opacity-50' : ''} ${marcaDestino(c)}`}
+                >
                   <td className="whitespace-nowrap px-3 py-1.5">
+                    <span className="mr-1 inline-flex cursor-grab align-middle active:cursor-grabbing" title={t('arrastrar_tipo', 'Arrastrar para ordenar')} aria-label={t('arrastrar_tipo', 'Arrastrar para ordenar')}>
+                      <GripVertical size={16} />
+                    </span>
                     <BotonFila icono={<Pencil size={15} />} titulo={t('editar_tipo', 'Editar tipo')} onClick={() => { setError(''); editar(c); }} />
                     {!PROTEGIDOS.includes(c.codigo) && <BotonFila icono={<Trash2 size={15} />} titulo={t('borrar_tipo', 'Borrar tipo')} onClick={() => borrar(c)} />}
                   </td>
-                  <td className="px-3 py-1.5 font-black">{nombreCat(c)}</td>
+                  <td className={`px-3 py-1.5 ${c.nivel ? 'pl-10 font-bold' : 'font-black'}`}>
+                    {c.nivel ? <CornerDownRight size={14} className="mr-2 inline align-[-2px]" aria-label={t('subtipo', 'Subtipo')} /> : null}
+                    {nombreCat(c)}
+                  </td>
                   {tabla === 'm_company' && <td className="px-3 py-1.5">{nombreForma(c.condicion)}</td>}
                   <td className="px-3 py-1.5">{Number(c.obligatorio) ? <Check size={16} aria-label={t('si', 'Sí')} /> : <X size={14} aria-label={t('no', 'No')} />}</td>
                   <td className="px-3 py-1.5">{Number(c.caduca) ? `${t('si', 'Sí')}${c.meses_aviso ? ` · ${c.meses_aviso} m` : ''}` : '—'}</td>

@@ -21,6 +21,7 @@ import { formatTamano } from '../../utils/format';
 import {
   CabeceraPagina, Panel, Campo, AvisoError, Ayuda, SinDato, CLASE_INPUT, TablaTema, claseFila, TD, FilaVacia, BotonFila, MICRO,
 } from '../../components/UI/TemaPagina';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 const PESTANAS = ['catalogo', 'carpetas', 'mantenimiento'];
 const fecha = (v) => (v ? String(v).slice(0, 10) : '');
@@ -134,7 +135,7 @@ export default function ExploradorArchivosPage() {
 
       {pestana === 'catalogo' && (
         <Panel className="space-y-4 p-5">
-          <form onSubmit={(e) => { e.preventDefault(); buscar(); }} className="grid gap-3 sm:grid-cols-6">
+          <form onSubmit={(e) => { e.preventDefault(); buscar(); }} className="grid gap-3 rejilla-campos">
             <Campo etiqueta={t('entidad', 'Entidad')}>
               <select {...f('entidad_id')} className={CLASE_INPUT}>
                 <option value="">{t('todas', 'Todas')}</option>
@@ -148,7 +149,7 @@ export default function ExploradorArchivosPage() {
               </select>
             </Campo>
             <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" {...f('ejercicio')} className={CLASE_INPUT} /></Campo>
-            <Campo etiqueta={t('caduca_antes', 'Caducan antes de')}><input type="date" {...f('caduca_antes')} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('caduca_antes', 'Caducan antes de')}><CampoFecha {...f('caduca_antes')} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('texto', 'Buscar')}><input maxLength={100} {...f('texto')} className={CLASE_INPUT} /></Campo>
             <div className="flex items-end"><Button type="submit" leftIcon={<Search size={16} />} loading={cargando}>{t('buscar', 'Buscar')}</Button></div>
           </form>

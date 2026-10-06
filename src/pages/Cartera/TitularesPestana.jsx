@@ -17,6 +17,7 @@ import { formatImporte, formatPorcentaje } from '../../utils/format';
 import {
   Campo, AvisoError, Ayuda, Rotulo, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, FilaVacia, BotonFila, BotonAnadir,
 } from '../../components/UI/TemaPagina';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 const DERECHOS = ['PLENO_DOMINIO', 'NUDA_PROPIEDAD', 'USUFRUCTO'];
 const FINALIDADES = ['INVERSION', 'EXISTENCIAS', 'USO_PROPIO'];
@@ -138,8 +139,8 @@ export default function TitularesPestana({ propiedadId, puedeEscribir, onCambio 
       </div>
 
       {form && (
-        <Recuadro as="form" onSubmit={guardar} className="grid gap-3 sm:grid-cols-4">
-          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-4">{form.id ? t('editar_cuota', 'Editar cuota') : t('anadir', 'Añadir titular')}</h3>
+        <Recuadro as="form" onSubmit={guardar} className="grid gap-3 rejilla-campos">
+          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-full">{form.id ? t('editar_cuota', 'Editar cuota') : t('anadir', 'Añadir titular')}</h3>
           <Campo etiqueta={t('col_titular', 'Titular')} ancho="sm:col-span-2">
             <select required {...f('titular_id')} className={CLASE_INPUT}>
               <option value="">—</option>
@@ -156,13 +157,10 @@ export default function TitularesPestana({ propiedadId, puedeEscribir, onCambio 
           <Campo etiqueta={t('titulo', 'Cómo se adquirió')}>
             <select {...f('titulo_adquisicion')} className={CLASE_INPUT}>{TITULOS.map((d) => <option key={d} value={d}>{t(`titulo_${d.toLowerCase()}`, d)}</option>)}</select>
           </Campo>
-          <Campo etiqueta={t('col_desde', 'Desde')}><input required type="date" {...f('fecha_adquisicion')} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('col_desde', 'Desde')}><CampoFecha required {...f('fecha_adquisicion')} className={CLASE_INPUT} /></Campo>
           <div />
-          <Campo etiqueta={t('precio', 'Precio de su parte (€)')}><input type="number" step="0.01" min="0" {...f('precio_adquisicion')} className={CLASE_INPUT} /></Campo>
-          <Campo etiqueta={t('gastos', 'Gastos de su parte (€)')}><input type="number" step="0.01" min="0" {...f('gastos_adquisicion')} className={CLASE_INPUT} /></Campo>
-          <Campo etiqueta={t('notas', 'Notas')} ancho="sm:col-span-2"><input maxLength={255} {...f('notas')} className={CLASE_INPUT} /></Campo>
-          <Ayuda className="sm:col-span-4">{t('ayuda_titular', 'Si el titular es una persona, créala antes en Gestión → Entidades como «Persona».')}</Ayuda>
-          <div className="flex justify-end gap-2 sm:col-span-4">
+          <Ayuda className="sm:col-span-full">{t('ayuda_titular2', 'Si el titular es una persona, créala antes en Gestión → Entidades como «Persona». El precio y los gastos de compra se escriben en la pestaña Compra y se reparten solos por el %.')}</Ayuda>
+          <div className="flex justify-end gap-2 sm:col-span-full">
             <Button type="button" variant="secondary" onClick={() => setForm(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>
@@ -170,11 +168,11 @@ export default function TitularesPestana({ propiedadId, puedeEscribir, onCambio 
       )}
 
       {venta && (
-        <Recuadro as="form" onSubmit={vender} className="grid gap-3 sm:grid-cols-4">
-          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-4">
+        <Recuadro as="form" onSubmit={vender} className="grid gap-3 rejilla-campos">
+          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-full">
             {venta.propiedad ? t('vender_propiedad', 'Vender la propiedad') : t('vender_cuota_de', 'Vender la cuota de {nombre} ({pct})').replace('{nombre}', venta.cuota.titular_nombre).replace('{pct}', pct(venta.cuota.porcentaje))}
           </h3>
-          <Campo etiqueta={t('fecha_venta', 'Fecha de la venta')}><input required type="date" {...v('fecha')} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('fecha_venta', 'Fecha de la venta')}><CampoFecha required {...v('fecha')} className={CLASE_INPUT} /></Campo>
           {!venta.propiedad && <Campo etiqueta={t('pct_vendido', '% que se vende')}><input type="number" step="0.001" min="0.001" max={venta.cuota.porcentaje} {...v('porcentaje')} className={`${CLASE_INPUT} font-mono`} /></Campo>}
           <Campo etiqueta={t('precio_venta', 'Precio de venta (€)')}><input type="number" step="0.01" min="0" {...v('precio')} className={CLASE_INPUT} /></Campo>
           <Campo etiqueta={t('gastos_venta', 'Gastos de la venta (€)')}><input type="number" step="0.01" min="0" {...v('gastos')} className={CLASE_INPUT} /></Campo>
@@ -191,10 +189,10 @@ export default function TitularesPestana({ propiedadId, puedeEscribir, onCambio 
               </Campo>
             )}
           </>}
-          <Ayuda className="sm:col-span-4">{venta.propiedad
+          <Ayuda className="sm:col-span-full">{venta.propiedad
             ? t('ayuda_venta_propiedad', 'Cierra todas las cuotas vigentes en esa fecha; el precio y los gastos se reparten por %. La propiedad pasa a «Vendida».')
             : t('ayuda_venta_cuota', 'La cuota se cierra ese día. Si el comprador es de la casa, nace su cuota el mismo día. Si se vende una parte, el resto sigue.')}</Ayuda>
-          <div className="flex justify-end gap-2 sm:col-span-4">
+          <div className="flex justify-end gap-2 sm:col-span-full">
             <Button type="button" variant="secondary" onClick={() => setVenta(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('registrar_venta', 'Registrar la venta')}</Button>
           </div>

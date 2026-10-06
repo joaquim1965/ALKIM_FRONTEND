@@ -930,3 +930,13 @@ select:not([multiple]):not([size]):not(.select-propia) {
 :root[data-theme="high-contrast"] select:not([multiple]):not([size]):not(.select-propia) {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
+
+/* Rejilla de campos de formulario (06/10/2026): tantas columnas como quepan, cada una
+   de al menos 11rem, para que fechas, NIF e importes se vean enteros (también con zoom).
+   Sustituye a sm:grid-cols-4 / sm:grid-cols-6 en los formularios; un campo que ocupa
+   toda la fila usa sm:col-span-full. Fuera de @layer para ganar a grid-cols-*. */
+@media (min-width: 40rem) {
+  .rejilla-campos {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  }
+}

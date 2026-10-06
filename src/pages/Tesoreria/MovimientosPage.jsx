@@ -5,6 +5,7 @@ import { Button, Card, Spinner } from '../../components/UI';
 import bancosService from '../../services/bancosService';
 import useEmpresaActiva, { esDeLaEmpresa } from '../../hooks/useEmpresaActiva';
 import { useTmTr } from '../../contexts/TmTrContext';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 // Millares con punto, siempre: `useGrouping: 'always'` (ver utils/format.js).
 const money = (value, currency = 'EUR') => new Intl.NumberFormat('es-ES', {
@@ -175,8 +176,8 @@ export default function MovimientosPage() {
               </optgroup>
             ))}
           </select>
-          <input className="input-base" name="desde" type="date" value={filters.desde} onChange={update} aria-label={t('filter_from')} />
-          <input className="input-base" name="hasta" type="date" value={filters.hasta} onChange={update} aria-label={t('filter_to')} />
+          <CampoFecha className="input-base" name="desde" value={filters.desde} onChange={update} aria-label={t('filter_from')} />
+          <CampoFecha className="input-base" name="hasta" value={filters.hasta} onChange={update} aria-label={t('filter_to')} />
           <select className="input-base" name="estado" value={filters.estado} onChange={update} aria-label={t('filter_status')}>
             <option value="">{t('all_statuses')}</option><option value="pendiente">{t('status_pending_plural')}</option><option value="conciliado">{t('status_reconciled_plural')}</option>
           </select>

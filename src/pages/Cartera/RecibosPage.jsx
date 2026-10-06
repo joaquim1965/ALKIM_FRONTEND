@@ -21,6 +21,7 @@ import {
   CabeceraPagina, Panel, CabeceraPanel, Campo, AvisoError, AvisoOk, Rotulo, SinDato, CLASE_INPUT,
   TablaTema, claseFila, TD, FilaVacia, BotonFila,
 } from '../../components/UI/TemaPagina';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 const ESTADOS = ['EMITIDO', 'PARCIAL', 'PAGADO', 'IMPAGADO', 'ANULADO'];
 const mesActual = () => new Date().toISOString().slice(0, 7);
@@ -107,15 +108,15 @@ export default function RecibosPage() {
       <AvisoOk>{aviso}</AvisoOk>
 
       {puedeGenerar && (
-        <Panel className="p-5"><form onSubmit={generar} className="grid gap-3 sm:grid-cols-4">
-          <h2 className="font-black tracking-tight text-on-surface2 sm:col-span-4">{t('generar', 'Generar el recibo de un mes')}</h2>
+        <Panel className="p-5"><form onSubmit={generar} className="grid gap-3 rejilla-campos">
+          <h2 className="font-black tracking-tight text-on-surface2 sm:col-span-full">{t('generar', 'Generar el recibo de un mes')}</h2>
           <Campo etiqueta={t('contrato', 'Contrato')} ancho="sm:col-span-2">
             <select required value={gen.contrato_id} onChange={(e) => setGen((s) => ({ ...s, contrato_id: e.target.value }))} className={CLASE_INPUT}>
               <option value="">—</option>
               {contratos.map((c) => <option key={c.id} value={c.id}>{c.propiedad_codigo} · {c.que_se_alquila} · {c.inquilino || '?'} · {euros(c.renta_mensual)}€ · {c.arrendador_nombre}</option>)}
             </select>
           </Campo>
-          <Campo etiqueta={t('mes', 'Mes')}><input required type="month" value={gen.mes} onChange={(e) => setGen((s) => ({ ...s, mes: e.target.value }))} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('mes', 'Mes')}><CampoFecha mes required value={gen.mes} onChange={(e) => setGen((s) => ({ ...s, mes: e.target.value }))} className={CLASE_INPUT} /></Campo>
           <div className="flex items-end"><Button type="submit" loading={ocupado} leftIcon={<Plus size={16} />}>{t('generar_boton', 'Generar')}</Button></div>
         </form></Panel>
       )}
@@ -123,7 +124,7 @@ export default function RecibosPage() {
       <Panel className="overflow-hidden">
         <CabeceraPanel icono={<Receipt size={20} />} titulo={t('lista', 'Recibos')} contador={String((recibos || []).length)}>
           {contratoFiltro && <Button size="sm" variant="outline" leftIcon={<X size={14} />} onClick={() => { setParams({}); setMes(mesActual()); }}>{t('quitar_filtro', 'Quitar filtro de contrato')}</Button>}
-          <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} aria-label={t('mes', 'Mes')} className="input-base px-3 py-2 text-sm" />
+          <CampoFecha mes value={mes} onChange={(e) => setMes(e.target.value)} aria-label={t('mes', 'Mes')} className="input-base px-3 py-2 text-sm" />
           <select value={estado} onChange={(e) => setEstado(e.target.value)} aria-label={t('col_estado', 'Estado')} className="input-base px-3 py-2 text-sm">
             <option value="">{t('todos_estados', 'Todos los estados')}</option>
             {ESTADOS.map((x) => <option key={x} value={x}>{t(`estado_${x.toLowerCase()}`, x)}</option>)}

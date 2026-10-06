@@ -17,13 +17,14 @@ import { formatImporte, formatPorcentaje } from '../../utils/format';
 import {
   Campo, Casilla, AvisoError, Ayuda, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, BotonAnadir,
 } from '../../components/UI/TemaPagina';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 const fecha = (v) => (v ? String(v).slice(0, 10) : '');
 // Cifras con punto de millares (NORMAS §9).
 const euros = (v) => (v == null || v === '' ? null : formatImporte(v, ''));
 const pct = (v) => formatPorcentaje(v) ?? '';
-const VACIO = { cuenta_id: '', tipo: 'HIPOTECA', alias: '', fecha_inicio: hoy(), importe_concedido: '', tipo_interes: '', num_cuotas: '', periodicidad: 'MENSUAL', tipo_interes_variable: false, indice: '', diferencial: '', gastos_formalizacion: '' };
+const VACIO = { cuenta_id: '', tipo: 'HIPOTECA', partes: { HIPOTECANTE: [], HIPOTECANTE_NO_DEUDOR: [], AVALISTA: [] }, fecha_inicio: hoy(), importe_concedido: '', tipo_interes: '', num_cuotas: '', periodicidad: 'MENSUAL', tipo_interes_variable: false, indice: '', diferencial: '', gastos_formalizacion: '' };
 
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: authHeaders() });
@@ -32,10 +33,34 @@ async function pedir(url, opciones = {}) {
   return b;
 }
 
-export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
+// Intervinientes (05/10/2026): hasta 3 personas de Entidades en cada papel.
+export const ROLES = [['HIPOTECANTE', 'Hipotecantes'], ['HIPOTECANTE_NO_DEUDOR', 'Hipotecante no deudor'], ['AVALISTA', 'Avalista']];
+
+/** Hasta 3 desplegables de personas; aparece uno vacío más mientras quede sitio. */
+function SelectorPersonas({ valor, onCambio, personas, etiqueta, t }) {
+  const filas = valor.length < 3 ? [...valor, ''] : valor;
+  return (
+    <div className="space-y-2">
+      {filas.map((v, i) => (
+        <select key={i} aria-label={`${etiqueta} ${i + 1}`} value={v} className={CLASE_INPUT}
+          onChange={(e) => {
+            const n = [...valor];
+            if (e.target.value) n[i] = Number(e.target.value); else n.splice(i, 1);
+            onCambio(n.filter(Boolean));
+          }}>
+          <option value="">{i < valor.length ? t('quitar', '— quitar —') : '—'}</option>
+          {personas.filter((p) => p.id === v || !valor.includes(p.id)).map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+        </select>
+      ))}
+    </div>
+  );
+}
+
+export default function PrestamosPestana({ propiedadId, puedeEscribir, version = 0 }) {
   const { t } = useTmTr('Prestamos');
   const [prestamos, setPrestamos] = useState(null);
   const [cuentas, setCuentas] = useState([]);
+  const [personas, setPersonas] = useState([]);
   const [form, setForm] = useState(null);
   const [abierto, setAbierto] = useState(null);      // id del préstamo con el cuadro a la vista
   const [rehacer, setRehacer] = useState(null);      // { prestamo, modo: 'pegar'|'calcular', texto, num_cuotas, tipo_interes }
@@ -47,8 +72,9 @@ export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
     try { setPrestamos((await pedir(`/propiedades/${propiedadId}/prestamos`)).data || []); }
     catch (e) { setError(e.message); setPrestamos([]); }
   }, [propiedadId]);
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { cargar(); }, [cargar, version]);   // version: sube cuando se pasa una escritura desde Documentos
   useEffect(() => { pedir('/gestion-bancos/cuentas').then((b) => setCuentas(b.data || b || [])).catch(() => {}); }, []);
+  useEffect(() => { pedir('/companies/mine').then((b) => setPersonas((b.data || []).filter((e) => e.tipo === 'PERSONAL').sort((x, y) => x.nombre.localeCompare(y.nombre)))).catch(() => {}); }, []);
 
   const f = (k) => ({ value: form?.[k] ?? '', onChange: (e) => setForm((s) => ({ ...s, [k]: e.target.value })) });
   const r = (k) => ({ value: rehacer?.[k] ?? '', onChange: (e) => setRehacer((s) => ({ ...s, [k]: e.target.value })) });
@@ -57,7 +83,8 @@ export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
     ev.preventDefault();
     setOcupado(true); setError('');
     try {
-      const cuerpo = { ...form };
+      const { partes, ...resto } = form;
+      const cuerpo = { ...resto, partes: ROLES.flatMap(([rol]) => partes[rol].map((entidad_id) => ({ entidad_id, rol }))) };
       if (!cuerpo.tipo_interes_variable) { delete cuerpo.indice; delete cuerpo.diferencial; }
       await pedir(`/propiedades/${propiedadId}/prestamos`, { method: 'POST', body: JSON.stringify(cuerpo) });
       setForm(null); await cargar();
@@ -93,8 +120,8 @@ export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
       </div>
 
       {form && (
-        <Recuadro as="form" onSubmit={crear} className="grid gap-3 sm:grid-cols-4">
-          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-4">{t('nuevo', 'Nuevo préstamo')}</h3>
+        <Recuadro as="form" onSubmit={crear} className="grid gap-3 rejilla-campos">
+          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-full">{t('nuevo', 'Nuevo préstamo')}</h3>
           <Campo etiqueta={t('cuenta', 'Cuenta de cargo')} ancho="sm:col-span-2">
             <select required {...f('cuenta_id')} className={CLASE_INPUT}>
               <option value="">—</option>
@@ -107,8 +134,15 @@ export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
               <option value="PRESTAMO">{t('tipo_prestamo', 'Préstamo')}</option>
             </select>
           </Campo>
-          <Campo etiqueta={t('alias', 'Nombre')}><input required maxLength={100} {...f('alias')} className={CLASE_INPUT} /></Campo>
-          <Campo etiqueta={t('fecha_inicio', 'Fecha de firma')}><input required type="date" {...f('fecha_inicio')} className={CLASE_INPUT} /></Campo>
+          <div className="hidden sm:block" />
+          {ROLES.map(([rol, nombre]) => (
+            <Campo key={rol} etiqueta={t(`rol_${rol.toLowerCase()}`, nombre)}>
+              <SelectorPersonas t={t} etiqueta={t(`rol_${rol.toLowerCase()}`, nombre)} personas={personas} valor={form.partes[rol]}
+                onCambio={(v) => setForm((s) => ({ ...s, partes: { ...s.partes, [rol]: v } }))} />
+            </Campo>
+          ))}
+          <div className="hidden sm:block" />
+          <Campo etiqueta={t('fecha_inicio', 'Fecha de firma')}><CampoFecha required {...f('fecha_inicio')} className={CLASE_INPUT} /></Campo>
           <Campo etiqueta={t('importe', 'Importe concedido (€)')}><input required type="number" step="0.01" min="0.01" {...f('importe_concedido')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           <Campo etiqueta={t('interes', 'Interés anual (%)')}><input required type="number" step="0.001" min="0" max="30" {...f('tipo_interes')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           <Campo etiqueta={t('num_cuotas', 'Número de cuotas')}><input required type="number" min="1" max="600" {...f('num_cuotas')} className={`${CLASE_INPUT} font-mono`} /></Campo>
@@ -130,8 +164,8 @@ export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
             </Campo>
             <Campo etiqueta={t('diferencial', 'Diferencial (%)')}><input type="number" step="0.001" min="-5" max="20" {...f('diferencial')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           </>}
-          <Ayuda className="sm:col-span-4">{t('ayuda_alta', 'Se calcula un cuadro francés. Si el banco te da otro, pégalo después con «Pegar cuadro». Lo pagan los titulares actuales con su %.')}</Ayuda>
-          <div className="flex justify-end gap-2 sm:col-span-4">
+          <Ayuda className="sm:col-span-full">{t('ayuda_alta', 'Se calcula un cuadro francés. Si el banco te da otro, pégalo después con «Pegar cuadro». Lo pagan los titulares actuales con su %.')}</Ayuda>
+          <div className="flex justify-end gap-2 sm:col-span-full">
             <Button type="button" variant="secondary" onClick={() => setForm(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>
@@ -139,20 +173,20 @@ export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
       )}
 
       {rehacer && (
-        <Recuadro as="form" onSubmit={guardarCuadro} className="grid gap-3 sm:grid-cols-4">
-          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-4">
+        <Recuadro as="form" onSubmit={guardarCuadro} className="grid gap-3 rejilla-campos">
+          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-full">
             {(rehacer.modo === 'pegar' ? t('pegar_cuadro', 'Pegar cuadro del banco') : t('recalcular', 'Recalcular cuadro'))} · {rehacer.prestamo.alias}
           </h3>
           {rehacer.modo === 'pegar' ? (
-            <Campo etiqueta={t('texto_cuadro', 'Una fila por cuota: fecha; cuota; interés; capital; pendiente (también vale copiado de Excel)')} ancho="sm:col-span-4">
+            <Campo etiqueta={t('texto_cuadro', 'Una fila por cuota: fecha; cuota; interés; capital; pendiente (también vale copiado de Excel)')} ancho="sm:col-span-full">
               <textarea required rows={10} {...r('texto')} className={`${CLASE_INPUT} font-mono text-xs`} />
             </Campo>
           ) : <>
             <Campo etiqueta={t('num_cuotas', 'Número de cuotas')}><input required type="number" min="1" max="600" {...r('num_cuotas')} className={`${CLASE_INPUT} font-mono`} /></Campo>
             <Campo etiqueta={t('interes', 'Interés anual (%)')}><input type="number" step="0.001" min="0" max="30" {...r('tipo_interes')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           </>}
-          <Ayuda className="sm:col-span-4">{t('ayuda_rehacer', 'Sustituye el cuadro actual. Si alguna cuota ya está conciliada con el banco, no se puede rehacer.')}</Ayuda>
-          <div className="flex justify-end gap-2 sm:col-span-4">
+          <Ayuda className="sm:col-span-full">{t('ayuda_rehacer', 'Sustituye el cuadro actual. Si alguna cuota ya está conciliada con el banco, no se puede rehacer.')}</Ayuda>
+          <div className="flex justify-end gap-2 sm:col-span-full">
             <Button type="button" variant="secondary" onClick={() => setRehacer(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>
@@ -177,6 +211,14 @@ export default function PrestamosPestana({ propiedadId, puedeEscribir }) {
                   {t('cuota', 'Cuota')}: <span className="font-mono">{euros(l.cuota_mensual)}</span> ·{' '}
                   {t('desde_hasta', 'De {a} a {b}').replace('{a}', fecha(l.fecha_inicio)).replace('{b}', fecha(l.fecha_vencimiento))}
                 </p>
+                {(l.partes || []).length > 0 && (
+                  <p className="text-sm font-bold">
+                    {ROLES.map(([rol, nombre]) => {
+                      const quienes = l.partes.filter((x) => x.rol === rol).map((x) => x.nombre);
+                      return quienes.length ? `${t(`rol_${rol.toLowerCase()}`, nombre)}: ${quienes.join(', ')}` : null;
+                    }).filter(Boolean).join(' · ')}
+                  </p>
+                )}
                 <p className="text-sm font-bold">
                   {t('pagan', 'Lo pagan')}: {(l.duenos || []).map((d) => `${d.titular_nombre} ${pct(d.porcentaje)}`).join(' · ') || <SinDato />} ·{' '}
                   {t('intereses_anyo', 'Intereses {anyo}').replace('{anyo}', anyo)}: <span className="font-mono">{euros(interesAnyo)}</span>

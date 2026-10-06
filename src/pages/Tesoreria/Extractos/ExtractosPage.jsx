@@ -16,6 +16,7 @@ import ComparadorPasos from './ComparadorPasos';
 import AltaCuenta from './AltaCuenta';
 import { abrirPantallaRemota } from './PantallaRemota';
 import useEmpresaActiva, { esDeLaEmpresa } from '../../../hooks/useEmpresaActiva';
+import CampoFecha from '../../../components/UI/CampoFecha';
 
 /**
  * Tesorería → Extractos.
@@ -1299,8 +1300,7 @@ const ExtractosPage = () => {
               <div className="rounded-2xl border border-border bg-surface1 p-4">
                 <label className="block text-sm font-black text-on-surface1">
                   {t('from_date')}
-                  <input
-                    type="date"
+                  <CampoFecha
                     value={fechaManual}
                     max={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => setFechaManual(e.target.value)}

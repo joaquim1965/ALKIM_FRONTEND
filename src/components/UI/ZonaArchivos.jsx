@@ -8,24 +8,44 @@
  *
  *   <ZonaArchivos ficheros={lista} onCambio={setLista} multiple
  *     textoPrincipal="Arrastra aquí los archivos" textoSecundario="o pulsa para elegirlos" />
+ *
+ * Repetidos (05/10/2026): un archivo con el MISMO nombre, tamaño y MD5 que otro
+ * ya elegido (en esta tanda o en una anterior) se descarta y se avisa:
+ * «Documentos descartados por repetidos: …».
  */
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { UploadCloud, X, FileText } from 'lucide-react';
 import { formatTamano } from '../../utils/format';
+import { md5Archivo } from '../../utils/md5';
 
 export default function ZonaArchivos({
   ficheros = [], onCambio, multiple = true, accept,
   textoPrincipal = 'Arrastra aquí los archivos', textoSecundario = 'o pulsa para elegirlos del ordenador',
-  textoQuitar = 'Quitar',
+  textoQuitar = 'Quitar', textoRepetidos = 'Documentos descartados por repetidos:',
+  textoCuenta = (n) => `${n} ${n === 1 ? 'archivo' : 'archivos'} a cargar`,
 }) {
   const entrada = useRef(null);
   const [encima, setEncima] = useState(false);
 
-  const anadir = (lista) => {
+  const [repetidos, setRepetidos] = useState([]);
+
+  /** ¿Es igual que otro? Nombre y tamaño primero (rápido); si coinciden, el MD5. */
+  const igual = async (a, b) => a.name === b.name && a.size === b.size && (await md5Archivo(a)) === (await md5Archivo(b));
+
+  const anadir = async (lista) => {
     const nuevos = [...lista];
     if (!nuevos.length) return;
-    onCambio(multiple ? [...ficheros, ...nuevos] : nuevos.slice(0, 1));
+    if (!multiple) { setRepetidos([]); onCambio(nuevos.slice(0, 1)); return; }
+    const aceptados = [...ficheros];
+    const fuera = [];
+    for (const f of nuevos) {
+      let repetido = false;
+      for (const g of aceptados) { if (await igual(f, g)) { repetido = true; break; } } // eslint-disable-line no-await-in-loop
+      if (repetido) fuera.push(f.name); else aceptados.push(f);
+    }
+    setRepetidos(fuera);
+    if (aceptados.length !== ficheros.length) onCambio(aceptados);
   };
 
   return (
@@ -42,11 +62,17 @@ export default function ZonaArchivos({
         <UploadCloud size={40} className="text-on-surface1" />
         <span className="text-base font-black tracking-tight text-on-surface1">{textoPrincipal}</span>
         <span className="text-sm font-bold text-on-surface1">{textoSecundario}</span>
+        {ficheros.length > 0 && <span className="text-sm font-black text-on-surface1" aria-live="polite">{textoCuenta(ficheros.length)}</span>}
       </button>
       <input
         ref={entrada} type="file" multiple={multiple} accept={accept} className="hidden"
         onChange={(e) => { anadir(e.target.files); e.target.value = ''; }}
       />
+      {repetidos.length > 0 && (
+        <div role="alert" className="rounded-2xl border border-warning-border bg-warning px-4 py-3 text-sm font-bold text-on-warning">
+          {textoRepetidos} {repetidos.join(', ')}
+        </div>
+      )}
       {ficheros.length > 0 && (
         <ul className="space-y-1">
           {ficheros.map((f, i) => (

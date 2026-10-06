@@ -22,6 +22,7 @@ import { useTmTr } from '../../contexts/TmTrContext';
 import {
   CabeceraPagina, Panel, Campo, Leyenda, AvisoError, Casilla, VentanaModal, CLASE_INPUT, Ayuda,
 } from '../../components/UI/TemaPagina';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: authHeaders() });
@@ -462,13 +463,13 @@ export default function CalendarioPage() {
               </Campo>
             </fieldset>
 
-            <fieldset className="grid gap-4 sm:grid-cols-4" disabled={ficha.automatico}>
+            <fieldset className="grid gap-4 rejilla-campos" disabled={ficha.automatico}>
               <Leyenda>{t('fecha_hora', 'Fecha y hora')}</Leyenda>
-              <Campo etiqueta={t('fecha', 'Fecha')}><input type="date" required value={f.fecha} onChange={(e) => setF({ fecha: e.target.value })} className={CLASE_INPUT} /></Campo>
+              <Campo etiqueta={t('fecha', 'Fecha')}><CampoFecha required value={f.fecha} onChange={(e) => setF({ fecha: e.target.value })} className={CLASE_INPUT} /></Campo>
               {!f.todo_el_dia && <Campo etiqueta={t('hora', 'Hora')}><input type="time" required value={f.hora} onChange={(e) => setF({ hora: e.target.value })} className={CLASE_INPUT} /></Campo>}
-              <Campo etiqueta={t('fecha_fin', 'Fin')}><input type="date" min={f.fecha} value={f.fecha_fin} onChange={(e) => setF({ fecha_fin: e.target.value })} className={CLASE_INPUT} /></Campo>
+              <Campo etiqueta={t('fecha_fin', 'Fin')}><CampoFecha min={f.fecha} value={f.fecha_fin} onChange={(e) => setF({ fecha_fin: e.target.value })} className={CLASE_INPUT} /></Campo>
               {!f.todo_el_dia && f.fecha_fin && <Campo etiqueta={t('hora_fin', 'Hora fin')}><input type="time" value={f.hora_fin} onChange={(e) => setF({ hora_fin: e.target.value })} className={CLASE_INPUT} /></Campo>}
-              <div className="sm:col-span-4"><Casilla etiqueta={t('todo_el_dia', 'Todo el día')} checked={f.todo_el_dia} onChange={(v) => setF({ todo_el_dia: v })} /></div>
+              <div className="sm:col-span-full"><Casilla etiqueta={t('todo_el_dia', 'Todo el día')} checked={f.todo_el_dia} onChange={(v) => setF({ todo_el_dia: v })} /></div>
             </fieldset>
 
             <fieldset className="space-y-3" disabled={ficha.automatico}>
@@ -520,7 +521,7 @@ export default function CalendarioPage() {
                       <label key={v} className="flex flex-wrap items-center gap-3">
                         <input type="radio" name="fin" checked={f.fin_repeticion === v} onChange={() => setF({ fin_repeticion: v })} />
                         <span className="w-12">{txt}</span>
-                        {v === 'FECHA' && <input type="date" min={f.fecha} disabled={f.fin_repeticion !== 'FECHA'} value={f.fin_fecha} onChange={(e) => setF({ fin_fecha: e.target.value })} className={`${CLASE_INPUT} w-auto`} />}
+                        {v === 'FECHA' && <CampoFecha min={f.fecha} disabled={f.fin_repeticion !== 'FECHA'} value={f.fin_fecha} onChange={(e) => setF({ fin_fecha: e.target.value })} className={`${CLASE_INPUT} w-auto`} />}
                         {v === 'VECES' && <><input type="number" min="1" max="999" disabled={f.fin_repeticion !== 'VECES'} value={f.fin_veces} onChange={(e) => setF({ fin_veces: e.target.value })} className={`${CLASE_INPUT} w-24`} /><span>{t('veces', 'veces')}</span></>}
                       </label>
                     ))}

@@ -20,8 +20,9 @@ import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { formatImporte } from '../../utils/format';
 import {
-  Campo, Leyenda, Casilla, AvisoError, Ayuda, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, BotonFila, BotonAnadir, FilaVacia,
+  Campo, Casilla, AvisoError, Ayuda, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, BotonFila, BotonAnadir, FilaVacia,
 } from '../../components/UI/TemaPagina';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 const euros = (v) => (v == null || v === '' ? null : formatImporte(v, ''));
@@ -41,7 +42,7 @@ async function pedir(url, opciones = {}) {
 }
 const nombreTercero = (p) => p.razon_social || [p.nombre, p.apellidos].filter(Boolean).join(' ');
 
-export default function ContratosPestana({ propiedadId, espacios = [], puedeEscribir, preseleccion = null, onPreseleccionUsada, onCambio }) {
+export default function ContratosPestana({ propiedadId, propiedadNombre = '', espacios = [], puedeEscribir, preseleccion = null, onPreseleccionUsada, onCambio }) {
   const { t } = useTmTr('Contratos');
   const [contratos, setContratos] = useState(null);
   const [cat, setCat] = useState({ modalidades: [], tipos: [] });
@@ -131,21 +132,23 @@ export default function ContratosPestana({ propiedadId, espacios = [], puedeEscr
       </div>
 
       {form && (
-        <Recuadro as="form" onSubmit={guardar} className="grid gap-3 sm:grid-cols-4">
-          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-4">{form.id ? t('editar', 'Editar contrato') : t('nuevo', 'Nuevo contrato')}</h3>
-          <fieldset className="sm:col-span-4">
-            <Leyenda>{t('que_se_alquila', 'Qué se alquila')}</Leyenda>
-            <p className="mb-2 text-sm font-bold">{t('ayuda_espacios', 'Marca los espacios. Sin ninguno marcado, se alquila la propiedad entera.')}</p>
-            <div className="flex flex-wrap gap-3">
-              {alquilables.map((e) => (
-                <span key={e.id} className="rounded-xl border border-border px-3 py-2">
-                  <Casilla etiqueta={`${e.codigo} · ${e.nombre}`} checked={form.espacios.includes(e.id)}
-                    onChange={(v) => setForm((s) => ({ ...s, espacios: v ? [...s.espacios, e.id] : s.espacios.filter((x) => x !== e.id) }))} />
-                </span>
-              ))}
-              {!form.espacios.length && <span className="self-center text-sm font-black uppercase">{t('entera', 'Propiedad entera')}</span>}
-            </div>
-          </fieldset>
+        <Recuadro as="form" onSubmit={guardar} className="grid gap-3 rejilla-campos">
+          <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-full">{form.id ? t('editar', 'Editar contrato') : t('nuevo', 'Nuevo contrato')}</h3>
+          {/* Qué se alquila: un desplegable con la propiedad entera o uno de sus
+              espacios (05/10/2026, petición del usuario). */}
+          <Campo etiqueta={t('elemento', 'Elemento')} ancho="sm:col-span-2">
+            <select value={form.espacios.length === 1 ? String(form.espacios[0]) : (form.espacios.length ? 'varios' : '')}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === 'varios') return;
+                const esp = alquilables.find((x) => String(x.id) === v);
+                setForm((f) => ({ ...f, espacios: v ? [Number(v)] : [], renta_mensual: f.renta_mensual || esp?.renta_objetivo || '' }));
+              }} className={CLASE_INPUT}>
+              <option value="">{propiedadNombre ? `${propiedadNombre} · ` : ''}{t('entera', 'Propiedad entera')}</option>
+              {alquilables.map((e) => <option key={e.id} value={e.id}>{e.codigo} · {e.nombre}</option>)}
+              {form.espacios.length > 1 && <option value="varios">{form.espacios.map((id) => alquilables.find((x) => x.id === id)?.codigo || id).join(' + ')}</option>}
+            </select>
+          </Campo>
           <Campo etiqueta={t('inquilino', 'Inquilino')} ancho="sm:col-span-2">
             <select required={VIGENTES.includes(form.estado)} {...fc('tercero_id')} className={CLASE_INPUT}>
               <option value="">—</option>
@@ -164,8 +167,8 @@ export default function ContratosPestana({ propiedadId, espacios = [], puedeEscr
               {cat.tipos.map((x) => <option key={x.id} value={x.id}>{t(`tipo_${x.codigo.toLowerCase()}`, x.nombre)}</option>)}
             </select>
           </Campo>
-          <Campo etiqueta={t('inicio', 'Inicio')}><input required type="date" disabled={Boolean(form.recibos)} {...fc('fecha_inicio')} className={CLASE_INPUT} /></Campo>
-          <Campo etiqueta={t('fin', 'Fin (opcional)')}><input type="date" {...fc('fecha_fin')} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('inicio', 'Inicio')}><CampoFecha required disabled={Boolean(form.recibos)} {...fc('fecha_inicio')} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('fin', 'Fin (opcional)')}><CampoFecha {...fc('fecha_fin')} className={CLASE_INPUT} /></Campo>
           <Campo etiqueta={t('renta', 'Renta mensual (€)')}><input required type="number" step="0.01" min="0.01" disabled={Boolean(form.recibos)} {...fc('renta_mensual')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           <Campo etiqueta={t('dia_pago', 'Día de pago')}><input type="number" min="1" max="28" {...fc('dia_pago')} className={CLASE_INPUT} /></Campo>
           <Campo etiqueta={t('forma_pago', 'Forma de pago')}>
@@ -192,8 +195,8 @@ export default function ContratosPestana({ propiedadId, espacios = [], puedeEscr
             </Campo>
           )}
           <div className="flex items-end pb-1 sm:col-span-2"><Casilla etiqueta={t('vivienda_habitual', 'Es la vivienda habitual del inquilino')} checked={form.es_vivienda_habitual_inquilino} onChange={(v) => setForm((s) => ({ ...s, es_vivienda_habitual_inquilino: v }))} /></div>
-          <Ayuda className="sm:col-span-4">{t('ayuda_contrato', 'El IVA y la retención salen de la modalidad. Si el inquilino no está en la lista, créalo en Gestión → Terceros.')}</Ayuda>
-          <div className="flex justify-end gap-2 sm:col-span-4">
+          <Ayuda className="sm:col-span-full">{t('ayuda_contrato', 'El IVA y la retención salen de la modalidad. Si el inquilino no está en la lista, créalo en Gestión → Terceros.')}</Ayuda>
+          <div className="flex justify-end gap-2 sm:col-span-full">
             <Button type="button" variant="secondary" onClick={() => setForm(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>

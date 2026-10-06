@@ -101,7 +101,7 @@ export default function IaPage() {
 
       {form && (
         <Panel className="p-5">
-          <form onSubmit={guardar} className="grid gap-4 sm:grid-cols-6">
+          <form onSubmit={guardar} className="grid gap-4 rejilla-campos">
             <Campo etiqueta={t('nombre', 'Nombre')} ancho="sm:col-span-2"><input required maxLength={80} autoFocus {...fc('nombre')} placeholder="Anthropic Haiku facturas" className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('proveedor', 'Proveedor')} ancho="sm:col-span-2">
               <select value={form.proveedor} onChange={(e) => setForm((f) => ({ ...f, proveedor: e.target.value, modelo: (modelos[e.target.value] || [''])[0], url_claves: urls[e.target.value] || f.url_claves }))} className={CLASE_INPUT}>
@@ -112,7 +112,7 @@ export default function IaPage() {
               <input required maxLength={100} list="ia-modelos" {...fc('modelo')} className={`${CLASE_INPUT} font-mono`} />
               <datalist id="ia-modelos">{sugeridos.map((m) => <option key={m} value={m} />)}</datalist>
             </Campo>
-            <Campo etiqueta={t('url_claves', 'Dónde se crean las claves (URL)')} ancho="sm:col-span-6">
+            <Campo etiqueta={t('url_claves', 'Dónde se crean las claves (URL)')} ancho="sm:col-span-full">
               <div className="flex gap-2">
                 <input type="url" maxLength={300} {...fc('url_claves')} placeholder="https://…" className={`${CLASE_INPUT} font-mono`} />
                 {form.url_claves && (
@@ -121,7 +121,7 @@ export default function IaPage() {
                 )}
               </div>
             </Campo>
-            <Campo etiqueta={t('clave', 'Clave API')} ancho="sm:col-span-4">
+            <Campo etiqueta={t('clave', 'Clave API')} ancho="sm:col-span-2">
               <div className="flex gap-2">
                 <input type={verClave ? 'text' : 'password'} autoComplete="new-password" {...fc('clave')}
                   placeholder={form.id ? `${t('sin_cambios', 'Sin cambios')} ${form.clave_final || ''}` : ''} className={`${CLASE_INPUT} font-mono`} />
@@ -133,7 +133,7 @@ export default function IaPage() {
               <Casilla etiqueta={t('activa', 'Activa')} checked={form.activo} onChange={(v) => setForm((f) => ({ ...f, activo: v }))} />
               <Casilla etiqueta={t('por_defecto', 'Por defecto')} checked={form.por_defecto} onChange={(v) => setForm((f) => ({ ...f, por_defecto: v }))} />
             </div>
-            <div className="flex justify-end gap-2 sm:col-span-6">
+            <div className="flex justify-end gap-2 sm:col-span-full">
               <Button type="button" variant="secondary" onClick={() => setForm(null)}>{t('cancelar', 'Cancelar')}</Button>
               <Button type="submit" loading={ocupado === 'guardar'} leftIcon={<Check size={16} />}>{t('guardar', 'Guardar')}</Button>
             </div>

@@ -26,6 +26,7 @@ import {
   VentanaModal, TablaTema, claseFila, TD, FilaVacia, CLASE_INPUT, Recuadro, BotonFila, BotonAnadir,
 } from '../../components/UI/TemaPagina';
 import { formatPorcentaje } from '../../utils/format';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 const TIPOS = ['PERSONAL', 'CB', 'SC', 'SL', 'SA'];
 // Orden de la lista: por forma (persona, CB, SC, SL, SA) y, dentro, por nombre (03/10/2026).
@@ -279,10 +280,10 @@ export default function EntidadesPage() {
                     </select>
                   </Campo>
                   <Campo etiqueta={t('numero_documento', 'Nº de documento')}><input value={form.nif} maxLength={20} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono${marca('nif')}`} /></Campo>
-                  <Campo etiqueta={t('fecha_caducidad_doc', 'Caducidad del documento')}><input type="date" value={form.fecha_caducidad_doc} onChange={(e) => setForm((f) => ({ ...f, fecha_caducidad_doc: e.target.value }))} className={CLASE_INPUT + marca('fecha_caducidad_doc')} /></Campo>
-                  <Campo etiqueta={t('fecha_nacimiento', 'Fecha de nacimiento')}><input type="date" max={hoy()} value={form.fecha_nacimiento} onChange={(e) => setForm((f) => ({ ...f, fecha_nacimiento: e.target.value }))} className={CLASE_INPUT + marca('fecha_nacimiento')} /></Campo>
+                  <Campo etiqueta={t('fecha_caducidad_doc', 'Caducidad del documento')}><CampoFecha value={form.fecha_caducidad_doc} onChange={(e) => setForm((f) => ({ ...f, fecha_caducidad_doc: e.target.value }))} className={CLASE_INPUT + marca('fecha_caducidad_doc')} /></Campo>
+                  <Campo etiqueta={t('fecha_nacimiento', 'Fecha de nacimiento')}><CampoFecha max={hoy()} value={form.fecha_nacimiento} onChange={(e) => setForm((f) => ({ ...f, fecha_nacimiento: e.target.value }))} className={CLASE_INPUT + marca('fecha_nacimiento')} /></Campo>
                   <Campo etiqueta={t('nacionalidad', 'Nacionalidad (código país)')}><input value={form.nacionalidad} maxLength={2} onChange={(e) => setForm((f) => ({ ...f, nacionalidad: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono${marca('nacionalidad')}`} /></Campo>
-                  <Campo etiqueta={t('fecha_baja', 'Fecha de baja')}><input type="date" value={form.fecha_baja} onChange={(e) => setForm((f) => ({ ...f, fecha_baja: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                  <Campo etiqueta={t('fecha_baja', 'Fecha de baja')}><CampoFecha value={form.fecha_baja} onChange={(e) => setForm((f) => ({ ...f, fecha_baja: e.target.value }))} className={CLASE_INPUT} /></Campo>
                 </fieldset>
               )}
 
@@ -318,8 +319,8 @@ export default function EntidadesPage() {
                       {PERIODICIDAD.map((v) => <option key={v} value={v}>{t(`periodo_${v.toLowerCase()}`, v)}</option>)}
                     </select>
                   </Campo>
-                  <Campo etiqueta={t('fecha_constitucion', 'Fecha de constitución')}><input type="date" value={form.fecha_alta} onChange={(e) => setForm((f) => ({ ...f, fecha_alta: e.target.value }))} className={CLASE_INPUT} /></Campo>
-                  <Campo etiqueta={t('fecha_baja', 'Fecha de baja')}><input type="date" value={form.fecha_baja} onChange={(e) => setForm((f) => ({ ...f, fecha_baja: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                  <Campo etiqueta={t('fecha_constitucion', 'Fecha de constitución')}><CampoFecha value={form.fecha_alta} onChange={(e) => setForm((f) => ({ ...f, fecha_alta: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                  <Campo etiqueta={t('fecha_baja', 'Fecha de baja')}><CampoFecha value={form.fecha_baja} onChange={(e) => setForm((f) => ({ ...f, fecha_baja: e.target.value }))} className={CLASE_INPUT} /></Campo>
                 </fieldset>
               )}
 
@@ -413,8 +414,8 @@ export default function EntidadesPage() {
                   </select>
                 </Campo>
                 <Campo etiqueta={t('porcentaje', 'Porcentaje')}><input required type="number" step="0.001" min="0" max="100" value={formSocio.porcentaje} onChange={(e) => setFormSocio((f) => ({ ...f, porcentaje: e.target.value }))} className={`${CLASE_INPUT} font-mono`} /></Campo>
-                <Campo etiqueta={t('col_desde', 'Desde')}><input required type="date" value={formSocio.fecha_desde} onChange={(e) => setFormSocio((f) => ({ ...f, fecha_desde: e.target.value }))} className={CLASE_INPUT} /></Campo>
-                <Campo etiqueta={t('col_hasta', 'Hasta')}><input type="date" value={formSocio.fecha_hasta} onChange={(e) => setFormSocio((f) => ({ ...f, fecha_hasta: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('col_desde', 'Desde')}><CampoFecha required value={formSocio.fecha_desde} onChange={(e) => setFormSocio((f) => ({ ...f, fecha_desde: e.target.value }))} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('col_hasta', 'Hasta')}><CampoFecha value={formSocio.fecha_hasta} onChange={(e) => setFormSocio((f) => ({ ...f, fecha_hasta: e.target.value }))} className={CLASE_INPUT} /></Campo>
                 <Campo etiqueta={t('notas', 'Notas')}><input value={formSocio.notas} maxLength={255} onChange={(e) => setFormSocio((f) => ({ ...f, notas: e.target.value }))} className={CLASE_INPUT} /></Campo>
                 <Ayuda className="sm:col-span-3">{t('ayuda_socio', 'Si el socio es una persona, créala antes como entidad de tipo Persona.')}</Ayuda>
                 <div className="flex justify-end gap-3 sm:col-span-3">

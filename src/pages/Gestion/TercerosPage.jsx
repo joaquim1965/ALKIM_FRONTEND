@@ -24,6 +24,7 @@ import {
   CabeceraPagina, Panel, CabeceraPanel, Campo, Leyenda, Casilla, AvisoError, AvisoAtencion, SinDato,
   VentanaModal, CLASE_INPUT, Recuadro, Rotulo, BotonAnadir,
 } from '../../components/UI/TemaPagina';
+import CampoFecha from '../../components/UI/CampoFecha';
 
 const PAPELES = ['inquilino', 'proveedor', 'todos'];
 const TIPOS_DOC = ['NIF', 'NIE', 'PASAPORTE', 'CIF', 'OTRO'];
@@ -218,7 +219,7 @@ export default function TercerosPage() {
                   </select>
                 </Campo>
                 <Campo etiqueta={t('documento', 'Número')}><input maxLength={20} disabled={ocultos} value={ocultos ? '••••••' : form.documento} onChange={(e) => setForm((s) => ({ ...s, documento: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} /></Campo>
-                {!juridica && <Campo etiqueta={t('fecha_nacimiento', 'Fecha de nacimiento')}><input type="date" disabled={ocultos} {...f('fecha_nacimiento')} className={CLASE_INPUT} /></Campo>}
+                {!juridica && <Campo etiqueta={t('fecha_nacimiento', 'Fecha de nacimiento')}><CampoFecha disabled={ocultos} {...f('fecha_nacimiento')} className={CLASE_INPUT} /></Campo>}
                 <Campo etiqueta={t('nacionalidad', 'Nacionalidad (ES, FR…)')}><input maxLength={2} value={form.nacionalidad} onChange={(e) => setForm((s) => ({ ...s, nacionalidad: e.target.value.toUpperCase() }))} className={CLASE_INPUT} /></Campo>
               </fieldset>
 
@@ -236,8 +237,8 @@ export default function TercerosPage() {
               <fieldset className="grid gap-4 sm:grid-cols-3">
                 <Leyenda>{t('bloque_rgpd', 'Protección de datos')}</Leyenda>
                 <Casilla etiqueta={t('consentimiento_rgpd', 'Ha dado su consentimiento')} checked={form.consentimiento_rgpd} onChange={(v) => setForm((s) => ({ ...s, consentimiento_rgpd: v }))} />
-                <Campo etiqueta={t('fecha_consentimiento', 'Fecha del consentimiento')}><input type="date" {...f('fecha_consentimiento')} className={CLASE_INPUT} /></Campo>
-                <Campo etiqueta={t('borrar_despues_de', 'Borrar después de')}><input type="date" {...f('borrar_despues_de')} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('fecha_consentimiento', 'Fecha del consentimiento')}><CampoFecha {...f('fecha_consentimiento')} className={CLASE_INPUT} /></Campo>
+                <Campo etiqueta={t('borrar_despues_de', 'Borrar después de')}><CampoFecha {...f('borrar_despues_de')} className={CLASE_INPUT} /></Campo>
                 <Campo etiqueta={t('finalidad_rgpd', 'Finalidad')} ancho="sm:col-span-3"><input maxLength={255} {...f('finalidad_rgpd')} className={CLASE_INPUT} /></Campo>
                 <Casilla etiqueta={t('confidencial', 'Confidencial (solo lo ven quienes gestionan)')} checked={form.confidencial} onChange={(v) => setForm((s) => ({ ...s, confidencial: v }))} />
                 <Casilla etiqueta={t('es_empresario', 'Empresario o profesional (retención en locales)')} checked={form.es_empresario} onChange={(v) => setForm((s) => ({ ...s, es_empresario: v }))} />

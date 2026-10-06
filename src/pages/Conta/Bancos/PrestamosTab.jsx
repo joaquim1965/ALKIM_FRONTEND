@@ -4,6 +4,7 @@ import Button from '../../../components/UI/Button';
 import { useTmTr } from '../../../contexts/TmTrContext';
 import bancosService from '../../../services/bancosService';
 import { formatImporte } from '../../../utils/format';
+import CampoFecha from '../../../components/UI/CampoFecha';
 
 const PrestamosTab = () => {
     const [prestamos, setPrestamos] = useState([]);
@@ -163,11 +164,11 @@ const PrestamosTab = () => {
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-sm font-bold">F. Inicio</label>
-                            <input required type="date" className="input-base w-full mt-1" value={form.fecha_inicio} onChange={e=>setForm({...form, fecha_inicio: e.target.value})} />
+                            <CampoFecha required className="input-base w-full mt-1" value={form.fecha_inicio} onChange={e=>setForm({...form, fecha_inicio: e.target.value})} />
                         </div>
                         <div>
                             <label className="text-sm font-bold">F. Vencimiento</label>
-                            <input type="date" className="input-base w-full mt-1" value={form.fecha_vencimiento} onChange={e=>setForm({...form, fecha_vencimiento: e.target.value})} />
+                            <CampoFecha className="input-base w-full mt-1" value={form.fecha_vencimiento} onChange={e=>setForm({...form, fecha_vencimiento: e.target.value})} />
                         </div>
                     </div>
                     <Button type="submit" variant="primary" fullWidth loading={loading}>Registrar Operación</Button>
