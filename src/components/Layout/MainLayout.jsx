@@ -119,7 +119,6 @@ export const MainLayout = ({ children }) => {
                             <SidebarSubItem to="/cartera/propiedades" icon={<Building2 size={13}/>} label="Propiedades" />
                             <SidebarSubItem to="/cartera/contratos" icon={<FileSignature size={13}/>} label="Contratos" />
                             <SidebarSubItem to="/cartera/recibos" icon={<Receipt size={13}/>} label="Recibos" />
-                            <SidebarSubItem to="/sistema/archivos" icon={<FileText size={13}/>} label="Documentos" />
                         </SidebarGroup>
 
                         {/* 5. Contabilidad (filtrado por permisos) */}
@@ -178,6 +177,8 @@ export const MainLayout = ({ children }) => {
                             label="Auxiliares"
                             collapsed={!sidebarOpen}
                         >
+                            {/* Documentos: primera opción de Auxiliares (09/10/2026; antes en Cartera). */}
+                            <SidebarSubItem to="/sistema/archivos" icon={<FileText size={13}/>} label="Documentos" />
                             {verContactos && <SidebarSubItem to="/aux/contactos" icon={<Contact2 size={13}/>} label="Contactos" />}
                             <SidebarSubItem to="/aux/llaves" icon={<Key size={13}/>} label="Control de llaves" />
                             {verClavesIa && <SidebarSubItem to="/aux/ia" icon={<Sparkles size={13}/>} label="Claves de IA" />}

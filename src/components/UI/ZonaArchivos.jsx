@@ -12,26 +12,71 @@
  * Repetidos (05/10/2026): un archivo con el MISMO nombre, tamaño y MD5 que otro
  * ya elegido (en esta tanda o en una anterior) se descarta y se avisa:
  * «Documentos descartados por repetidos: …».
+ *
+ * Carpetas (09/10/2026): con `carpetas`, se puede SOLTAR una carpeta (o varias)
+ * o elegirla con el botón «Elegir carpeta»; entran todos los archivos de dentro,
+ * también los de sus subcarpetas. Cada archivo lleva su ruta relativa
+ * («FOTOS ACTUALES/COCINA/foto.jpg»): `rutaArchivo(f)`. Se saltan los archivos
+ * de sistema (desktop.ini, Thumbs.db, .DS_Store, ~$…).
  */
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { UploadCloud, X, FileText } from 'lucide-react';
+import { UploadCloud, X, FileText, FolderOpen } from 'lucide-react';
 import { formatTamano } from '../../utils/format';
 import { md5Archivo } from '../../utils/md5';
 
+/** Ruta del archivo dentro de la carpeta soltada o elegida («CARPETA/SUB/foto.jpg»); si no viene de carpeta, su nombre. */
+export const rutaArchivo = (f) => f?._ruta || f?.webkitRelativePath || f?.name || '';
+/** Carpetas de la ruta, sin el nombre del archivo: «A/B/x.jpg» → ['A', 'B']. */
+export const carpetasDe = (f) => rutaArchivo(f).split('/').slice(0, -1).filter(Boolean);
+/** Copia la ruta de un archivo a otro (al rehacer un File con otro tipo). */
+export const conRuta = (nuevo, viejo) => { if (nuevo !== viejo && viejo?._ruta) nuevo._ruta = viejo._ruta; return nuevo; };
+const ES_DE_SISTEMA = /^(desktop\.ini|thumbs\.db|\.ds_store)$|^~\$|^\./i;
+
+/** Todos los archivos de una entrada soltada (archivo o carpeta, recorriendo subcarpetas). */
+async function leerEntrada(entrada, ruta = '') {
+  if (entrada.isFile) {
+    return new Promise((ok) => entrada.file((f) => { f._ruta = `${ruta}${f.name}`; ok(ES_DE_SISTEMA.test(f.name) ? [] : [f]); }, () => ok([])));
+  }
+  if (!entrada.isDirectory) return [];
+  const lector = entrada.createReader();
+  const hijas = [];
+  // readEntries devuelve las entradas a tandas (100 en Chrome): se pide hasta que no quede ninguna.
+  for (;;) {
+    const tanda = await new Promise((ok) => lector.readEntries(ok, () => ok([]))); // eslint-disable-line no-await-in-loop
+    if (!tanda.length) break;
+    hijas.push(...tanda);
+  }
+  const salida = [];
+  for (const h of hijas) salida.push(...await leerEntrada(h, `${ruta}${entrada.name}/`)); // eslint-disable-line no-await-in-loop
+  return salida;
+}
+
 export default function ZonaArchivos({
-  ficheros = [], onCambio, multiple = true, accept,
+  ficheros = [], onCambio, multiple = true, accept, carpetas = false,
+  textoCarpeta = 'Elegir carpeta',
   textoPrincipal = 'Arrastra aquí los archivos', textoSecundario = 'o pulsa para elegirlos del ordenador',
   textoQuitar = 'Quitar', textoRepetidos = 'Documentos descartados por repetidos:',
   textoCuenta = (n) => `${n} ${n === 1 ? 'archivo' : 'archivos'} a cargar`,
 }) {
   const entrada = useRef(null);
+  const entradaCarpeta = useRef(null);
   const [encima, setEncima] = useState(false);
 
   const [repetidos, setRepetidos] = useState([]);
 
   /** ¿Es igual que otro? Nombre y tamaño primero (rápido); si coinciden, el MD5. */
-  const igual = async (a, b) => a.name === b.name && a.size === b.size && (await md5Archivo(a)) === (await md5Archivo(b));
+  // Con carpetas, solo son repetidos si además están en la misma carpeta.
+  const igual = async (a, b) => a.name === b.name && a.size === b.size && carpetasDe(a).join('/') === carpetasDe(b).join('/')
+    && (await md5Archivo(a)) === (await md5Archivo(b));
+  /** Lo soltado: con `carpetas`, se recorren las carpetas; si no, solo los archivos. */
+  const soltar = async (dt) => {
+    const entradas = carpetas ? [...(dt.items || [])].map((it) => it.webkitGetAsEntry?.()).filter(Boolean) : [];
+    if (!entradas.length) return anadir(dt.files);
+    const todos = [];
+    for (const e of entradas) todos.push(...await leerEntrada(e)); // eslint-disable-line no-await-in-loop
+    return anadir(todos);
+  };
 
   const anadir = async (lista) => {
     const nuevos = [...lista];
@@ -55,7 +100,7 @@ export default function ZonaArchivos({
         onClick={() => entrada.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setEncima(true); }}
         onDragLeave={() => setEncima(false)}
-        onDrop={(e) => { e.preventDefault(); setEncima(false); anadir(e.dataTransfer.files); }}
+        onDrop={(e) => { e.preventDefault(); setEncima(false); soltar(e.dataTransfer); }}
         className={`flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors
           ${encima ? 'border-primary bg-surface-hover' : 'border-border bg-surface2 hover:border-on-background'}`}
       >
@@ -68,6 +113,16 @@ export default function ZonaArchivos({
         ref={entrada} type="file" multiple={multiple} accept={accept} className="hidden"
         onChange={(e) => { anadir(e.target.files); e.target.value = ''; }}
       />
+      {carpetas && (
+        <>
+          <button type="button" onClick={() => entradaCarpeta.current?.click()}
+            className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-bold text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover">
+            <FolderOpen size={16} />{textoCarpeta}
+          </button>
+          <input ref={entradaCarpeta} type="file" webkitdirectory="" directory="" multiple className="hidden"
+            onChange={(e) => { anadir([...e.target.files].filter((f) => !ES_DE_SISTEMA.test(f.name))); e.target.value = ''; }} />
+        </>
+      )}
       {repetidos.length > 0 && (
         <div role="alert" className="rounded-2xl border border-warning-border bg-warning px-4 py-3 text-sm font-bold text-on-warning">
           {textoRepetidos} {repetidos.join(', ')}
@@ -78,7 +133,7 @@ export default function ZonaArchivos({
           {ficheros.map((f, i) => (
             <li key={`${f.name}-${i}`} className="flex items-center gap-3 rounded-xl border border-border bg-surface2 px-3 py-2 text-sm font-bold text-on-surface1">
               <FileText size={16} className="shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{f.name}</span>
+              <span className="min-w-0 flex-1 truncate">{rutaArchivo(f)}</span>
               <span className="shrink-0 font-mono text-xs">{formatTamano(f.size)}</span>
               <button type="button" aria-label={`${textoQuitar} ${f.name}`} title={textoQuitar}
                 onClick={() => onCambio(ficheros.filter((_, j) => j !== i))}

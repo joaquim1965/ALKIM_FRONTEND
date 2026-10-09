@@ -3,62 +3,89 @@
  *
  * El catálogo trae cada tipo con su orden (orden_catalogo) y, si es subtipo,
  * el tipo bajo el que va (padre_id). Devuelve la lista plana en el orden en que
- * se pinta: cada tipo principal seguido de sus subtipos, con `nivel` 0 ó 1.
+ * se pinta: cada tipo seguido de sus subtipos (y estos de los suyos), con
+ * `nivel` = profundidad (0 = principal).
+ *
+ * Varios niveles (09/10/2026, petición del usuario): un subtipo puede tener sus
+ * propios subtipos («DOCS DEL PISO ↳ Multimedia ↳ Atico»), hasta NIVEL_MAXIMO.
  * «Sin clasificar» (sin fila en el catálogo) queda siempre al final.
  * Solo afecta a cómo se ven: los documentos de cada tipo no cambian.
  */
+export const NIVEL_MAXIMO = 5;   // 0..5: seis niveles de profundidad como mucho
+
+const num = (v) => (v == null ? null : Number(v));
+
 export function ordenArbol(tipos = []) {
-  const n = (v) => (v == null ? null : Number(v));
-  const ids = new Set(tipos.map((c) => n(c.id)));
+  const porId = new Map(tipos.map((c) => [num(c.id), c]));
   const posicion = (c) => (c.codigo === 'SIN_CLASIFICAR' ? Infinity : Number(c.orden_catalogo ?? c.orden ?? 0));
   const ordenados = [...tipos].sort((a, b) => posicion(a) - posicion(b));
-  // Un subtipo cuyo padre no está (o es a su vez subtipo) se muestra como principal.
+  // Padre válido: existe y no forma un ciclo; si no, el tipo se muestra como principal.
   const padreDe = (c) => {
-    const p = n(c.padre_id);
-    if (p == null || p === n(c.id) || !ids.has(p)) return null;
-    const padre = tipos.find((x) => n(x.id) === p);
-    return padre && n(padre.padre_id) == null ? p : null;
+    const p = num(c.padre_id);
+    if (p == null || p === num(c.id) || !porId.has(p)) return null;
+    const vistos = new Set([num(c.id)]);
+    for (let a = p; a != null; a = num(porId.get(a)?.padre_id)) {
+      if (vistos.has(a)) return null;   // ciclo
+      vistos.add(a);
+      if (!porId.has(a)) break;
+    }
+    return p;
   };
-  const salida = [];
+  const hijos = new Map();
   for (const c of ordenados) {
-    if (padreDe(c) != null) continue;
-    salida.push({ ...c, padre_id: null, nivel: 0 });
-    for (const h of ordenados) if (padreDe(h) === n(c.id)) salida.push({ ...h, padre_id: n(c.id), nivel: 1 });
+    const p = padreDe(c);
+    if (!hijos.has(p)) hijos.set(p, []);
+    hijos.get(p).push(c);
   }
+  const salida = [];
+  const recorrer = (padre, nivel) => {
+    for (const c of hijos.get(padre) || []) {
+      salida.push({ ...c, padre_id: padre, nivel });
+      recorrer(num(c.id), nivel + 1);
+    }
+  };
+  recorrer(null, 0);
   return salida;
+}
+
+/** Ids de un tipo y de todo lo que cuelga de él (en la lista de ordenArbol). */
+export function subarbol(plano, id) {
+  const ids = new Set([num(id)]);
+  for (const c of plano) if (ids.has(num(c.padre_id))) ids.add(num(c.id));
+  return ids;
 }
 
 /**
  * Nueva lista tras soltar `idMovido` sobre `idDestino`.
- * zona: 'antes' | 'despues' (cambia el orden) · 'dentro' (lo deja de subtipo).
- * Un tipo se mueve con sus subtipos; un tipo con subtipos no puede ser subtipo.
+ * zona: 'antes' | 'despues' (al mismo nivel que el destino) · 'dentro' (subtipo del destino).
+ * Un tipo se mueve con todos sus subtipos. No se puede soltar dentro de sí mismo
+ * ni de uno de sus subtipos, ni pasar de NIVEL_MAXIMO. null = no se puede.
  */
 export function moverTipo(lista, idMovido, idDestino, zona) {
   const plano = ordenArbol(lista);
-  const movido = plano.find((c) => c.id === idMovido);
-  let destino = plano.find((c) => c.id === idDestino);
+  const movido = plano.find((c) => num(c.id) === num(idMovido));
+  const destino = plano.find((c) => num(c.id) === num(idDestino));
   if (!movido || !destino || movido.id === destino.id) return null;
-  const tieneHijos = plano.some((c) => c.padre_id === movido.id);
-  if (destino.padre_id === movido.id) return null;                         // sobre su propio subtipo
-  if (zona === 'dentro' && (tieneHijos || destino.nivel === 1)) return null;
-  if (tieneHijos && destino.nivel === 1) destino = plano.find((c) => c.id === destino.padre_id);   // con subtipos: solo entre principales
+  const bloqueIds = subarbol(plano, movido.id);
+  if (bloqueIds.has(num(destino.id))) return null;                       // dentro de sí mismo
+  // Profundidad que ocupa el bloque movido (0 si no tiene subtipos).
+  const alto = Math.max(0, ...plano.filter((c) => bloqueIds.has(num(c.id))).map((c) => c.nivel - movido.nivel));
+  const nivelNuevo = zona === 'dentro' ? destino.nivel + 1 : destino.nivel;
+  if (nivelNuevo + alto > NIVEL_MAXIMO) return null;
 
-  const bloque = plano.filter((c) => c.id === movido.id || c.padre_id === movido.id);
-  const resto = plano.filter((c) => !bloque.includes(c));
-  const finDeBloque = (idPadre) => {           // índice tras el último subtipo de idPadre
-    let i = resto.findIndex((c) => c.id === idPadre);
-    while (i + 1 < resto.length && resto[i + 1].padre_id === idPadre) i += 1;
+  const bloque = plano.filter((c) => bloqueIds.has(num(c.id)));
+  const resto = plano.filter((c) => !bloqueIds.has(num(c.id)));
+  const finDe = (id) => {                      // índice tras el último descendiente de id
+    const ids = subarbol(resto, id);
+    let i = resto.findIndex((c) => num(c.id) === num(id));
+    while (i + 1 < resto.length && ids.has(num(resto[i + 1].id))) i += 1;
     return i + 1;
   };
-
   let i; let padre;
-  if (zona === 'dentro') { padre = destino.id; i = finDeBloque(destino.id); }
-  else if (destino.nivel === 1 && !tieneHijos) {
-    padre = destino.padre_id;
-    i = resto.findIndex((c) => c.id === destino.id) + (zona === 'despues' ? 1 : 0);
-  } else {
-    padre = null;
-    i = zona === 'antes' ? resto.findIndex((c) => c.id === destino.id) : finDeBloque(destino.id);
+  if (zona === 'dentro') { padre = num(destino.id); i = finDe(destino.id); }
+  else {
+    padre = num(destino.padre_id);
+    i = zona === 'antes' ? resto.findIndex((c) => num(c.id) === num(destino.id)) : finDe(destino.id);
   }
   const nuevos = bloque.map((c) => (c.id === movido.id ? { ...c, padre_id: padre } : c));
   resto.splice(i, 0, ...nuevos);

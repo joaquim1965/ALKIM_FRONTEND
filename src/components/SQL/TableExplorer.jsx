@@ -348,7 +348,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
   if (loading) {
     return (
       <div className="h-full bg-surface1 border-r border-border p-4">
-        <div className="flex items-center gap-2 text-primary">
+        <div className="flex items-center gap-2 text-on-surface1">
           <Database size={16} />
           <span className="text-sm">{t(translations.loadingSchema)}</span>
         </div>
@@ -368,11 +368,13 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
   }
 
   return (
+    // Textos con el color de texto del tema sobre la superficie (blanco en el oscuro), 09/10/2026:
+    // antes iban en «primary», azul oscuro e ilegible sobre el fondo oscuro.
     <div className="h-full bg-surface1 border-r border-border flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-primary flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-on-surface1 flex items-center gap-2">
             <Database size={16} />
             {t(translations.tablesTitle)}
           </h3>
@@ -381,7 +383,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
           <button
             onClick={loadAll}
             disabled={loading}
-            className="p-1.5 text-primary hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors"
+            className="p-1.5 text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors"
             title="Actualizar esquema"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -407,7 +409,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder={t(translations.searchPlaceholder)}
+          placeholder={t(translations.searchPlaceholder) === 'searchPlaceholder' ? 'Buscar tabla...' : t(translations.searchPlaceholder)}
           leftIcon={<Search size={14} />}
           size="sm"
           className="w-full"
@@ -419,7 +421,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
         {activeTab === 'tables' ? (
           /* TABLES VIEW */
           filteredTables.length === 0 ? (
-            <div className="text-sm text-secondary text-center py-4">
+            <div className="text-sm text-on-surface1 text-center py-4">
               {t(translations.noTables)}
             </div>
           ) : (
@@ -435,7 +437,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                       <button
                         onClick={() => toggleTable(tableName)}
                         className={`p-1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors ${
-                          activeTable === tableName ? 'text-on-primary' : 'text-primary'
+                          activeTable === tableName ? 'text-on-primary' : 'text-on-surface1'
                         }`}
                       >
                         {isExpanded ? (
@@ -453,9 +455,9 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                           : 'text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover'
                         }`}
                       >
-                        <Database size={14} className={activeTable === tableName ? 'text-on-primary' : 'text-primary'} />
-                        <span className={`truncate ${activeTable === tableName ? 'font-bold text-on-primary' : 'font-medium text-primary'}`}>{tableName}</span>
-                        <span className={`ml-auto text-[10px] font-mono ${activeTable === tableName ? 'text-on-primary' : 'text-primary'}`}>
+                        <Database size={14} className={activeTable === tableName ? 'text-on-primary' : 'text-on-surface1'} />
+                        <span className={`truncate ${activeTable === tableName ? 'font-bold text-on-primary' : 'font-medium text-on-surface1'}`}>{tableName}</span>
+                        <span className={`ml-auto text-[10px] font-mono ${activeTable === tableName ? 'text-on-primary' : 'text-on-surface1'}`}>
                           {table.rowCount || 0}
                         </span>
                       </button>
@@ -488,7 +490,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                                   <button
                                     onClick={(e) => handleFieldClick(tableName, column.name, e)}
                                     onContextMenu={(e) => handleContextMenu(e, column.name, 'field', { column, tableName })}
-                                    className="flex-1 flex items-center gap-2 px-2 py-1 text-primary hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors text-left group"
+                                    className="flex-1 flex items-center gap-2 px-2 py-1 text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors text-left group"
                                   >
                                     {isPrimaryKey && !isForeignKey && (
                                       <Key size={12} className="flex-shrink-0" />
@@ -501,12 +503,12 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                                     )}
                                     {isForeignKey && !isOneToOne && (
                                       <div className="flex items-center gap-0.5">
-                                        <Share2 size={12} className="flex-shrink-0 text-primary" />
-                                        {hasCascade && <span className="text-[10px] font-bold text-primary">c</span>}
+                                        <Share2 size={12} className="flex-shrink-0 text-on-surface1" />
+                                        {hasCascade && <span className="text-[10px] font-bold text-on-surface1">c</span>}
                                       </div>
                                     )}
                                     <span className="flex-shrink truncate min-w-0">{column.name}</span>
-                                    <span className={`ml-auto text-xs flex-shrink-0 truncate max-w-[120px] ${activeTable === tableName ? 'text-on-primary' : 'text-primary'}`} title={column.columnType || column.type}>
+                                    <span className={`ml-auto text-xs flex-shrink-0 truncate max-w-[120px] ${activeTable === tableName ? 'text-on-primary' : 'text-on-surface1'}`} title={column.columnType || column.type}>
                                       ({column.columnType || column.type})
                                     </span>
                                   </button>
@@ -517,7 +519,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                                   <Tooltip content={isForeignKey ? "Ver detalles de FK" : "Ver detalles de PK"}>
                                     <button
                                       onClick={(e) => handleToggleForeignKey(tableName, column.name, e)}
-                                      className="p-1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors flex-shrink-0 text-primary"
+                                      className="p-1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors flex-shrink-0 text-on-surface1"
                                     >
                                       {isFieldExpanded ? (
                                         <ChevronDown size={12} />
@@ -534,18 +536,18 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                                 <div className="ml-6 mt-1 px-2 py-1.5 bg-surface1 border border-border rounded text-xs text-on-surface1">
                                   <div className="space-y-1">
                                     <div>
-                                      <span className="text-secondary">{t(translations.referencesTable)}:</span>{' '}
+                                      <span className="text-on-surface1">{t(translations.referencesTable)}:</span>{' '}
                                       <span className="font-medium">{column.foreignKey.referencedTable}.{column.foreignKey.referencedColumn}</span>
                                     </div>
                                     {column.foreignKey.onDelete && (
                                       <div>
-                                        <span className="text-secondary">{t(translations.onDelete)}:</span>{' '}
+                                        <span className="text-on-surface1">{t(translations.onDelete)}:</span>{' '}
                                         <span className="font-medium">{column.foreignKey.onDelete}</span>
                                       </div>
                                     )}
                                     {column.foreignKey.onUpdate && (
                                       <div>
-                                        <span className="text-secondary">{t(translations.onUpdate)}:</span>{' '}
+                                        <span className="text-on-surface1">{t(translations.onUpdate)}:</span>{' '}
                                         <span className="font-medium">{column.foreignKey.onUpdate}</span>
                                       </div>
                                     )}
@@ -558,20 +560,20 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                                 <div className="ml-6 mt-1 px-2 py-1.5 bg-surface1 border border-border rounded text-xs text-on-surface1">
                                   <div className="space-y-1">
                                     <div>
-                                      <span className="text-secondary">Tipo:</span>{' '}
+                                      <span className="text-on-surface1">Tipo:</span>{' '}
                                       <span className="font-medium">{column.columnType || column.type}</span>
                                     </div>
                                     <div>
-                                      <span className="text-secondary">Nulable:</span>{' '}
+                                      <span className="text-on-surface1">Nulable:</span>{' '}
                                       <span className="font-medium">{column.nullable ? 'YES' : 'NO'}</span>
                                     </div>
                                     <div>
-                                      <span className="text-secondary">Clave:</span>{' '}
+                                      <span className="text-on-surface1">Clave:</span>{' '}
                                       <span className="font-medium">PRIMARY KEY</span>
                                     </div>
                                     {column.extra && (
                                       <div>
-                                        <span className="text-secondary">Extra:</span>{' '}
+                                        <span className="text-on-surface1">Extra:</span>{' '}
                                         <span className="font-medium">{column.extra}</span>
                                       </div>
                                     )}
@@ -591,7 +593,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
         ) : activeTab === 'triggers' ? (
           /* TRIGGERS VIEW */
           Object.keys(groupedTriggers).length === 0 ? (
-            <div className="text-sm text-secondary text-center py-4">
+            <div className="text-sm text-on-surface1 text-center py-4">
               {t(translations.noTriggersFound)}
             </div>
           ) : (
@@ -615,16 +617,16 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                             <button
                               onClick={() => toggleTrigger(trigger.name)}
                               onContextMenu={(e) => handleContextMenu(e, trigger.name, 'trigger')}
-                              className="flex-1 flex items-center gap-2 px-2 py-1.5 text-primary hover:bg-surface-hover hover:text-on-surface-hover rounded-l transition-colors text-left min-w-0"
+                              className="flex-1 flex items-center gap-2 px-2 py-1.5 text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover rounded-l transition-colors text-left min-w-0"
                             >
                               {isTriggerExpanded ? (
                                 <ChevronDown size={14} className="flex-shrink-0" />
                               ) : (
                                 <ChevronRight size={14} className="flex-shrink-0" />
                               )}
-                              <Code size={14} className="text-primary flex-shrink-0" />
+                              <Code size={14} className="text-on-surface1 flex-shrink-0" />
                               <span className="truncate">{trigger.name}</span>
-                              <span className="ml-auto text-[10px] font-mono text-primary flex-shrink-0 pr-1">
+                              <span className="ml-auto text-[10px] font-mono text-on-surface1 flex-shrink-0 pr-1">
                                 {trigger.timing} {trigger.event}
                               </span>
                             </button>
@@ -632,7 +634,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                             {/* Botón eliminar — visible al hover */}
                             <button
                               title={`Eliminar trigger ${trigger.name}`}
-                              className="invisible group-hover/trigger:visible px-1.5 py-1 text-primary hover:bg-surface-hover hover:text-on-surface-hover rounded-r transition-all flex items-center"
+                              className="invisible group-hover/trigger:visible px-1.5 py-1 text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover rounded-r transition-all flex items-center"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const rect = e.currentTarget.getBoundingClientRect();
@@ -673,7 +675,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
         ) : activeTab === 'events' ? (
           /* EVENTS VIEW */
           filteredEvents.length === 0 ? (
-            <div className="text-sm text-secondary text-center py-4">
+            <div className="text-sm text-on-surface1 text-center py-4">
               {t(translations.noEventsFound)}
             </div>
           ) : (
@@ -690,12 +692,12 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                       className="w-full flex items-center gap-2 px-2 py-1.5 text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover rounded transition-colors text-left"
                     >
                       {isEventExpanded ? (
-                        <ChevronDown size={14} className="flex-shrink-0 text-primary" />
+                        <ChevronDown size={14} className="flex-shrink-0 text-on-surface1" />
                       ) : (
-                        <ChevronRight size={14} className="flex-shrink-0 text-primary" />
+                        <ChevronRight size={14} className="flex-shrink-0 text-on-surface1" />
                       )}
-                      <Code size={14} className="text-primary flex-shrink-0" />
-                      <span className="truncate text-primary">{event.name}</span>
+                      <Code size={14} className="text-on-surface1 flex-shrink-0" />
+                      <span className="truncate text-on-surface1">{event.name}</span>
                       <span className={`ml-auto text-xs font-medium flex-shrink-0 px-2 py-0.5 rounded ${isEnabled
                         ? 'bg-success text-on-success'
                         : 'bg-neutral text-on-neutral'
@@ -749,7 +751,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
         ) : activeTab === 'views' ? (
           /* VIEWS VIEW */
           filteredViews.length === 0 ? (
-            <div className="text-sm text-secondary text-center py-4">
+            <div className="text-sm text-on-surface1 text-center py-4">
               {t(translations.noViewsFound)}
             </div>
           ) : (
@@ -781,8 +783,8 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
                         }`}
                         title="Ver y editar vista"
                       >
-                        <Eye size={14} className={activeTable === view.name ? 'text-on-primary' : 'text-primary'} />
-                        <span className={`truncate ${activeTable === view.name ? 'font-bold text-on-primary' : 'font-medium text-primary'}`}>{view.name}</span>
+                        <Eye size={14} className={activeTable === view.name ? 'text-on-primary' : 'text-on-surface1'} />
+                        <span className={`truncate ${activeTable === view.name ? 'font-bold text-on-primary' : 'font-medium text-on-surface1'}`}>{view.name}</span>
                         <span className={`ml-auto text-[10px] font-medium flex-shrink-0 px-2 py-0.5 rounded ${view.isUpdatable === 'YES'
                           ? 'bg-success text-on-success'
                           : 'bg-neutral text-on-neutral'
@@ -889,14 +891,14 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
             {contextMenu.itemType === 'field' && contextMenu.column && (
               <>
                 {/* Cabecera con nombre de campo */}
-                <div className="px-4 py-1.5 text-xs text-secondary border-b border-border select-none">
+                <div className="px-4 py-1.5 text-xs text-on-surface1 border-b border-border select-none">
                   <span className="font-mono font-semibold">{contextMenu.tableName}</span>
-                  <span className="text-secondary">.{contextMenu.itemName}</span>
+                  <span className="text-on-surface1">.{contextMenu.itemName}</span>
                 </div>
 
                 {/* Eliminar columna */}
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover hover:text-on-surface-hover transition-colors flex items-center gap-2"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors flex items-center gap-2"
                   onClick={() => {
                     const sql = `ALTER TABLE \`${contextMenu.tableName}\` DROP COLUMN \`${contextMenu.itemName}\`;`;
                     setContextMenu(prev => ({ ...prev, visible: false }));
@@ -987,7 +989,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
             {/* Opciones exclusivas de VISTA */}
             {contextMenu.itemType === 'view' && (
               <>
-                <div className="px-4 py-1.5 text-xs text-secondary border-b border-border select-none font-mono font-semibold">
+                <div className="px-4 py-1.5 text-xs text-on-surface1 border-b border-border select-none font-mono font-semibold">
                   {contextMenu.itemName}
                 </div>
 
@@ -1044,7 +1046,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
 
                 {/* Eliminar vista */}
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover hover:text-on-surface-hover transition-colors font-medium"
+                  className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors font-medium"
                   onClick={(e) => {
                     e.stopPropagation();
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -1063,7 +1065,7 @@ export function TableExplorer({ onInsertText, onExecuteQuery, onEditTable, onIns
             {/* Opciones exclusivas de TRIGGER */}
             {contextMenu.itemType === 'trigger' && (
               <button
-                className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-hover hover:text-on-surface-hover transition-colors font-medium flex items-center gap-2"
+                className="w-full text-left px-4 py-2 text-sm text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover transition-colors font-medium flex items-center gap-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   const rect = e.currentTarget.getBoundingClientRect();

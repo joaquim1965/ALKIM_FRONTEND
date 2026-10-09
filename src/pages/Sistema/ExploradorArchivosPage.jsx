@@ -6,6 +6,9 @@
  *   Catálogo       s_files con filtros (entidad, tipo, ejercicio, texto, caducan)
  *   Carpetas       R2 tal cual, con lo que está indexado (solo sysadmin/superadmin)
  *   Mantenimiento  recuentos, espacio por tabla y papelera (restaurar, borrar a los 30 días)
+ *   Plantillas     (08/10/2026) los tipos de documento («etiquetas») de cada apartado,
+ *                  con sus subtipos; de momento «Propiedades». Es el mismo editor que
+ *                  el lápiz de la pestaña Documentos de cada ficha (TiposDocumento).
  *
  * API: GET /files · GET /files/r2 · GET /files/r2/enlace · GET /files/mantenimiento ·
  *      GET /files/:id/descarga · POST /files/:id/restaurar · DELETE /files/:id/definitivo
@@ -22,8 +25,13 @@ import {
   CabeceraPagina, Panel, Campo, AvisoError, Ayuda, SinDato, CLASE_INPUT, TablaTema, claseFila, TD, FilaVacia, BotonFila, MICRO,
 } from '../../components/UI/TemaPagina';
 import CampoFecha from '../../components/UI/CampoFecha';
+import TiposDocumento from '../../components/Documentos/TiposDocumento';
 
-const PESTANAS = ['catalogo', 'carpetas', 'mantenimiento'];
+const PESTANAS = ['catalogo', 'carpetas', 'mantenimiento', 'plantillas'];
+// Plantillas: un apartado por tabla que tiene documentos (de momento, propiedades).
+// Entidades primero y, en las dos, sin la columna «Obligatorio» (09/10/2026): son
+// plantillas para elegir los tipos que se deseen.
+const PLANTILLAS = [{ clave: 'entidades', tabla: 'm_company', sinObligatorio: true }, { clave: 'propiedades', tabla: 'im_property', sinObligatorio: true }];
 const fecha = (v) => (v ? String(v).slice(0, 10) : '');
 const tamano = formatTamano;
 
@@ -37,7 +45,9 @@ async function pedir(url, opciones = {}) {
 export default function ExploradorArchivosPage() {
   const { t } = useTmTr('Explorador');
   const { t: tc } = useTmTr('CategoriaArchivo');
+  const { t: td } = useTmTr('Documentos');
   const { user } = useStore();
+  const [plantilla, setPlantilla] = useState(PLANTILLAS[0].clave);
   const adminSistema = Number(user?.rol) >= 3;     // Carpetas de R2 y borrado definitivo
   const [pestana, setPestana] = useState('catalogo');
   const [error, setError] = useState('');
@@ -168,6 +178,20 @@ export default function ExploradorArchivosPage() {
               ))}
               {!archivos.length && <FilaVacia columnas={7}>{t('vacio', 'No hay archivos con estos filtros.')}</FilaVacia>}
           </TablaTema>
+        </Panel>
+      )}
+
+      {pestana === 'plantillas' && (
+        <Panel className="space-y-4 p-5">
+          <nav role="tablist" className="tab-bar rounded-xl pb-1" aria-label={t('pestana_plantillas', 'Plantillas')}>
+            {PLANTILLAS.map((p) => (
+              <button key={p.clave} type="button" role="tab" aria-selected={p.clave === plantilla} className={`tab-base rounded-lg ${p.clave === plantilla ? 'tab-active' : ''}`}
+                onClick={() => setPlantilla(p.clave)}>{t(`plantillas_${p.clave}`, p.clave)}</button>
+            ))}
+          </nav>
+          {PLANTILLAS.filter((p) => p.clave === plantilla).map((p) => (
+            <TiposDocumento key={p.tabla} tabla={p.tabla} enLinea sinObligatorio={Boolean(p.sinObligatorio)} t={td} nombreCat={(c) => tc(c.codigo, c.nombre)} />
+          ))}
         </Panel>
       )}
 
