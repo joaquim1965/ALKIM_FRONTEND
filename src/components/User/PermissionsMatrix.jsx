@@ -194,13 +194,13 @@ const PermissionsMatrix = () => {
                     <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-surface2 border-b border-border">
                         <span className="font-bold capitalize">{modulo}</span>
                         <div className="flex gap-2 text-xs">
-                            <button onClick={() => setNivelModulo(modulo, 'Full')} className="px-2 py-1 rounded-md border border-success text-success hover:bg-success hover:text-on-success transition-colors">
+                            <button onClick={() => setNivelModulo(modulo, 'Full')} className="px-2 py-1 rounded-md border border-success-border bg-success text-on-success font-semibold hover:brightness-110 transition-all">
                                 {t('TodoFull') || 'Full en todo'}
                             </button>
-                            <button onClick={() => setNivelModulo(modulo, 'Read')} className="px-2 py-1 rounded-md border border-info text-info hover:bg-info hover:text-on-info transition-colors">
+                            <button onClick={() => setNivelModulo(modulo, 'Read')} className="px-2 py-1 rounded-md border border-info-border bg-info text-on-info font-semibold hover:brightness-110 transition-all">
                                 {t('SoloLectura') || 'Solo lectura'}
                             </button>
-                            <button onClick={() => setNivelModulo(modulo, 'None')} className="px-2 py-1 rounded-md border border-border text-on-surface2 hover:bg-surface-hover hover:text-on-surface-hover transition-colors">
+                            <button onClick={() => setNivelModulo(modulo, 'None')} className="px-2 py-1 rounded-md border border-border bg-surface1 text-on-surface1 font-semibold hover:bg-surface-hover hover:text-on-surface-hover transition-colors">
                                 {t('Ninguno') || 'Ninguno'}
                             </button>
                         </div>

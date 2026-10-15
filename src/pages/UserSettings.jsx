@@ -222,7 +222,6 @@ const UserSettings = ({ targetUser, onClose, onUserUpdated }) => {
                     usuario: finalData.usuario,
                     prefijo_tel: finalData.prefijo_tel,
                     telefono: finalData.telefono,
-                    grupo: finalData.grupo,
                     rol: finalData.rol
                 });
             } else if (sectionName === 'auth') {

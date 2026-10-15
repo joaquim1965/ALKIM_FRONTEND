@@ -95,6 +95,8 @@ export const apiFetch = async (endpoint, options = {}) => {
       ...(localStorage.getItem('empresaActiva') && localStorage.getItem('empresaActiva') !== 'todas'
         ? { 'X-Company-Id': localStorage.getItem('empresaActiva') }
         : {}),
+      // Grupo activo (12/10/2026): el servidor nunca enseña nada de otro grupo.
+      ...(localStorage.getItem('grupoActivo') ? { 'X-Group-Id': localStorage.getItem('grupoActivo') } : {}),
       ...options.headers,
     };
     if (esFormulario) delete headers['Content-Type'];

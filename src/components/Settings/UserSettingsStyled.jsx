@@ -114,13 +114,9 @@ const AccountSection = ({ sections, onSave, t, label, loading, user, getEnumLabe
             <div className="space-y-1.5 flex flex-col">
                 <label className="text-[11px] font-black text-on-surface1 tracking-wider ml-1">{t('TC s_user:grupo')}</label>
                 <div className="relative group">
-                    {parseInt(user.rol) >= 3 ? (
-                        <Input 
-                            value={sections.account.grupo} 
-                            onChange={(e) => onSave('account', { grupo: e.target.value }, false)}
-                            size="md"
-                        />
-                    ) : (
+                    {/* Solo lectura (13/10/2026): los grupos y sus miembros se
+                        gestionan en m_group / x_user_group, no en la ficha. */}
+                    {(
                         <div className="relative">
                             <select className="input-base w-full px-4 h-[45px] pr-10 appearance-none bg-surface2 border-border font-bold text-sm rounded-xl opacity-70" value={sections.account.grupo} disabled>
                                 <option value={sections.account.grupo}>{sections.account.grupo}</option>
@@ -426,9 +422,6 @@ const GroupUsersSection = ({ isSysAdmin, selectedGroup, groups, onGroupChange, l
                             </select>
                         </div>
                     </div>
-                    <Button variant="primary" size="lg" onClick={() => onSave('account', { grupo: selectedGroup })} loading={loading} leftIcon={<Save size={20} />}>
-                        {label('Save')}
-                    </Button>
                 </div>
             )}
             

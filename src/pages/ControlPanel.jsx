@@ -7,8 +7,10 @@ import authService from "../services/authService";
 import { useStore } from "../hooks/useStore";
 import { changePasswordSchema, updateProfileSchema } from "../validations/authSchemas";
 import { useTmTr } from "../contexts/TmTrContext";
-import { Lock, User, Shield, Sun, Moon, Zap, Globe, Save, KeyRound, Volume2, VolumeX } from "lucide-react";
+import { Building2, Lock, User, Shield, Sun, Moon, Zap, Globe, Save, KeyRound, Volume2, VolumeX } from "lucide-react";
 import PermissionsMatrix from "../components/User/PermissionsMatrix";
+import EntidadesGrupo from "../components/User/EntidadesGrupo";
+import { apiFetch, authHeaders } from "../services/api";
 import { sonidosHabilitados, habilitarSonidos, EVENTO_SONIDOS } from "../hooks/useMenuSpeech";
 
 /**
@@ -233,10 +235,22 @@ const ControlPanel = () => {
     // El backend valida igualmente el rol en /permissions/* (la pestaña es solo visibilidad de UI).
     const isAdmin = parseInt(user?.rol) >= 2;
 
+    // «Entidades del grupo» (12/10/2026): para el administrador de algún grupo
+    // y para el superadmin. El servidor lo vuelve a comprobar.
+    const [adminGrupo, setAdminGrupo] = useState(false);
+    useEffect(() => {
+        if (!user) return;
+        apiFetch('/companies/grupos/mios', { headers: authHeaders() })
+            .then((r) => r.json())
+            .then((body) => setAdminGrupo(Boolean(body.success && (body.data || []).some((g) => g.rol === 'ADMINISTRADOR'))))
+            .catch(() => setAdminGrupo(false));
+    }, [user?.uid]);
+
     const tabItems = [
         { id: 'general', label: t('General') || 'General', icon: <User size={18} />, content: <GeneralTab /> },
         { id: 'apariencia', label: t('Appearance') || 'Apariencia', icon: <Sun size={18} />, content: <AppearanceTab /> },
         { id: 'seguridad', label: t('Safety') || 'Seguridad', icon: <Lock size={18} />, content: <SecurityTab /> },
+        ...(adminGrupo ? [{ id: 'entidades-grupo', label: t('EntidadesGrupo') || 'Entidades del grupo', icon: <Building2 size={18} />, content: <EntidadesGrupo /> }] : []),
         ...(isAdmin ? [{ id: 'permisos', label: t('Permisos') || 'Permisos', icon: <KeyRound size={18} />, content: <PermissionsMatrix /> }] : []),
     ];
 
