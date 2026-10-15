@@ -201,23 +201,26 @@ export default function ExploradorArchivosPage() {
             <Button size="sm" variant="outline" leftIcon={<ArrowUp size={14} />} disabled={!prefijo} onClick={subir}>{t('subir_nivel', 'Subir')}</Button>
             <p className="font-mono text-sm font-bold text-on-surface2">/{prefijo}</p>
           </div>
-          <TablaTema columnas={[{ texto: '' }, { texto: t('col_nombre', 'Archivo') }, { texto: t('col_tamano', 'Tamaño'), derecha: true }, { texto: t('col_fecha', 'Fecha') }, { texto: t('col_indexado', 'En el catálogo') }]}>
+          <TablaTema columnas={[{ texto: '' }, { texto: t('col_nombre', 'Archivo') }, { texto: t('col_nombre_objeto', 'Nombre') }, { texto: t('col_tamano', 'Tamaño'), derecha: true }, { texto: t('col_fecha', 'Fecha') }, { texto: t('col_indexado', 'En el catálogo') }]}>
               {carpeta.carpetas.map((c, i) => (
                 <tr key={c} className={claseFila(i, { clic: true })} onClick={() => abrirCarpeta(c)}>
                   <td className={TD} />
-                  <td className={`${TD} font-black tracking-tight`} colSpan={4}><Folder size={14} className="mr-2 inline" />{c.slice(prefijo.length)}</td>
+                  <td className={`${TD} font-black tracking-tight`}><Folder size={14} className="mr-2 inline" />{c.slice(prefijo.length)}</td>
+                  {/* Nombre de la propiedad o entidad de la carpeta (15/10/2026). */}
+                  <td className={`${TD} font-bold`} colSpan={4}>{carpeta.nombres?.[c] || ''}</td>
                 </tr>
               ))}
               {carpeta.objetos.map((o, j) => (
                 <tr key={o.key} className={claseFila(carpeta.carpetas.length + j)}>
                   <td className={TD}><BotonFila icono={<Download size={15} />} titulo={t('descargar', 'Descargar')} onClick={() => enlaceR2(o.key)} /></td>
                   <td className={TD}><FileText size={14} className="mr-2 inline" />{o.key.slice(prefijo.length)}</td>
+                  <td className={TD} />
                   <td className={`${TD} text-right font-mono`}>{tamano(o.size)}</td>
                   <td className={`${TD} font-mono`}>{fecha(o.lastModified)}</td>
                   <td className={TD}>{o.archivo ? `${o.archivo.origen_tabla} ${o.archivo.origen_id ?? ''}${Number(o.archivo.activo) === -1 ? ` · ${t('en_papelera', 'en la papelera')}` : ''}` : t('no_indexado', 'no')}</td>
                 </tr>
               ))}
-              {!carpeta.carpetas.length && !carpeta.objetos.length && <FilaVacia columnas={5}>{t('carpeta_vacia', 'Carpeta vacía.')}</FilaVacia>}
+              {!carpeta.carpetas.length && !carpeta.objetos.length && <FilaVacia columnas={6}>{t('carpeta_vacia', 'Carpeta vacía.')}</FilaVacia>}
           </TablaTema>
         </Panel>
       )}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Building2, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { TablaTema, claseFila, TD } from '../UI/TemaPagina';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 
@@ -137,60 +138,48 @@ const EntidadesGrupo = () => {
         datos.entidades.length === 0 ? (
           <p className="p-4 text-on-surface2">{t('sin_entidades', 'Este grupo aún no tiene entidades.')}</p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-border bg-surface2/40">
-            <table className="min-w-full text-sm text-on-surface1">
-              <thead className="bg-surface2">
-                <tr>
-                  <th className="sticky left-0 z-10 bg-surface2 px-4 py-3 text-left font-bold">{t('miembro', 'Miembro')}</th>
-                  {datos.entidades.map((e) => (
-                    <th key={e.id} className="px-3 py-3 text-left font-bold whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5"><Building2 size={14} />{e.nombre}</span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {datos.miembros.map((m) => {
-                  const esAdmin = m.rol_grupo === 'ADMINISTRADOR' || Number(m.rol_global) >= 3;
-                  return (
-                    <tr key={m.uid}>
-                      <td className="sticky left-0 z-10 bg-surface2 px-4 py-2.5">
-                        <span className="block font-medium">{`${m.nombre || ''} ${m.apellido || ''}`.trim() || m.usuario}</span>
-                        <span className="block text-xs text-on-surface2">
-                          {m.email} · {esAdmin ? t('admin_grupo', 'Administrador del grupo') : t('miembro', 'Miembro')}
-                        </span>
+          // Colores de tabla del tema (docs/CRITERIOS_UI_LISTADOS.md): la fila
+          // da el color; la celda solo espacio.
+          <TablaTema columnas={[{ texto: t('miembro', 'Miembro') }, ...datos.entidades.map((e) => ({ texto: e.nombre }))]}>
+            {datos.miembros.map((m, i) => {
+              const esAdmin = m.rol_grupo === 'ADMINISTRADOR' || Number(m.rol_global) >= 3;
+              return (
+                <tr key={m.uid} className={claseFila(i)}>
+                  <td className={TD}>
+                    <span className="block font-bold">{`${m.nombre || ''} ${m.apellido || ''}`.trim() || m.usuario}</span>
+                    <span className="block text-xs opacity-80">
+                      {m.email} · {esAdmin ? t('admin_grupo', 'Administrador del grupo') : t('miembro', 'Miembro')}
+                    </span>
+                  </td>
+                  {datos.entidades.map((e) => {
+                    if (esAdmin) {
+                      return (
+                        <td key={e.id} className={TD}>
+                          <span className={`inline-block rounded-md border px-2 py-1 text-xs font-semibold ${ESTILO.PROPIETARIO}`}>
+                            {t('todas_admin', 'Todo')}
+                          </span>
+                        </td>
+                      );
+                    }
+                    const rol = accesoDe(m.uid, e.id);
+                    const clave = `${m.uid}-${e.id}`;
+                    return (
+                      <td key={e.id} className={TD}>
+                        <select
+                          value={rol}
+                          disabled={guardando === clave}
+                          onChange={(ev) => cambiar(m.uid, e.id, ev.target.value)}
+                          className={`rounded-md border px-2 py-1 text-xs font-semibold disabled:opacity-50 ${ESTILO[rol] || ESTILO['']}`}
+                        >
+                          {ACCESOS.map((a) => <option key={a} value={a}>{etiqueta(a)}</option>)}
+                        </select>
                       </td>
-                      {datos.entidades.map((e) => {
-                        if (esAdmin) {
-                          return (
-                            <td key={e.id} className="px-3 py-2.5">
-                              <span className={`inline-block rounded-md border px-2 py-1 text-xs font-semibold ${ESTILO.PROPIETARIO}`}>
-                                {t('todas_admin', 'Todo')}
-                              </span>
-                            </td>
-                          );
-                        }
-                        const rol = accesoDe(m.uid, e.id);
-                        const clave = `${m.uid}-${e.id}`;
-                        return (
-                          <td key={e.id} className="px-3 py-2.5">
-                            <select
-                              value={rol}
-                              disabled={guardando === clave}
-                              onChange={(ev) => cambiar(m.uid, e.id, ev.target.value)}
-                              className={`rounded-md border px-2 py-1 text-xs font-semibold disabled:opacity-50 ${ESTILO[rol] || ESTILO['']}`}
-                            >
-                              {ACCESOS.map((a) => <option key={a} value={a} className="bg-surface1 text-on-surface1">{etiqueta(a)}</option>)}
-                            </select>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </TablaTema>
         )
       )}
     </div>
