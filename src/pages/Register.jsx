@@ -115,7 +115,7 @@ const Register = () => {
   // Pantalla de éxito - Verificar email
   if (registrationSuccess) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
+      <div className="pagina-auth min-h-screen bg-background flex items-center justify-center py-12 px-4">
         <div className="max-w-md w-full text-center space-y-6">
           <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
           <h2 className="text-3xl font-bold text-on-background">
@@ -141,7 +141,7 @@ const Register = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="pagina-auth min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl w-full space-y-8">
         {/* Header */}
         <div className="text-center">

@@ -160,7 +160,7 @@ export default function ExploradorArchivosPage() {
             </Campo>
             <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" {...f('ejercicio')} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('caduca_antes', 'Caducan antes de')}><CampoFecha {...f('caduca_antes')} className={CLASE_INPUT} /></Campo>
-            <Campo etiqueta={t('texto', 'Buscar')}><input maxLength={100} {...f('texto')} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('texto', 'Nombre o descripción')}><input maxLength={100} {...f('texto')} placeholder={t('texto_ayuda', 'Texto en el nombre o la descripción')} className={CLASE_INPUT} /></Campo>
             <div className="flex items-end"><Button type="submit" leftIcon={<Search size={16} />} loading={cargando}>{t('buscar', 'Buscar')}</Button></div>
           </form>
           <p className={`${MICRO} text-on-surface2`}>{archivos.length} {t('archivos', 'archivos')}</p>

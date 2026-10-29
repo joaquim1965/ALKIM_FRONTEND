@@ -90,7 +90,7 @@ export default function ResumenCompra({ propiedadId, version = 0, puedeEscribir 
     ['', t('amortizacion', 'Amortización del inmueble'), null, 'titulo'],
     ['', t('valor_construccion', 'Valor de la construcción (importe × % construcción)'), 'valor_construccion'],
     ['', t('base', 'Base de amortización (+ mejoras)'), 'base_amortizacion', 'fuerte'],
-    ['0131', t('amortizacion_anual', 'Amortización anual (3 %)'), 'amortizacion_anual', 'fuerte'],
+    ['0131', t('amortizacion_anual_p', 'Amortización anual ({p} %)').replace('{p}', String(T.pct_amortizacion ?? 3).replace('.', ',')), 'amortizacion_anual', 'fuerte'],
   ];
 
   return (

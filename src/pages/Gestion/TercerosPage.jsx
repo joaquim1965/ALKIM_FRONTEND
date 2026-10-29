@@ -22,7 +22,7 @@ import { useTmTr } from '../../contexts/TmTrContext';
 import DocumentosObjeto from '../../components/Documentos/DocumentosObjeto';
 import {
   CabeceraPagina, Panel, CabeceraPanel, Campo, Leyenda, Casilla, AvisoError, AvisoAtencion, SinDato,
-  VentanaModal, CLASE_INPUT, Recuadro, Rotulo, BotonAnadir,
+  VentanaModal, CLASE_INPUT, Recuadro, Rotulo, BotonAnadir, TablaTema, claseFila, TD,
 } from '../../components/UI/TemaPagina';
 import CampoFecha from '../../components/UI/CampoFecha';
 
@@ -200,6 +200,35 @@ export default function TercerosPage() {
         <VentanaModal ancho="max-w-4xl" icono={iconos[papel]} titulo={modal.tercero ? t('editar', 'Editar tercero') : botonNuevo[papel]} onCerrar={() => !guardando && setModal(null)}>
             {ocultos && <AvisoAtencion><span className="flex items-center gap-2"><EyeOff size={14} />{t('aviso_ocultos', 'Tercero confidencial: el documento, el IBAN, la fecha de nacimiento y los ingresos no se muestran con tu acceso.')}</span></AvisoAtencion>}
             <div className="mt-4"><AvisoError>{error}</AvisoError></div>
+            {modal.tercero && (() => {
+              // Relación del tercero (18/10/2026): inquilino, proveedor… y, por contrato, propiedad/espacio y estado.
+              const cs = modal.tercero.contratos || [];
+              const relaciones = [
+                ...(modal.tercero.inquilino || cs.length ? [t('rel_inquilino', 'Inquilino')] : []),
+                ...(modal.tercero.proveedor ? [t('rel_proveedor', 'Proveedor')] : []),
+              ];
+              const estadoDe = (c) => (c.vigente ? t('contrato_vigente', 'Contrato vigente') : (c.estado === 'BORRADOR' ? t('contrato_borrador', 'Contrato en borrador') : t('contrato_terminado', 'Contrato terminado')));
+              return (
+                <Recuadro as="section" className="mt-5 space-y-3">
+                  <Rotulo>{t('bloque_relacion', 'Relación')}</Rotulo>
+                  <p className="text-sm font-black">{relaciones.length ? relaciones.join(' · ') : <SinDato />}</p>
+                  {cs.length > 0 && (
+                    <TablaTema columnas={[
+                      { texto: t('rol', 'Rol') }, { texto: t('propiedad', 'Propiedad') }, { texto: t('propiedad_espacio', 'Propiedad-Espacio') }, { texto: t('estado', 'Estado') },
+                    ]}>
+                      {cs.map((c, i) => (
+                        <tr key={`${c.contrato_id}-${c.rol}`} className={claseFila(i)}>
+                          <td className={`${TD} text-xs font-black uppercase tracking-widest`}>{c.rol}</td>
+                          <td className={`${TD} font-black`}>{c.propiedad_nombre}</td>
+                          <td className={TD}>{c.espacios.length ? c.espacios.map((e) => `${e.codigo} · ${e.nombre}`).join(' + ') : `${c.propiedad_codigo} · ${t('propiedad_entera', 'Propiedad entera')}`}</td>
+                          <td className={`${TD} font-black`}>{estadoDe(c)}</td>
+                        </tr>
+                      ))}
+                    </TablaTema>
+                  )}
+                </Recuadro>
+              );
+            })()}
             <form onSubmit={guardar} className="mt-5 space-y-6">
               <fieldset className="grid gap-4 sm:grid-cols-3">
                 <Leyenda>{t('bloque_identidad', 'Identidad')}</Leyenda>

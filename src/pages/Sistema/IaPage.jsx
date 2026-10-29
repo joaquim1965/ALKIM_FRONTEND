@@ -24,7 +24,8 @@ async function pedir(url, opciones = {}) {
 }
 
 const PROVEEDORES = [['ANTHROPIC', 'Anthropic (Claude)'], ['OPENAI', 'OpenAI (GPT)'], ['GOOGLE', 'Google (Gemini)']];
-const VACIO = { nombre: '', proveedor: 'GOOGLE', modelo: 'gemini-3.5-flash', url_claves: 'https://aistudio.google.com/apikey', clave: '', activo: true, por_defecto: false };
+const VACIO = { nombre: '', proveedor: 'GOOGLE', modelo: 'gemini-3.6-flash', url_claves: 'https://aistudio.google.com/apikey', clave: '', activo: true, por_defecto: false, precio_entrada: '', precio_salida: '' };
+const precioTxt = (v) => (v == null || v === '' ? '' : String(Number(v)).replace('.', ','));
 const fechaHora = (v) => (v ? new Date(v).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : null);
 
 export default function IaPage() {
@@ -46,7 +47,7 @@ export default function IaPage() {
   const nuevo = () => { setError(''); setAviso(''); setVerClave(false); setForm({ ...VACIO }); };
   const editar = (p) => {
     setError(''); setAviso(''); setVerClave(false);
-    setForm({ id: p.id, nombre: p.nombre, proveedor: p.proveedor, modelo: p.modelo, url_claves: p.url_claves || '', clave: '', claveCargada: false, clave_final: p.clave_final, activo: Boolean(p.activo), por_defecto: Boolean(p.por_defecto) });
+    setForm({ id: p.id, nombre: p.nombre, proveedor: p.proveedor, modelo: p.modelo, url_claves: p.url_claves || '', clave: '', claveCargada: false, clave_final: p.clave_final, activo: Boolean(p.activo), por_defecto: Boolean(p.por_defecto), precio_entrada: precioTxt(p.precio_entrada), precio_salida: precioTxt(p.precio_salida) });
   };
 
   // El ojo: la primera vez trae la clave del servidor (queda en la auditoría).
@@ -129,6 +130,9 @@ export default function IaPage() {
                   className="rounded-xl border border-border px-3 hover:bg-surface-hover hover:text-on-surface-hover">{verClave ? <EyeOff size={18} /> : <Eye size={18} />}</button>
               </div>
             </Campo>
+            {/* Precio (18/10/2026): se enseña al elegir otra IA cuando una está saturada. */}
+            <Campo etiqueta={t('precio_entrada', 'Precio entrada ($ / millón de tokens)')}><input inputMode="decimal" {...fc('precio_entrada')} placeholder="0,30" className={`${CLASE_INPUT} font-mono`} /></Campo>
+            <Campo etiqueta={t('precio_salida', 'Precio salida ($ / millón de tokens)')}><input inputMode="decimal" {...fc('precio_salida')} placeholder="2,50" className={`${CLASE_INPUT} font-mono`} /></Campo>
             <div className="flex items-end gap-6 pb-2 sm:col-span-2">
               <Casilla etiqueta={t('activa', 'Activa')} checked={form.activo} onChange={(v) => setForm((f) => ({ ...f, activo: v }))} />
               <Casilla etiqueta={t('por_defecto', 'Por defecto')} checked={form.por_defecto} onChange={(v) => setForm((f) => ({ ...f, por_defecto: v }))} />
@@ -147,9 +151,9 @@ export default function IaPage() {
         <div className="p-3">
           <TablaTema columnas={[
             { texto: '' }, { texto: t('nombre', 'Nombre') }, { texto: t('proveedor', 'Proveedor') }, { texto: t('modelo', 'Modelo') },
-            { texto: t('clave', 'Clave API') }, { texto: t('url_corta', 'Web') }, { texto: t('estado', 'Estado') }, { texto: t('ultima_prueba', 'Última prueba') }, { texto: t('usos', 'Usos'), derecha: true },
+            { texto: t('precio', 'Precio'), derecha: true }, { texto: t('clave', 'Clave API') }, { texto: t('url_corta', 'Web') }, { texto: t('estado', 'Estado') }, { texto: t('ultima_prueba', 'Última prueba') }, { texto: t('usos', 'Usos'), derecha: true },
           ]}>
-            {lista.length === 0 && <FilaVacia columnas={9}>{t('vacio', 'Todavía no hay ninguno. Pulsa «+» para añadir el primero.')}</FilaVacia>}
+            {lista.length === 0 && <FilaVacia columnas={10}>{t('vacio', 'Todavía no hay ninguno. Pulsa «+» para añadir el primero.')}</FilaVacia>}
             {lista.map((p, i) => (
               <tr key={p.id} className={claseFila(i)}>
                 <td className={`${TD} whitespace-nowrap`}>
@@ -160,6 +164,7 @@ export default function IaPage() {
                 <td className={TD}><span className="font-black">{p.nombre}</span>{Number(p.por_defecto) ? ` · ${t('por_defecto', 'Por defecto')}` : ''}</td>
                 <td className={TD}>{(PROVEEDORES.find(([v]) => v === p.proveedor) || [null, p.proveedor])[1]}</td>
                 <td className={`${TD} font-mono text-xs`}>{p.modelo}</td>
+                <td className={`${TD} whitespace-nowrap text-right font-mono`}>{p.precio_entrada == null && p.precio_salida == null ? <SinDato /> : `${precioTxt(p.precio_entrada) || '—'} / ${precioTxt(p.precio_salida) || '—'}`}</td>
                 <td className={`${TD} font-mono`}>{p.tiene_clave ? p.clave_final : <SinDato />}</td>
                 <td className={TD}>{p.url_claves ? <a href={p.url_claves} target="_blank" rel="noopener noreferrer" title={p.url_claves} aria-label={t('abrir', 'Abrir')} className="inline-flex rounded-md p-1 hover:bg-surface-hover hover:text-on-surface-hover"><ExternalLink size={15} /></a> : <SinDato />}</td>
                 <td className={TD}>{Number(p.activo) ? t('activa', 'Activa') : t('inactiva', 'Inactiva')}</td>

@@ -17,13 +17,13 @@
  * API: GET /files/categorias?objeto= · POST /files/categorias ·
  *      PUT /files/categorias/:id · PUT /files/categorias/orden · GET /files/categorias/:id/uso · DELETE /files/categorias/:id
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pencil, Trash2, Check, X, GripVertical, CornerDownRight } from 'lucide-react';
 import Button from '../UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { Campo, AvisoError, CLASE_INPUT, BotonFila, BotonAnadir } from '../UI/TemaPagina';
 import { VentanaEmergente } from '../UI/ZonaArchivos';
-import { ordenArbol, moverTipo } from './ordenTipos';
+import { ordenArbol, moverTipo, subarbol, NIVEL_MAXIMO } from './ordenTipos';
 import { useStore } from '../../hooks/useStore';
 
 async function pedir(url, opciones = {}) {
@@ -33,7 +33,9 @@ async function pedir(url, opciones = {}) {
   return b;
 }
 
-const PROTEGIDOS = ['SIN_CLASIFICAR', 'DNI', 'DNI_ANVERSO', 'DNI_REVERSO', 'FIRMA', 'CERT_DIGITAL'];
+// FACTURAS_PERIODICAS (15/10/2026): raíz de la pestaña Facturas; no se ve en ella y no se borra.
+// CONTRATOS_ALQUILER y CONTRATO_ARRENDAMIENTO (16/10/2026): raíz de Contratos → Documentos y el tipo que se lee.
+const PROTEGIDOS = ['SIN_CLASIFICAR', 'DNI', 'DNI_ANVERSO', 'DNI_REVERSO', 'FIRMA', 'CERT_DIGITAL', 'FACTURAS_PERIODICAS', 'CONTRATOS_ALQUILER', 'CONTRATO_ARRENDAMIENTO'];
 const VACIO = { nombre: '', obligatorio: false, caduca: false, meses_aviso: 2, confidencial: false, condicion: '' };
 
 // `cuentas` (08/10/2026): { categoria_id: n } con los documentos que tiene la ficha abierta;
@@ -62,7 +64,9 @@ function Envoltorio({ enLinea, children, ...ventana }) {
 }
 
 // `sinObligatorio` (09/10/2026): no se ve ni se toca «Obligatorio» (plantilla de entidades).
-export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio, editarCodigo = null, cuentas = null, enLinea = false, sinObligatorio = false }) {
+// grupo / excluirGrupo (15/10/2026): cada pestaña ve solo sus tipos (Facturas: el grupo
+// FACTURAS; Documentos: todo menos él). El catálogo es el mismo: el orden se guarda entero.
+export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio, editarCodigo = null, cuentas = null, enLinea = false, sinObligatorio = false, grupo = null, excluirGrupo = null }) {
   const [tipos, setTipos] = useState([]);
   const [error, setError] = useState('');
   const [form, setForm] = useState(null);        // { id?, ...campos }
@@ -84,6 +88,44 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
     } catch (e) { setError(e.message); }
   }, [tabla]);
   useEffect(() => { cargar(); }, [cargar]);
+  const raizGrupo = grupo ? tipos.find((c) => c.codigo === grupo) : null;
+  // excluirGrupo: un código o una lista (16/10/2026: Documentos excluye FACTURAS y CONTRATOS).
+  const excluidos = [].concat(excluirGrupo || []);
+  /** Los tipos que se ven de una lista (toda, solo el grupo o todo menos el grupo). */
+  const visiblesDe = (lista) => {
+    if (!grupo && !excluidos.length) return lista;
+    if (!grupo) {
+      const fuera = new Set();
+      for (const codigo of excluidos) {
+        const r = lista.find((c) => c.codigo === codigo);
+        if (r) subarbol(lista, r.id).forEach((x) => fuera.add(x));
+      }
+      return lista.filter((c) => !fuera.has(Number(c.id)));
+    }
+    const raiz = lista.find((c) => c.codigo === grupo);
+    const ids = raiz ? subarbol(lista, raiz.id) : new Set();
+    // Con `grupo`, la raíz no se enseña: sus hijos salen como tipos principales (15/10/2026).
+    return lista.filter((c) => ids.has(Number(c.id)) === Boolean(grupo) && !(grupo && raiz && Number(c.id) === Number(raiz.id)));
+  };
+  // Nivel que se pinta: con `grupo`, uno menos (la raíz no se ve).
+  const nivelDe = (c) => Math.max(0, (c.nivel || 0) - (grupo ? 1 : 0));
+  const visibles = visiblesDe(tipos);
+  /**
+   * Movimiento permitido (15/10/2026): el tipo arrastrado tiene que seguir viéndose en
+   * esta lista después de soltarlo, y la raíz del grupo no se mueve. Antes, soltar
+   * delante del primero sacaba el tipo de FACTURAS y desaparecía de la pestaña.
+   */
+  const movimiento = (idDestino, zona) => {
+    if (raizGrupo && grupo && Number(arrastrado) === Number(raizGrupo.id)) return null;
+    const nueva = moverTipo(tipos, arrastrado, idDestino, zona);
+    if (!nueva) return null;
+    if (!visiblesDe(nueva).some((c) => Number(c.id) === Number(arrastrado))) return null;
+    if (grupo && raizGrupo && nueva.find((c) => Number(c.id) === Number(raizGrupo.id))?.padre_id != null) return null;
+    return nueva;
+  };
+  // Primera fila a la que lleva soltar en la cabecera: con `grupo`, la primera DENTRO del grupo
+  // (soltar delante del propio grupo lo sacaría de la pestaña).
+  const primeraFila = visibles[0];
   // Abierto con un tipo elegido en el desplegable: directamente su formulario.
   const [abierto, setAbierto] = useState(false);
   useEffect(() => {
@@ -96,10 +138,37 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
   const guardar = async (ev) => {
     ev.preventDefault();
     if (!form.nombre.trim()) return setError(t('falta_nombre_tipo', 'Indica el nombre del tipo.'));
+    // Pestaña de un grupo cuya raíz aún no existe (p. ej. CONTRATOS antes de aplicar su migración, 16/10/2026):
+    // el tipo se crearía fuera del grupo y no se vería aquí. Se avisa en lugar de crearlo.
+    if (grupo && !raizGrupo) return setError(t('falta_raiz_grupo', 'Falta el grupo «{g}» en la base de datos: reinicia el backend para que se aplique su migración.').replace('{g}', grupo));
     setOcupado(true); setError('');
     try {
       const cuerpo = JSON.stringify({ ...form, objeto_tabla: tabla, condicion: form.condicion || null });
-      await pedir(form.id ? `/files/categorias/${form.id}` : '/files/categorias', { method: form.id ? 'PUT' : 'POST', body: cuerpo });
+      const r = await pedir(form.id ? `/files/categorias/${form.id}` : '/files/categorias', { method: form.id ? 'PUT' : 'POST', body: cuerpo });
+      // «Pertenece a» (16/10/2026): el tipo va al final de la etiqueta elegida. Sin elegir,
+      // es principal (en la pestaña de un grupo, principal dentro del grupo).
+      const idTipo = form.id || r?.data?.id;
+      const padreNuevo = form.padreId ? Number(form.padreId) : (grupo && raizGrupo ? Number(raizGrupo.id) : null);
+      const padreAntes = form.id ? (form.padreOriginal ?? null) : null;
+      if (idTipo && padreNuevo !== padreAntes) {
+        const { data } = await pedir(`/files/categorias?objeto=${encodeURIComponent(tabla)}`);
+        const lista = ordenArbol((data || []).filter((c) => c.codigo !== 'SIN_CLASIFICAR'));
+        let nueva = null;
+        if (padreNuevo != null) nueva = moverTipo(lista, idTipo, padreNuevo, 'dentro');
+        else {
+          const propios = subarbol(lista, idTipo);
+          const ultimo = [...lista].reverse().find((c) => c.padre_id == null && !propios.has(Number(c.id)));
+          nueva = ultimo ? moverTipo(lista, idTipo, ultimo.id, 'despues') : null;
+        }
+        if (nueva) {
+          await pedir('/files/categorias/orden', {
+            method: 'PUT',
+            body: JSON.stringify({ objeto_tabla: tabla, tipos: nueva.map((x) => ({ id: x.id, padre_id: x.padre_id })) }),
+          });
+        } else if (padreNuevo != null) {
+          setError(t('no_cabe_ahi', 'No se puede poner ahí: pasaría del número máximo de niveles.'));
+        }
+      }
       // El nombre que se ve sale del diccionario (s_dictionary, contexto CategoriaArchivo): el servidor
       // lo actualiza y sube la versión del idioma; se vuelve a pedir para verlo al momento (06/10/2026).
       const { fetchLanguage, language } = useStore.getState();
@@ -123,23 +192,25 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
   const zonaDe = (ev, c) => {
     const r = ev.currentTarget.getBoundingClientRect();
     const y = (ev.clientY - r.top) / r.height;
-    const puedeDentro = moverTipo(tipos, arrastrado, c.id, 'dentro') != null;
+    const puedeDentro = movimiento(c.id, 'dentro') != null;
     // Reparto a partes iguales (09/10/2026, petición del usuario): la mitad central de la fila
     // es «dentro» (subtipo) y el hueco entre dos filas (el 25 % de abajo de una + el 25 % de
     // arriba de la siguiente) es «entre las dos». Así las dos zonas miden lo mismo.
     if (puedeDentro && y >= 0.25 && y <= 0.75) return 'dentro';
-    return y < 0.5 ? 'antes' : 'despues';
+    const zona = y < 0.5 ? 'antes' : 'despues';
+    return movimiento(c.id, zona) ? zona : null;   // null: ahí no se puede soltar
   };
   const sobreFila = (ev, c) => {
     if (arrastrado == null || arrastrado === c.id) return;
+    const zona = zonaDe(ev, c);
+    if (!zona) { if (destino?.id === c.id) setDestino(null); return; }   // sin preventDefault: no se puede soltar
     ev.preventDefault();
     ev.dataTransfer.dropEffect = 'move';
-    const zona = zonaDe(ev, c);
     if (destino?.id !== c.id || destino?.zona !== zona) setDestino({ id: c.id, zona });
   };
   const soltar = async (ev, c) => {
     ev.preventDefault();
-    const nueva = destino && arrastrado != null ? moverTipo(tipos, arrastrado, c.id, destino.zona) : null;
+    const nueva = destino && arrastrado != null ? movimiento(c.id, destino.zona) : null;
     setArrastrado(null); setDestino(null);
     if (!nueva) return;
     const antes = tipos;
@@ -152,6 +223,42 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
       onCambio?.();
     } catch (e) { setTipos(antes); setError(e.message); }
   };
+  // ── Desplazar la lista mientras se arrastra (15/10/2026, petición del usuario) ──
+  // Con una fila cogida: en la parte de abajo de la zona visible la lista baja (hasta
+  // enseñar la última fila); en la de arriba, sube (hasta la primera). Más rápido
+  // cuanto más cerca del borde; en el centro se queda quieta.
+  const tablaRef = useRef(null);
+  useEffect(() => {
+    if (arrastrado == null) return undefined;
+    const contenedor = (() => {
+      for (let el = tablaRef.current?.parentElement; el; el = el.parentElement) {
+        const oy = getComputedStyle(el).overflowY;
+        if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+      }
+      return null;   // la página
+    })();
+    let y = null;
+    let marco = 0;
+    const alMover = (ev) => { y = ev.clientY; };
+    const paso = () => {
+      if (y != null) {
+        const r = contenedor ? contenedor.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+        const arriba = Math.max(r.top, 0);
+        const abajo = Math.min(r.bottom, window.innerHeight);
+        const alto = abajo - arriba;
+        const banda = alto * 0.3;                       // 30 % de arriba y 30 % de abajo
+        let v = 0;
+        if (y < arriba + banda) v = -Math.ceil(14 * (1 - Math.max(0, y - arriba) / banda));
+        else if (y > abajo - banda) v = Math.ceil(14 * (1 - Math.max(0, abajo - y) / banda));
+        if (v) { if (contenedor) contenedor.scrollTop += v; else window.scrollBy(0, v); }
+      }
+      marco = requestAnimationFrame(paso);
+    };
+    document.addEventListener('dragover', alMover);
+    marco = requestAnimationFrame(paso);
+    return () => { document.removeEventListener('dragover', alMover); cancelAnimationFrame(marco); };
+  }, [arrastrado]);
+
   const marcaDestino = (c) => {
     if (destino?.id !== c.id) return '';
     if (destino.zona === 'antes') return 'shadow-[inset_0_4px_0_0_currentColor]';
@@ -164,10 +271,23 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
   const fondoDestino = (c) => (destino?.id === c.id && destino.zona === 'dentro'
     ? { backgroundColor: 'var(--color-success)', color: 'var(--color-on-success)' } : undefined);
 
-  const editar = (c) => setForm({
-    id: c.id, nombre: nombreCat(c), obligatorio: Boolean(Number(c.obligatorio)), caduca: Boolean(Number(c.caduca)),
-    meses_aviso: c.meses_aviso || 2, confidencial: Boolean(Number(c.confidencial)), condicion: c.condicion || '',
-  });
+  const editar = (c) => {
+    const padre = c.padre_id == null ? null : Number(c.padre_id);
+    // En la pestaña de un grupo, colgar de la raíz (que no se ve) es ser principal.
+    const visible = padre != null && !(grupo && raizGrupo && padre === Number(raizGrupo.id));
+    setForm({
+      id: c.id, nombre: nombreCat(c), obligatorio: Boolean(Number(c.obligatorio)), caduca: Boolean(Number(c.caduca)),
+      meses_aviso: c.meses_aviso || 2, confidencial: Boolean(Number(c.confidencial)), condicion: c.condicion || '',
+      padreId: visible ? String(padre) : '', padreOriginal: padre,
+    });
+  };
+  // Etiquetas a las que puede pertenecer el tipo del formulario: todas las que se ven,
+  // menos él mismo y lo que cuelga de él, y sin pasar del máximo de niveles.
+  const padresPosibles = () => {
+    const propios = form?.id ? subarbol(tipos, form.id) : new Set();
+    return visibles.filter((c) => !propios.has(Number(c.id))
+      && (form?.id ? moverTipo(tipos, form.id, c.id, 'dentro') != null : (c.nivel || 0) < NIVEL_MAXIMO));
+  };
   const casilla = (k, txt) => (
     <label className="flex items-center gap-2 text-sm font-bold">
       <input type="checkbox" className="h-5 w-5" checked={Boolean(form[k])} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.checked }))} />{txt}
@@ -188,6 +308,17 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
 
         {form && (
           <form onSubmit={guardar} className="grid gap-3 rounded-2xl border border-border p-4 sm:grid-cols-2">
+            {/* A qué etiqueta pertenece (16/10/2026): se puede cambiar aquí, sin arrastrar. */}
+            <div className="sm:col-span-2">
+              <Campo etiqueta={t('pertenece_a', 'Pertenece a')}>
+                <select value={form.padreId || ''} onChange={(e) => setForm((f) => ({ ...f, padreId: e.target.value }))} className={CLASE_INPUT}>
+                  <option value="">{t('etiqueta_principal', '— Ninguna: es una etiqueta principal —')}</option>
+                  {padresPosibles().map((c) => (
+                    <option key={c.id} value={String(c.id)}>{`${'\u00A0\u00A0\u00A0'.repeat(nivelDe(c))}${nivelDe(c) ? '↳ ' : ''}${nombreCat(c)}`}</option>
+                  ))}
+                </select>
+              </Campo>
+            </div>
             <div className="sm:col-span-2">
               <Campo etiqueta={t('nombre_tipo', 'Nombre del tipo')}>
                 <input autoFocus value={form.nombre} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} className={CLASE_INPUT} />
@@ -219,20 +350,20 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
           </form>
         )}
 
-        <div className="overflow-x-auto rounded-2xl border border-border">
+        <div ref={tablaRef} className="overflow-x-auto rounded-2xl border border-border">
           <table className="w-full text-left text-sm">
             <thead className="bg-table-header text-[11px] font-black uppercase tracking-widest text-on-table-header">
               {/* La cabecera también recibe la fila: soltarla aquí la pone la PRIMERA de todas
                   (09/10/2026). Antes, al subir hasta arriba se salía de la lista y no se movía. */}
               <tr
                 onDragOver={(ev) => {
-                  const primero = tipos[0];
-                  if (arrastrado == null || !primero || arrastrado === primero.id) return;
+                  const primero = primeraFila;
+                  if (arrastrado == null || !primero || arrastrado === primero.id || !movimiento(primero.id, 'antes')) return;
                   ev.preventDefault(); ev.dataTransfer.dropEffect = 'move';
                   if (destino?.id !== primero.id || destino?.zona !== 'antes') setDestino({ id: primero.id, zona: 'antes' });
                 }}
-                onDrop={(ev) => { if (tipos[0]) soltar(ev, tipos[0]); }}
-                className={arrastrado != null && destino?.id === tipos[0]?.id && destino?.zona === 'antes' ? 'shadow-[inset_0_-4px_0_0_currentColor]' : ''}
+                onDrop={(ev) => { if (primeraFila) soltar(ev, primeraFila); }}
+                className={arrastrado != null && destino?.id === primeraFila?.id && destino?.zona === 'antes' ? 'shadow-[inset_0_-4px_0_0_currentColor]' : ''}
               >
                 <th className="px-3 py-2" />
                 <th className="px-3 py-2">{t('nombre_tipo', 'Nombre del tipo')}</th>
@@ -243,7 +374,7 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
               </tr>
             </thead>
             <tbody>
-              {tipos.map((c) => (
+              {visibles.map((c) => (
                 <tr
                   key={c.id} draggable
                   onDragStart={(ev) => { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', String(c.id)); setArrastrado(c.id); }}
@@ -258,11 +389,16 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
                       <GripVertical size={16} />
                     </span>
                     <BotonFila icono={<Pencil size={15} />} titulo={t('editar_tipo', 'Editar tipo')} onClick={() => { setError(''); editar(c); }} />
+                    {/* Flecha: nuevo subtipo dentro de esta fila (16/10/2026). No sale si ya está en el último nivel. */}
+                    {(c.nivel || 0) < NIVEL_MAXIMO && (
+                      <BotonFila icono={<CornerDownRight size={15} />} titulo={t('nuevo_subtipo', 'Nuevo subtipo dentro de «{tipo}»').replace('{tipo}', nombreCat(c))}
+                        onClick={() => { setError(''); setForm({ ...VACIO, padreId: String(c.id) }); }} />
+                    )}
                     {!PROTEGIDOS.includes(c.codigo) && <BotonFila icono={<Trash2 size={15} />} titulo={t('borrar_tipo', 'Borrar tipo')} onClick={() => borrar(c)} />}
                   </td>
                   {/* Sangría por nivel (09/10/2026): cada nivel de subtipo, 24 px más adentro. */}
-                  <td className={`px-3 py-1.5 ${c.nivel ? 'font-bold' : 'font-black'}`} style={{ paddingLeft: `${12 + (c.nivel || 0) * 24}px` }}>
-                    {c.nivel ? <CornerDownRight size={14} className="mr-2 inline align-[-2px]" aria-label={t('subtipo', 'Subtipo')} /> : null}
+                  <td className={`px-3 py-1.5 ${nivelDe(c) ? 'font-bold' : 'font-black'}`} style={{ paddingLeft: `${12 + nivelDe(c) * 24}px` }}>
+                    {nivelDe(c) ? <CornerDownRight size={14} className="mr-2 inline align-[-2px]" aria-label={t('subtipo', 'Subtipo')} /> : null}
                     {nombreCat(c)}
                     {cuentas && <span className="ml-1 font-bold" title={t('docs_en_ficha', 'Documentos de esta ficha')}>({cuentas[c.id] || 0})</span>}
                   </td>

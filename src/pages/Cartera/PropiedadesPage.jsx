@@ -2,7 +2,7 @@
  * PropiedadesPage — Cartera → Propiedades (01/10/2026, Plan core inmobiliaria fase 1).
  *
  * Lista de propiedades de las entidades del usuario (la entidad activa filtra)
- * y ficha con pestañas: Datos · Espacios · Contratos · Compra · Titulares · Préstamos · Documentos.
+ * y ficha con pestañas: Datos · Espacios · Contratos · Compra · Mejoras · Titulares · Préstamos · Facturas · Documentos.
  * Sin UF (05/10/2026): los contratos van a la propiedad entera o a sus espacios.
  * Los espacios comunes se ven en el árbol pero no son alquilables.
  *
@@ -10,7 +10,7 @@
  *   /propiedades/:id/espacios[/:espacio]
  * Textos: s_dictionary, contextos «Propiedades», «TipoPropiedad», «TipoEspacio».
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Building, Copy, FileSignature, ChevronRight, CornerDownRight, Pencil, Trash2, Lock, FileText } from 'lucide-react';
 import Button from '../../components/UI/Button';
@@ -21,14 +21,23 @@ import {
   CLASE_INPUT, Recuadro, claseFila, BotonFila, BotonAnadir,
 } from '../../components/UI/TemaPagina';
 import DocumentosObjeto from '../../components/Documentos/DocumentosObjeto';
+// Tipo principal de las facturas en la plantilla de propiedades (migración 2026.10.15d).
+const GRUPO_FACTURAS = 'FACTURAS_PERIODICAS';
+// Contratos → Documentos (16/10/2026): los PDF de los contratos, por años.
+const GRUPO_CONTRATOS = 'CONTRATOS_ALQUILER';
 import TitularesPestana from './TitularesPestana';
 import PrestamosPestana from './PrestamosPestana';
 import ContratosPestana from './ContratosPestana';
+import ComunicacionesPestana from './ComunicacionesPestana';
+import GarantiasPestana from './GarantiasPestana';
 import CompraPestana from './CompraPestana';
 import ResumenCompra from './ResumenCompra';
 import LecturaNotaSimple from './LecturaNotaSimple';
 import LecturaFactura, { DESTINO_DE_CATEGORIA } from './LecturaFactura';
 import LecturaPrestamo from './LecturaPrestamo';
+import LecturaContrato from './LecturaContrato';
+import LecturaFacturaHacienda from './LecturaFacturaHacienda';
+import HaciendaPestana from './HaciendaPestana';
 import LecturaCompraventa from './LecturaCompraventa';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
@@ -57,6 +66,7 @@ export default function PropiedadesPage() {
   const { t } = useTmTr('Propiedades');
   const { t: tp } = useTmTr('TipoPropiedad');
   const { t: te } = useTmTr('TipoEspacio');
+  const { t: td } = useTmTr('Documentos');
   const { can, user } = useStore();
   // Los roles 3 y 4 lo pueden todo en el backend aunque no tengan fila en xs_user_table.
   const puede = (tabla, nivel) => Number(user?.rol) >= 3 || can(tabla, nivel);
@@ -68,6 +78,11 @@ export default function PropiedadesPage() {
   const veContratos = puede('im_contract', 'Read');
   const puedeContratos = puede('im_contract', 'Write');
   const puedeEspacios = can('im_space', 'Write');
+  // Comunicaciones con los inquilinos (27/10/2026).
+  const veComunicaciones = puede('im_communication', 'Read');
+  const puedeComunicaciones = puede('im_communication', 'Write');
+  const veGarantias = puede('im_equipment', 'Read');
+  const puedeGarantias = puede('im_equipment', 'Write');
 
   const [propiedades, setPropiedades] = useState([]);
   const [tipos, setTipos] = useState({ propiedad: [], espacio: [] });
@@ -92,15 +107,21 @@ export default function PropiedadesPage() {
   const [alquilar, setAlquilar] = useState(null);
   const [versionCompra, setVersionCompra] = useState(0);   // recarga el resumen de la compra
   const [versionPrestamos, setVersionPrestamos] = useState(0);   // recarga Préstamos tras leer una escritura
+  const [versionContratos, setVersionContratos] = useState(0);   // recarga Contratos tras leer un contrato (16/10/2026)
   // Documentos recién subidos que se leen y se pasan a su formulario, uno detrás de otro (05-06/10/2026):
   // nota simple → ficha; facturas → Gastos de compra / Mejoras.
   const [porLeer, setPorLeer] = useState({ cola: [], hechos: 0 });
   // Documentos que se leen al subirlos (o con el botón «Leer datos» de su fila): docs/NORMAS_DESARROLLO.md §12.
-  const LEIBLES = ['NOTA_SIMPLE', 'ESCRITURA_COMPRA', 'ESCRITURA_HIPOTECA', ...Object.keys(DESTINO_DE_CATEGORIA)];
+  // CONTRATO_ARRENDAMIENTO (16/10/2026): Contratos → Documentos → pasa a Contratos → Datos.
+  const LEIBLES = ['NOTA_SIMPLE', 'ESCRITURA_COMPRA', 'ESCRITURA_HIPOTECA', 'CONTRATO_ARRENDAMIENTO', ...Object.keys(DESTINO_DE_CATEGORIA)];
   const encolar = (a) => {
     if (!LEIBLES.includes(a.categoria_codigo)) return;
     setPorLeer((x) => ({ cola: [...x.cola, a], hechos: x.cola.length ? x.hechos : 0 }));
   };
+  // Facturas (27/10/2026): TODA factura de la pestaña Facturas se lee para Hacienda al subirla
+  // (y con «Datos para Hacienda» en su fila): LecturaFacturaHacienda → im_invoice.
+  const [versionFacturas, setVersionFacturas] = useState(0);
+  const encolarFactura = (a) => setPorLeer((x) => ({ cola: [...x.cola, { ...a, hacienda: true }], hechos: x.cola.length ? x.hechos : 0 }));
   const siguiente = () => setPorLeer((x) => ({ cola: x.cola.slice(1), hechos: x.hechos + 1 }));
   const leyendo = porLeer.cola[0];
   const posicion = porLeer.hechos + porLeer.cola.length > 1 ? `${porLeer.hechos + 1} / ${porLeer.hechos + porLeer.cola.length}` : '';
@@ -246,6 +267,13 @@ export default function PropiedadesPage() {
   const f = (k) => ({ value: form[k] ?? '', onChange: (e) => setForm((s) => ({ ...s, [k]: e.target.value })) });
   const fe = (k) => ({ value: espacio?.[k] ?? '', onChange: (e) => setEspacio((s) => ({ ...s, [k]: e.target.value })) });
   const plano = aplanar(ficha?.espacios || []);
+  // Contratos → Documentos (16/10/2026): primer nivel por espacio alquilable o la propiedad entera.
+  const destinosContratos = useMemo(() => ({
+    etiqueta: t('espacio', 'Espacio'),
+    base: `${ficha?.datos?.nombre ? `${ficha.datos.nombre} · ` : ''}${t('propiedad_entera', 'Propiedad entera')}`,
+    tabla: 'im_space',
+    opciones: aplanar(ficha?.espacios || []).filter((e) => !Number(e.es_comun) && Number(e.activo ?? 1)).map((e) => ({ id: e.id, nombre: `${e.codigo} · ${e.nombre}` })),
+  }), [ficha?.espacios, ficha?.datos?.nombre, t]);
   const admiteEspacios = Number(tipos.propiedad.find((x) => String(x.id) === String(form.tipo_id))?.admite_espacios ?? 1) === 1;
 
   const columnas = [
@@ -485,12 +513,21 @@ export default function PropiedadesPage() {
           pestanas={[
             { id: 'datos', etiqueta: t('pestana_datos', 'Datos'), contenido: pestanaDatos },
             { id: 'espacios', etiqueta: t('pestana_espacios', 'Espacios'), contador: plano.length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: pestanaEspacios },
-            ...(veContratos ? [{ id: 'contratos', etiqueta: t('pestana_contratos', 'Contratos'), contador: contratosFicha.filter((c) => ['VIGENTE', 'PRORROGADO'].includes(c.estado)).length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ContratosPestana propiedadId={ficha.id} propiedadNombre={ficha.datos?.nombre} espacios={plano} puedeEscribir={puedeContratos} preseleccion={alquilar} onPreseleccionUsada={() => setAlquilar(null)} onCambio={() => { cargarContratos(ficha.id); cargar(); }} /> }] : []),
+            ...(veContratos ? [{ id: 'contratos', etiqueta: t('pestana_contratos', 'Contratos'), contador: contratosFicha.filter((c) => ['VIGENTE', 'PRORROGADO'].includes(c.estado)).length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ContratosPestana propiedadId={ficha.id} propiedadNombre={ficha.datos?.nombre} espacios={plano} puedeEscribir={puedeContratos} preseleccion={alquilar} onPreseleccionUsada={() => setAlquilar(null)} onCambio={() => { cargarContratos(ficha.id); cargar(); }}
+              version={versionContratos}
+              documentos={<DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} grupo={GRUPO_CONTRATOS} porAnyo destinos={destinosContratos} />} /> }] : []),
+            ...(veComunicaciones ? [{ id: 'comunicaciones', etiqueta: t('pestana_comunicaciones', 'Comunicaciones'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ComunicacionesPestana propiedadId={ficha.id} propiedadNombre={[ficha.datos?.codigo, ficha.datos?.nombre].filter(Boolean).join(' · ')} espacios={plano} contratos={contratosFicha} puedeEscribir={puedeComunicaciones} /> }] : []),
             { id: 'compra', etiqueta: t('pestana_compra', 'Compra'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <CompraPestana propiedadId={ficha.id} version={versionCompra} puedeEscribir={puedeEscribir} onCambio={() => setVersionCompra((v) => v + 1)} cabecera={<ResumenCompra propiedadId={ficha.id} version={versionCompra} puedeEscribir={puedeEscribir} />} /> },
             { id: 'mejoras', etiqueta: t('pestana_mejoras', 'Mejoras'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <CompraPestana tipo="mejoras" version={versionCompra} propiedadId={ficha.id} puedeEscribir={puedeEscribir} onCambio={() => setVersionCompra((v) => v + 1)} /> },
             ...(veTitulares ? [{ id: 'titulares', etiqueta: t('pestana_titulares', 'Titulares'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <TitularesPestana propiedadId={ficha.id} puedeEscribir={puedeTitulares && !Number(ficha.datos?.es_de_tercero)} onCambio={cargar} /> }] : []),
             ...(vePrestamos ? [{ id: 'prestamos', etiqueta: t('pestana_prestamos', 'Préstamos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <PrestamosPestana propiedadId={ficha.id} version={versionPrestamos} puedeEscribir={puedePrestamos} /> }] : []),
-            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} /> },
+            // Facturas (15/10/2026): los documentos del grupo FACTURAS, por años. En
+            // Documentos ese grupo no sale (mismos archivos, otra vista).
+            { id: 'facturas', etiqueta: t('pestana_facturas', 'Facturas'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto key={`facturas-${versionFacturas}`} tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolarFactura} leibles onLeer={encolarFactura} grupo={GRUPO_FACTURAS} porAnyo tipoHacienda /> },
+            // Resumen para la Renta por año (28/10/2026): de momento solo gastos.
+            { id: 'hacienda', etiqueta: t('pestana_hacienda', 'Hacienda'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <HaciendaPestana propiedadId={ficha.id} propiedadNombre={[ficha.datos?.codigo, ficha.datos?.nombre].filter(Boolean).join(' · ')} puedeEscribir={puedeEscribir} version={versionFacturas} /> },
+            ...(veGarantias ? [{ id: 'garantias', etiqueta: t('pestana_garantias', 'Garantías'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <GarantiasPestana key={`gar-${versionFacturas}`} propiedadId={ficha.id} espacios={plano} puedeEscribir={puedeGarantias} /> }] : []),
+            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} excluirGrupo={[GRUPO_FACTURAS, GRUPO_CONTRATOS]} avisoExcluido={`${td('facturas_en_pestana', 'Las facturas están en la pestaña «Facturas».')} ${td('contratos_en_pestana', 'Los contratos están en la pestaña «Contratos» → Documentos.')}`} /> },
           ]}
         />
       )}
@@ -535,7 +572,28 @@ export default function PropiedadesPage() {
           onAplicado={() => setVersionPrestamos((v) => v + 1)}
         />
       )}
-      {leyendo && ficha?.id && DESTINO_DE_CATEGORIA[leyendo.categoria_codigo] && (
+      {leyendo && ficha?.id && leyendo.categoria_codigo === 'CONTRATO_ARRENDAMIENTO' && (
+        <LecturaContrato
+          key={leyendo.id}
+          propiedadId={ficha.id}
+          archivo={leyendo}
+          posicion={posicion}
+          espacios={plano}
+          onCerrar={siguiente}
+          onAplicado={() => { setVersionContratos((v) => v + 1); cargarContratos(ficha.id); cargar(); }}
+        />
+      )}
+      {leyendo && ficha?.id && leyendo.hacienda && (
+        <LecturaFacturaHacienda
+          key={leyendo.id}
+          propiedadId={ficha.id}
+          archivo={leyendo}
+          posicion={posicion}
+          onCerrar={siguiente}
+          onGuardado={() => setVersionFacturas((v) => v + 1)}
+        />
+      )}
+      {leyendo && ficha?.id && !leyendo.hacienda && DESTINO_DE_CATEGORIA[leyendo.categoria_codigo] && (
         <LecturaFactura
           key={leyendo.id}
           propiedadId={ficha.id}

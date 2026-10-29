@@ -50,10 +50,13 @@ export const CheckboxRaw = React.forwardRef((props, ref) => {
                     {...rest}
                 />
 
+                {/* La etiqueta lleva su propio color de texto (text-on-surface1).
+                    Antes heredaba el «text-primary» del contenedor y salía azul
+                    en toda la app (26/10/2026). */}
                 {label && (
                     <label
                         htmlFor={checkboxId}
-                        className={`text-sm select-none ${disabled ? 'text-secondary cursor-not-allowed' : 'cursor-pointer'}`}
+                        className={`text-sm select-none ${disabled ? 'text-secondary cursor-not-allowed' : 'text-on-surface1 cursor-pointer'}`}
                     >
                         {label}
                         {required && <span className="text-destructive ml-1">*</span>}

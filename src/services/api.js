@@ -81,7 +81,30 @@ const esTokenCaducado = async (respuesta) => {
  * @param {Object} options - Opciones de fetch
  * @returns {Promise<Response>} Respuesta de fetch
  */
+/**
+ * IA saturada (18/10/2026): si el backend responde 503 con code IA_SATURADA (ya ha
+ * reintentado 2 veces), se abre la ventana components/IA/ElegirIa.jsx, que registra
+ * `window.__elegirIa`. Devuelve el id de la IA elegida (la misma u otra) o null si se
+ * cancela; con un id se repite la petición con la cabecera X-IA-Proveedor.
+ */
+const IA_SATURADA = 'IA_SATURADA';
+async function iaElegidaTrasSaturacion(respuesta) {
+  if (respuesta.status !== 503 || typeof window === 'undefined' || !window.__elegirIa) return null;
+  const cuerpo = await respuesta.clone().json().catch(() => ({}));
+  if (cuerpo?.code !== IA_SATURADA) return null;
+  return window.__elegirIa({ mensaje: cuerpo.message, proveedor: cuerpo.proveedor || null });
+}
+
 export const apiFetch = async (endpoint, options = {}) => {
+  let respuesta = await apiFetchBase(endpoint, options);
+  // Mientras la IA esté saturada y el usuario elija una, se repite con esa.
+  for (let elegida = await iaElegidaTrasSaturacion(respuesta); elegida; elegida = await iaElegidaTrasSaturacion(respuesta)) {
+    respuesta = await apiFetchBase(endpoint, { ...options, headers: { ...options.headers, 'X-IA-Proveedor': String(elegida) } });
+  }
+  return respuesta;
+};
+
+const apiFetchBase = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
 
   // Un fichero (FormData) **no puede llevar** `Content-Type: application/json`:

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Badge, Spinner, Toggle } from '../../../components/UI';
+import Modal from '../../../components/UI/Modal';
 import {
-  ArrowLeft, CalendarClock, CalendarOff, Clock, AlertCircle, CheckCircle, XCircle, Play, Download,
+  ArrowLeft, CalendarClock, CalendarOff, Clock, AlertCircle, CheckCircle, XCircle, Play, Download, Check, X, FileWarning,
 } from 'lucide-react';
 import { abrirPantallaRemota } from './PantallaRemota';
 import { apiFetch, authHeaders } from '../../../services/api';
@@ -35,6 +36,21 @@ const ProgramacionPage = () => {
   const [tanda, setTanda] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [lanzando, setLanzando] = useState(false);
+  // Justificantes que pediría «Descargar ahora» (24/10/2026): si hay, se
+  // avisa con una ventana antes de lanzar, porque piden atender el banco.
+  const [prevision, setPrevision] = useState(null);
+  const [avisoJustificantes, setAvisoJustificantes] = useState(false);
+
+  const fetchPrevision = async () => {
+    try {
+      const response = await apiFetch('/crawler/schedule/run/prevision', { headers: authHeaders() });
+      const res = await response.json();
+      if (!res.success) throw new Error(res.message);
+      setPrevision(res.data);
+    } catch {
+      setPrevision({ cuentas: 0, justificantes: [], error: true });
+    }
+  };
 
   const fetchConfig = async () => {
     try {
@@ -61,6 +77,25 @@ const ProgramacionPage = () => {
       const res = await response.json();
       if (!res.success) throw new Error(res.message);
       setConfig((c) => ({ ...c, verProceso: res.data.verProceso }));
+      setAviso({ tipo: 'ok', texto: res.message });
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // «Descarga automática» SÍ/NO (24/10/2026). Con NO, al llegar la hora no se
+  // descarga nada; «Descargar ahora» funciona igual en los dos casos.
+  const cambiarAutomatica = async () => {
+    const nuevo = !(config?.automatica ?? true);
+    try {
+      const response = await apiFetch('/crawler/schedule/config', {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ automatica: nuevo }),
+      });
+      const res = await response.json();
+      if (!res.success) throw new Error(res.message);
+      setConfig((c) => ({ ...c, ...res.data }));
       setAviso({ tipo: 'ok', texto: res.message });
     } catch (err) {
       setError(err.message);
@@ -98,6 +133,7 @@ const ProgramacionPage = () => {
             ? { tipo: 'error', texto: `${t('run_failed', 'No se han podido descargar')}: ${fallidas.map((c) => `${c.banco} · ${c.alias}`).join(' | ')}` }
             : { tipo: 'ok', texto: t('run_done', 'Descargas terminadas.') });
           fetchSchedules();
+          fetchPrevision();
           return;
         }
       }
@@ -105,7 +141,14 @@ const ProgramacionPage = () => {
     window.setTimeout(seguirTanda, 3000);
   };
 
+  // Clic en «Descargar ahora»: si va a pedir justificantes, primero el aviso.
+  const pulsarDescargarAhora = () => {
+    if (prevision?.justificantes?.length) { setAvisoJustificantes(true); return; }
+    descargarAhora();
+  };
+
   const descargarAhora = async () => {
+    setAvisoJustificantes(false);
     // En el servidor, con «Ver proceso», se abre ya la ventana del navegador
     // (aprovechando el clic: si no, el navegador la bloquea).
     if (import.meta.env.PROD && (config?.verProceso ?? true)) abrirPantallaRemota();
@@ -139,7 +182,7 @@ const ProgramacionPage = () => {
     }
   };
 
-  useEffect(() => { fetchSchedules(); fetchConfig(); }, []);
+  useEffect(() => { fetchSchedules(); fetchConfig(); fetchPrevision(); }, []);
 
   const saveSchedule = async (crid, cambios) => {
     setSaving((prev) => ({ ...prev, [crid]: true }));
@@ -153,6 +196,7 @@ const ProgramacionPage = () => {
       const res = await response.json();
       if (!res.success) throw new Error(res.message);
       await fetchSchedules();
+      fetchPrevision();
     } catch (err) {
       setError(err.message || t('error_save'));
     } finally {
@@ -173,6 +217,9 @@ const ProgramacionPage = () => {
   // asignada se ven siempre, para poder llegar a ellas y corregirlas).
   const visibles = rows.filter((row) => esDeLaEmpresa(row, empresaActiva));
   const programadas = visibles.filter((row) => row.programado);
+  // Primero las que hoy no se han descargado bien (✗) y después las buenas
+  // (✓). Dentro de cada grupo, el orden de siempre (24/10/2026).
+  const ordenadas = [...visibles].sort((a, b) => Number(a.descargada_hoy) - Number(b.descargada_hoy));
 
   return (
     <div className="p-6">
@@ -218,12 +265,21 @@ const ProgramacionPage = () => {
           derecha: Descargar ahora, Ver proceso y el resto. El texto del orden de
           descarga está arriba, con el aviso de fines de semana. ── */}
       <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-3xl border border-border bg-surface2 px-5 py-4 shadow-sm lg:flex-nowrap">
+        {/* Interruptor general, el primero (24/10/2026). */}
+        <Toggle
+          className="shrink-0"
+          checked={config?.automatica ?? true}
+          onChange={cambiarAutomatica}
+          disabled={!config}
+          label={t('auto_download', 'Descarga automática')}
+          title={t('auto_download_hint', 'SÍ: cada día laborable, a la hora indicada, se descargan solas las cuentas programadas. NO: no se descarga nada solo. «Descargar ahora» funciona igual en los dos casos.')}
+        />
         <Button
           variant="primary"
           className="shrink-0"
-          disabled={lanzando || Boolean(tanda?.enMarcha) || programadas.length === 0}
-          onClick={descargarAhora}
-          leftIcon={lanzando || tanda?.enMarcha ? <Spinner size="xs" /> : <Download size={16} />}
+          disabled={lanzando || Boolean(tanda?.enMarcha) || programadas.length === 0 || !prevision}
+          onClick={pulsarDescargarAhora}
+          leftIcon={lanzando || tanda?.enMarcha || !prevision ? <Spinner size="xs" /> : <Download size={16} />}
         >
           {t('download_now', 'Descargar ahora')}
         </Button>
@@ -246,7 +302,11 @@ const ProgramacionPage = () => {
         </label>
         <div className="flex shrink-0 items-center gap-2 text-sm">
           <span className="font-black text-on-background">{t('col_next_run', 'Próxima ejecución')}:</span>
-          <span className="font-bold capitalize">{config?.proxima_ejecucion ? formatProximaEjecucion(config.proxima_ejecucion) : '—'}</span>
+          <span className="font-bold capitalize">
+            {config && config.automatica === false
+              ? t('auto_off', 'Desactivada')
+              : config?.proxima_ejecucion ? formatProximaEjecucion(config.proxima_ejecucion) : '—'}
+          </span>
         </div>
       </div>
 
@@ -286,6 +346,7 @@ const ProgramacionPage = () => {
             <thead>
               <tr className="bg-table-header text-on-table-header">
                 <th className="px-5 py-4 text-[11px] font-black uppercase tracking-widest">{t('col_actions')}</th>
+                <th className="px-3 py-4 text-center text-[11px] font-black uppercase tracking-widest">{t('col_today', 'Hoy')}</th>
                 <th className="px-5 py-4 text-[11px] font-black uppercase tracking-widest">{t('col_account')}</th>
                 <th className="px-5 py-4 text-[11px] font-black uppercase tracking-widest">{t('col_scheduled')}</th>
                 <th className="px-5 py-4 text-[11px] font-black uppercase tracking-widest">{t('col_overlap')}</th>
@@ -294,7 +355,7 @@ const ProgramacionPage = () => {
               </tr>
             </thead>
             <tbody>
-              {visibles.map((row, i) => {
+              {ordenadas.map((row, i) => {
                 const saldo = formatSaldoConFecha(row.saldo_ultima_consulta, row.fecha_ultima_consulta);
                 const sinCredencial = !row.credencial_estado || row.credencial_estado === 'revocado';
                 return (
@@ -328,6 +389,25 @@ const ProgramacionPage = () => {
                           <Play size={14} />
                         </Button>
                       </div>
+                    </td>
+                    <td className="px-3 py-4 text-center">
+                      {row.descargada_hoy ? (
+                        <span
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-success text-white"
+                          title={t('today_ok', 'Descargada bien hoy')}
+                          aria-label={t('today_ok', 'Descargada bien hoy')}
+                        >
+                          <Check size={18} strokeWidth={3} />
+                        </span>
+                      ) : (
+                        <span
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-destructive text-white"
+                          title={t('today_ko', 'Hoy no se ha descargado bien')}
+                          aria-label={t('today_ko', 'Hoy no se ha descargado bien')}
+                        >
+                          <X size={18} strokeWidth={3} />
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex flex-col">
@@ -368,7 +448,7 @@ const ProgramacionPage = () => {
               })}
               {visibles.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="px-5 py-16 text-center">
+                  <td colSpan="7" className="px-5 py-16 text-center">
                     <CalendarClock size={40} className="mx-auto mb-3" />
                     <p className="text-xs font-bold uppercase tracking-widest">
                       {t('empty_accounts')}
@@ -380,6 +460,35 @@ const ProgramacionPage = () => {
           </table>
         </div>
       </div>
+
+      <Modal
+        isOpen={avisoJustificantes}
+        onClose={() => setAvisoJustificantes(false)}
+        title={t('just_title', 'Esta descarga pedirá justificantes')}
+        size="md"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setAvisoJustificantes(false)}>{t('cancel', 'Cancelar')}</Button>
+            <Button variant="primary" leftIcon={<Download size={16} />} onClick={descargarAhora}>{t('just_continue', 'Descargar igualmente')}</Button>
+          </>
+        )}
+      >
+        <div className="flex gap-3 text-sm">
+          <FileWarning size={22} className="shrink-0 text-warning" aria-hidden="true" />
+          <div>
+            <p className="mb-3 font-bold">
+              {t('just_text', 'Además de los movimientos, se van a descargar justificantes de periodos ya cerrados. Normalmente necesitan que estés delante para atender el banco (verificación, pantallas…).')}
+            </p>
+            <ul className="space-y-1">
+              {(prevision?.justificantes || []).map((j) => (
+                <li key={j.crid}>
+                  <span className="font-black">{j.banco} · {j.alias}</span>: {j.periodos.join(', ')}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

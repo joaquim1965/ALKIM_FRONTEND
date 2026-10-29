@@ -15,19 +15,22 @@
  * Textos: s_dictionary, contexto «Documentos» y «CategoriaArchivo» (4 idiomas).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Upload, Download, Trash2, Pencil, Plus, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, ScanText, Link2, Unlink, AlertTriangle, Lock, CheckCircle2, X, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Upload, Download, Trash2, Pencil, Plus, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, ScanText, Link2, Unlink, AlertTriangle, Lock, CheckCircle2, X, Eye, EyeOff, KeyRound, RotateCw } from 'lucide-react';
 import ZonaArchivos, { VentanaEmergente, carpetasDe, conRuta, rutaArchivo } from '../UI/ZonaArchivos';
 import SelectLista from '../UI/SelectLista';
 import TiposDocumento, { confirmarBorrarGrupo } from './TiposDocumento';
+import VisorOffice, { esOffice } from './VisorOffice';
+import VisorFactura from './VisorFactura';
+import { useStore } from '../../hooks/useStore';
 import { ordenArbol, subarbol, NIVEL_MAXIMO } from './ordenTipos';
 import Button from '../UI/Button';
 import Tooltip from '../UI/Tooltip';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
-import { formatTamano } from '../../utils/format';
+import { formatTamano, formatImporte } from '../../utils/format';
 import { leerDocumentoIdentidad, leerDomicilio } from '../../utils/lectorDni';
 import { normalizarImagen, LADO_DNI, LADO_A4 } from '../../utils/imagenes';
-import { Campo, Casilla, AvisoError, AvisoOk, CLASE_INPUT, Recuadro, claseFila, BotonFila , BotonAnadir } from '../UI/TemaPagina';
+import { Campo, Casilla, AvisoError, AvisoOk, CLASE_INPUT, Recuadro, claseFila, BotonFila , BotonAnadir, VentanaModal } from '../UI/TemaPagina';
 import CampoFecha from '../UI/CampoFecha';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
@@ -44,10 +47,39 @@ const fecha = (v) => {
 };
 const tamano = formatTamano;
 
+/**
+ * Tipo para Hacienda de las facturas (27/10/2026, petición del usuario). Con la prop
+ * `tipoHacienda` (pestaña Facturas) sale un desplegable OBLIGATORIO al subir y al editar.
+ * Se propone por el tipo de documento (o el de su rama) y se puede cambiar.
+ */
+export const TIPOS_HACIENDA = [
+  ['NO_ADMITIDO', 'No se admite (multas, etc.)', 'Hacienda no lo admite como gasto.'],
+  ['GASTO_CORRIENTE', 'Gasto corriente', 'Se aplica entero en el año.'],
+  ['ELECTRODOMESTICO', 'Electrodomésticos', 'Se amortiza al 10 % anual.'],
+  ['MEJORA', 'Ampliación o mejora', 'Suma al valor de adquisición y se amortiza al 3 % anual.'],
+];
+const HACIENDA_POR_TIPO = {
+  FACT_GASTOS_ANYO: 'GASTO_CORRIENTE', REPARACION_Y_CONSERVACION: 'GASTO_CORRIENTE',
+  FACT_VALOR_ADQUISICION: 'MEJORA', AMPLIACION_Y_MEJORAS: 'MEJORA', AMPLICION_Y_MEJORAS: 'MEJORA',
+  MUEBLES_ELECTRODOMESTICOS: 'ELECTRODOMESTICO',
+};
+
+/**
+ * Extensión del archivo al final de «Nombre del archivo», sin poder editarla (27/10/2026,
+ * petición del usuario). Las fotos JPEG salen como .jpg (así se guardan al normalizarlas).
+ */
+function Extension({ ext, nombre }) {
+  const e = String(ext || (/\.([^.]+)$/.exec(nombre || '') || [])[1] || '').toLowerCase().replace(/^jpeg$/, 'jpg');
+  if (!e) return null;
+  return (
+    <span title={e} className="shrink-0 select-none rounded-lg border border-border bg-surface2 px-3 py-2 font-mono text-sm font-bold text-on-surface2">.{e}</span>
+  );
+}
+
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: authHeaders() });
   const b = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(b.errors?.[0]?.message || b.message || `Error ${r.status}`);
+  if (!r.ok) { const err = new Error(b.errors?.[0]?.message || b.message || `Error ${r.status}`); err.code = b.code; throw err; }
   return b;
 }
 
@@ -138,11 +170,26 @@ const REVISAR = ['domicilio', 'municipio', 'provincia'];
  *                            eligió: la ficha los muestra y se guardan con «Guardar».
  *                            Sin él, se guardan al subir (PATCH /companies/:id/documento).
  */
-export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDocumentoIdentidad, ficha = null, onDatosDocumento, onSubido, leibles = [], onLeer }) {
+/*
+ * 15/10/2026 (pestaña «Facturas» de la propiedad):
+ * @param grupo         (opcional) código del tipo principal que se enseña SOLO (con sus subtipos).
+ * @param excluirGrupo  (opcional) código (o lista de códigos, 16/10/2026) de los tipos principales que NO se enseñan aquí.
+ * @param avisoExcluido (opcional) texto que se pone en lugar del grupo excluido.
+ * @param destinos      (opcional, 16/10/2026) primer nivel de la lista y campo obligatorio al subir:
+ *                      { etiqueta, base, tabla, opciones: [{ id, nombre }] }. Cada documento va al
+ *                      objeto principal («base», p. ej. la propiedad) o a una opción (p. ej. un
+ *                      espacio), que se guarda como vínculo (xs_file_relation). Contratos → Documentos.
+ * @param porAnyo       (opcional) dentro de cada tipo, los documentos se agrupan por ejercicio
+ *                      (plegable; abierto el año en curso), hay filtro de ejercicio y, al
+ *                      subir sin ejercicio, se pone el año de la fecha del documento (o el actual).
+ */
+export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDocumentoIdentidad, ficha = null, onDatosDocumento, onSubido, leibles = [], onLeer, grupo = null, excluirGrupo = null, avisoExcluido = '', porAnyo = false, destinos = null, tipoHacienda = false }) {
   const { t } = useTmTr('Documentos');
   const { t: tc } = useTmTr('CategoriaArchivo');
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
+  const [retencion, setRetencion] = useState(null);
+  const [visorFactura, setVisorFactura] = useState(null);
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [subida, setSubida] = useState(null);
@@ -182,20 +229,84 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   const sinObligatorio = tabla === 'im_property';
   const obl = (c) => (!sinObligatorio && Number(c.obligatorio) ? ' *' : '');
 
+  // Lista estable de excluidos: un array nuevo en cada render no debe recargar la lista.
+  const claveExcluidos = [].concat(excluirGrupo || []).join(',');
+  const excluidos = claveExcluidos ? claveExcluidos.split(',') : [];
   const cargar = useCallback(async () => {
     setError('');
     try {
       // Tipos en el orden del catálogo, cada subtipo bajo su tipo (06/10/2026).
       const d = (await pedir(`/files/objeto/${tabla}/${id}`)).data;
-      setDatos({ ...d, categorias: ordenArbol(d.categorias || []) });
+      let categorias = ordenArbol(d.categorias || []);
+      let archivos = d.archivos || [];
+      // Solo un grupo, o todo menos un grupo (15/10/2026): mismos documentos, otra vista.
+      // Varios excluidos (16/10/2026): Documentos no enseña ni FACTURAS ni CONTRATOS.
+      if (!grupo && excluidos.length) {
+        const ids = new Set();
+        for (const codigo of excluidos) {
+          const raiz = categorias.find((c) => c.codigo === codigo);
+          if (raiz) subarbol(categorias, raiz.id).forEach((x) => ids.add(x));
+        }
+        const fuera = new Set(categorias.filter((c) => ids.has(Number(c.id))).map((c) => c.codigo));
+        categorias = ordenArbol(categorias.filter((c) => !ids.has(Number(c.id))));
+        archivos = archivos.filter((a) => !fuera.has(a.categoria_codigo));
+      } else if (grupo) {
+        const clave = grupo;
+        const raiz = categorias.find((c) => c.codigo === clave);
+        const ids = raiz ? subarbol(categorias, raiz.id) : new Set();
+        const dentro = (c) => ids.has(Number(c.id));
+        const codigosDentro = new Set(categorias.filter(dentro).map((c) => c.codigo));
+        // Con `grupo`, la raíz no se enseña: sus hijos salen como grupos principales (15/10/2026).
+        categorias = ordenArbol(categorias.filter((c) => (grupo ? dentro(c) && c.codigo !== grupo : !dentro(c))));
+        archivos = archivos.filter((a) => codigosDentro.has(a.categoria_codigo) === Boolean(grupo));
+      }
+      setDatos({ ...d, categorias, archivos });
     }
     catch (e) { setError(e.message); }
-  }, [tabla, id]);
+  }, [tabla, id, grupo, claveExcluidos]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { cargar(); }, [cargar]);
+  // Botón «Recargar» (15/10/2026): vuelve a pedir la lista sin recargar la
+  // página; se conservan el tipo elegido, lo plegado y la posición.
+  // También vuelve a pedir los textos (nombres de los tipos), por si se han
+  // creado o renombrado tipos en otra pantalla (15/10/2026).
+  const { fetchLanguage, language } = useStore();
+  const [recargando, setRecargando] = useState(false);
+  const recargar = async () => {
+    setRecargando(true);
+    try { await Promise.all([cargar(), fetchLanguage?.(language)]); } finally { setRecargando(false); }
+  };
+  const [visor, setVisor] = useState(null);   // archivo Word/Excel abierto en el visor
 
-  const porCategoria = useMemo(() => {
+  // Años (solo con `porAnyo`, 15/10/2026). El año de un documento es su
+  // ejercicio; si no tiene, el de su fecha; si tampoco, «Sin año».
+  const anyoDe = (a) => String(a.ejercicio || (a.fecha_documento ? String(a.fecha_documento).slice(0, 4) : '') || 'sin');
+  const anyoActual = String(new Date().getFullYear());
+  const [filtroAnyo, setFiltroAnyo] = useState('');
+  const [anyosCambiados, setAnyosCambiados] = useState(() => new Set());   // los que difieren de su estado por defecto
+  const anyoAbierto = (codigo, y) => (String(y).split('|')[0] === anyoActual) !== anyosCambiados.has(`${codigo}|${y}`);
+  const plegarAnyo = (codigo, y) => setAnyosCambiados((s) => {
+    const n = new Set(s); const k = `${codigo}|${y}`;
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+
+  // Destino de un documento (con `destinos`): la opción con la que está vinculado, o 'base'.
+  const idsDestino = new Set((destinos?.opciones || []).map((o) => Number(o.id)));
+  const destinoDe = (a) => {
+    if (!destinos) return 'base';
+    const v = (a.vinculos || []).find((x) => x.objeto_tabla === destinos.tabla && idsDestino.has(Number(x.objeto_id)));
+    return v ? String(v.objeto_id) : 'base';
+  };
+  const vinculoDestino = (a) => (a.vinculos || []).filter((x) => x.objeto_tabla === destinos?.tabla && idsDestino.has(Number(x.objeto_id)));
+  /** Grupos por tipo y árbol de tipos de una lista de documentos (16/10/2026: también por destino). */
+  const construir = (lista) => {
+    const porCategoria = construirGrupos(lista);
+    return { porCategoria, arbol: construirArbol(porCategoria) };
+  };
+  const construirGrupos = (lista) => {
     const grupos = new Map();
-    for (const a of datos?.archivos || []) {
+    for (const a of lista) {
+      if (porAnyo && filtroAnyo && anyoDe(a) !== filtroAnyo) continue;
       const k = a.categoria_codigo || 'SIN_CLASIFICAR';
       if (!grupos.has(k)) grupos.set(k, { codigo: k, nombre: a.categoria_nombre, archivos: [] });
       grupos.get(k).archivos.push(a);
@@ -205,12 +316,12 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     return [...grupos.values()]
       .map((g) => ({ ...g, nivel: datos?.categorias?.find((c) => c.codigo === g.codigo)?.nivel || 0 }))
       .sort((a, b) => (pos.get(a.codigo) ?? Infinity) - (pos.get(b.codigo) ?? Infinity));
-  }, [datos]);
+  };
   // Grupos con sus subgrupos, a cualquier profundidad (09/10/2026; antes un solo nivel).
   // Un grupo sale si tiene documentos él o algo de lo que cuelga de él; la flecha de su
   // cabecera pliega o despliega sus documentos y todo lo que tiene debajo.
   // Cada fila: { g (grupo con sus archivos), nivel, total (documentos suyos y de debajo), tieneHijos }.
-  const arbol = useMemo(() => {
+  const construirArbol = (porCategoria) => {
     const cats = datos?.categorias || [];
     const porCodigo = new Map(porCategoria.map((g) => [g.codigo, g]));
     const total = new Map();
@@ -231,24 +342,37 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     if (!raiz) return [];
     const ids = raiz.id != null ? subarbol(cats, raiz.id) : new Set();
     return filas.filter((f) => f === raiz || ids.has(Number(f.id))).map((f) => ({ ...f, nivel: f.nivel - raiz.nivel }));
-  }, [datos, porCategoria, filtroTipo]);
+  };
+  const { porCategoria, arbol } = useMemo(() => construir(datos?.archivos || []), [datos, porAnyo, filtroAnyo, filtroTipo]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Con `destinos`: un bloque por destino (la base primero y luego las opciones en su orden), solo los que tienen documentos.
+  const bloques = useMemo(() => {
+    if (!destinos) return null;
+    const orden = [{ id: 'base', nombre: destinos.base }, ...destinos.opciones.map((o) => ({ id: String(o.id), nombre: o.nombre }))];
+    return orden.map((d) => ({ ...d, ...construir((datos?.archivos || []).filter((a) => destinoDe(a) === d.id)) }))
+      .filter((b) => b.porCategoria.length);
+  }, [datos, porAnyo, filtroAnyo, filtroTipo, destinos]); // eslint-disable-line react-hooks/exhaustive-deps
   // Lo plegado esconde todo lo que tiene debajo (más nivel, hasta volver a su nivel).
-  const visibles = [];
-  for (let k = 0, tapa = null; k < arbol.length; k += 1) {
-    const f = arbol[k];
-    if (tapa != null && f.nivel > tapa) continue;
-    tapa = plegados.has(f.g.codigo) ? f.nivel : null;
-    visibles.push(f);
-  }
+  // `pre` (16/10/2026): con destinos, lo plegado es de cada bloque («12|CONTRATO_ARRENDAMIENTO»).
+  const visiblesDe = (lista, pre = '') => {
+    const salida = [];
+    for (let k = 0, tapa = null; k < lista.length; k += 1) {
+      const f = lista[k];
+      if (tapa != null && f.nivel > tapa) continue;
+      tapa = plegados.has(pre + f.g.codigo) ? f.nivel : null;
+      salida.push(f);
+    }
+    return salida;
+  };
   const plegar = (codigo) => setPlegados((p) => { const n = new Set(p); if (n.has(codigo)) n.delete(codigo); else n.add(codigo); return n; });
   const sangria = (c) => (c?.nivel ? `${'\u00A0\u00A0\u00A0'.repeat(c.nivel)}↳ ` : '');
 
-  const nuevaSubida = (categoria = null) => {
+  const nuevaSubida = (categoria = null, destino = null) => {
     setAviso(''); setError('');
     const c = categoria || datos?.categorias?.[0];
     const d = datos?.objeto?.documento;
     setSubida({
-      ficheros: [], categoria_id: c?.id || '', fecha_documento: '', ejercicio: '', fecha_caducidad: fecha(d?.fecha_caducidad_doc),
+      destino: destino || '',   // con `destinos`: '' sin elegir (obligatorio) · 'base' · id de la opción
+      ficheros: [], categoria_id: c?.id || '', fecha_documento: '', ejercicio: '', sufijo: '', fecha_caducidad: fecha(d?.fecha_caducidad_doc),
       confidencial: Boolean(Number(c?.confidencial)), descripcion: '', detalles: [],
       doc: { tipo_documento: d?.tipo_documento || 'DNI', nif: d?.nif || '', fecha_caducidad_doc: fecha(d?.fecha_caducidad_doc) },
     });
@@ -257,6 +381,20 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   // DNI se suben juntos y cada uno sale con su nombre. El nombre es el
   // propuesto por el tipo, salvo que el usuario lo cambie.
   const categoria = (id) => datos?.categorias.find((x) => String(x.id) === String(id));
+  // Tipo para Hacienda propuesto: el del tipo o el del primero de su rama que lo tenga.
+  const haciendaDe = (id) => {
+    let c = categoria(id);
+    for (let n = 0; c && n < 12; n += 1) {
+      if (HACIENDA_POR_TIPO[c.codigo]) return HACIENDA_POR_TIPO[c.codigo];
+      c = c.padre_id != null ? categoria(c.padre_id) : null;
+    }
+    return '';
+  };
+  const nombreHacienda = (v) => t(`hacienda_${v}`, (TIPOS_HACIENDA.find(([k]) => k === v) || [null, v])[1]);
+  const ayudaHacienda = (v) => t(`hacienda_ayuda_${v}`, (TIPOS_HACIENDA.find(([k]) => k === v) || [])[2] || '');
+  // Valor de un archivo de la subida: el elegido a mano o el propuesto por su tipo (o el de la carpeta base).
+  const haciendaDeDetalle = (det, sub) => (det?.haciendaManual ? det.tipo_hacienda
+    : haciendaDe(det?.carpeta ? baseCarpetas(sub)?.id : (det?.categoria_id ?? sub.categoria_id))) || '';
   const idDeCodigo = (codigo) => datos?.categorias.find((x) => x.codigo === codigo)?.id;
   const nombreDe = (d, s) => (d.nombreManual ? d.nombre.trim() : nombrePropuesto(categoria(d.categoria_id)?.codigo, datos?.objeto, s));
   /** Tipo que parece por el nombre del archivo (solo se propone): «Nota simple…» → Nota simple; «Factura…», «Fra…», «Tasación…» → Facturas de la compra. */
@@ -264,6 +402,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     if (/nota[\s_.-]*simple/i.test(nombre)) return idDeCodigo('NOTA_SIMPLE') || null;
     if (/hipotec|pr[eé]stamo|prestec|pr[eé]stec|\bfein\b/i.test(nombre)) return idDeCodigo('ESCRITURA_HIPOTECA') || null;
     if (/factura|\bfra\b|tasaci|taxaci/i.test(nombre)) return idDeCodigo('FACTURA_COMPRA') || null;
+    // Contratos de alquiler (16/10/2026): solo si ese tipo está en la lista (Contratos → Documentos).
+    if (/contrat|arrendam|alquiler|lloguer/i.test(nombre)) return idDeCodigo('CONTRATO_ARRENDAMIENTO') || null;
     return null;
   };
   /** Detalles por archivo al cambiar la lista: se conservan los que ya había. */
@@ -278,7 +418,10 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     if (esCertificado(ficheros[i]) && idDeCodigo('CERT_DIGITAL')) return { categoria_id: idDeCodigo('CERT_DIGITAL'), nombre: '', nombreManual: false, contrasena: '' };
     if (['DNI_ANVERSO', 'DNI_REVERSO'].includes(base) && ficheros.length > 1 && i < 2) cat = idDeCodigo(i === 0 ? 'DNI_ANVERSO' : 'DNI_REVERSO') || cat;
     // Por el nombre del archivo NO se cambia el tipo: se PREGUNTA (06/10/2026, petición del usuario; por defecto No).
-    return { categoria_id: cat, nombre: '', nombreManual: false, sugerida: tipoPorNombre(ficheros[i].name) };
+    // Plantillas (26/10/2026, petición del usuario): si el nombre lleva «plantilla», no se
+    // propone cambiar de grupo (no sale el aviso amarillo «¿Cambia a grupo…?»).
+    const plantilla = /plantilla/i.test(ficheros[i].name);
+    return { categoria_id: cat, nombre: '', nombreManual: false, sugerida: plantilla ? null : tipoPorNombre(ficheros[i].name) };
   });
   // ¿Alguno de los archivos es el DNI de una persona?
   const esIdentidad = (s) => Boolean(datos?.objeto?.documento)
@@ -464,6 +607,11 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   const subir = async (ev) => {
     ev.preventDefault();
     if (!subida.ficheros.length) return setError(t('falta_fichero', 'Elige al menos un archivo.'));
+    if (destinos && !subida.destino) return setError(t('falta_destino', 'Indica a qué va: {e} o {b}.').replace('{e}', destinos.etiqueta.toLowerCase()).replace('{b}', destinos.base));
+    if (tipoHacienda) {
+      const faltan = subida.ficheros.filter((f, i) => !haciendaDeDetalle(subida.detalles[i] || { categoria_id: subida.categoria_id }, subida)).map((f) => f.name);
+      if (faltan.length) return setError(t('falta_tipo_hacienda', 'Indica el tipo para Hacienda de: {n}.').replace('{n}', faltan.join(', ')));
+    }
     setOcupado(true); setError('');
     const subidos = [];
     try {
@@ -485,12 +633,19 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         fd.append('objeto_id', id);
         const cadDni = cambiosFicha(subida).fecha_caducidad_doc || fecha(fichaDoc?.fecha_caducidad_doc) || subida.doc.fecha_caducidad_doc;
         const valores = { ...subida, categoria_id: det.categoria_id, fecha_caducidad: esDni ? (cadDni || '') : subida.fecha_caducidad };
-        for (const k of ['categoria_id', 'fecha_documento', 'ejercicio', 'fecha_caducidad', 'descripcion']) if (valores[k] !== '') fd.append(k, valores[k]);
+        // Facturas (15/10/2026): sin ejercicio, el año de la fecha del documento o el actual.
+        if (porAnyo && !valores.ejercicio) valores.ejercicio = (valores.fecha_documento || '').slice(0, 4) || anyoActual;
+        for (const k of ['categoria_id', 'fecha_documento', 'ejercicio', 'sufijo', 'fecha_caducidad', 'descripcion']) if (valores[k] !== '') fd.append(k, valores[k]);
         fd.append('confidencial', subida.confidencial ? '1' : '0');
+        if (tipoHacienda) fd.append('tipo_hacienda', haciendaDeDetalle(base, subida));
         if (nombreDe(det, subida)) fd.append('nombre', nombreDe(det, subida));
         if (det.contrasena) fd.append('contrasena', det.contrasena);
         const subido = (await pedir('/files', { method: 'POST', body: fd })).data;
-        if (subido) subidos.push(subido);
+        // Con `destinos` (16/10/2026): el documento se vincula a la opción elegida (p. ej. el espacio).
+        if (subido && destinos && subida.destino && subida.destino !== 'base') {
+          await pedir(`/files/${subido.id}/vinculos`, { method: 'POST', body: JSON.stringify({ objeto_tabla: destinos.tabla, objeto_id: Number(subida.destino) }) });
+        }
+        if (subido) subidos.push({ ...subido, destino: destinos ? subida.destino : null });
       }
       // Datos del DNI: a la ficha abierta, que los guarda con «Guardar» (04/10/2026).
       // Sin ficha abierta (otras pantallas), se guardan ya.
@@ -518,6 +673,10 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   // después del `await`, el navegador ya no lo cuenta como acción del usuario
   // y lo bloquea como ventana emergente (o la abre en la misma pestaña).
   const descargar = async (a, modo = 'descarga') => {
+    // Facturas (27/10/2026): «Ver» abre el visor con los datos a la izquierda y la factura en grande.
+    if (modo === 'ver' && tipoHacienda && tabla === 'im_property') { setVisorFactura(a); return; }
+    // Word y Excel no se ven en el navegador: se abren en el visor (15/10/2026).
+    if (modo === 'ver' && esOffice(a)) { setVisor(a); return; }
     const ventana = modo === 'ver' ? window.open('', '_blank') : null;
     if (ventana) ventana.document.title = a.nombre_original || 'Documento';
     try {
@@ -572,6 +731,11 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     try {
       const c = edicion.campos;
       await pedir(`/files/${edicion.archivo.id}`, { method: 'PATCH', body: JSON.stringify({ ...c, confidencial: Boolean(c.confidencial) }) });
+      // Cambio de espacio (16/10/2026): fuera el vínculo anterior y, si no es la base, el nuevo.
+      if (destinos && edicion.destino !== destinoDe(edicion.archivo)) {
+        for (const v of vinculoDestino(edicion.archivo)) await pedir(`/files/${edicion.archivo.id}/vinculos/${v.id}`, { method: 'DELETE' });
+        if (edicion.destino !== 'base') await pedir(`/files/${edicion.archivo.id}/vinculos`, { method: 'POST', body: JSON.stringify({ objeto_tabla: destinos.tabla, objeto_id: Number(edicion.destino) }) });
+      }
       setEdicion(null);
       await cargar();
       // Si se cambia a «Nota simple», se lee igual que al subirla (05/10/2026).
@@ -581,10 +745,35 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     finally { setOcupado(false); }
   };
 
+  // El aviso de un borrado que no se ha hecho (plazo de conservación u otro error)
+  // sale DEBAJO DE LA FILA del documento, no arriba de la lista: arriba quedaba
+  // fuera de la vista y parecía que la papelera no hacía nada (26/10/2026).
+  // `retencion` = { archivo, mensaje, confirmar, forzar }.
+  // Una sola confirmación (27/10/2026, petición del usuario): sin la ventana del navegador.
+  // Al pulsar la papelera se comprueba el plazo de conservación (sin borrar) y sale el aviso
+  // rojo debajo del documento con su botón para confirmar.
   const papelera = async (a) => {
-    if (!window.confirm(t('confirmar_papelera', '¿Mover «{nombre}» a la papelera? Se puede restaurar durante 30 días.').replace('{nombre}', a.nombre_original))) return;
-    try { await pedir(`/files/${a.id}`, { method: 'DELETE' }); await cargar(); }
-    catch (e) { setError(e.message); }
+    setRetencion(null);
+    try {
+      const r = await pedir(`/files/${a.id}?comprobar=1`, { method: 'DELETE' });
+      const enPlazo = Boolean(r?.data?.conservacion);
+      setRetencion({
+        archivo: a,
+        confirmar: true,
+        forzar: enPlazo,
+        mensaje: enPlazo
+          ? `${r.data.mensaje} ${t('retencion_forzar', 'Si se subió por error, puedes eliminarlo igualmente (irá a la papelera).')}`
+          : t('confirmar_papelera', '¿Mover «{nombre}» a la papelera? Se puede restaurar durante 30 días.').replace('{nombre}', a.nombre_original),
+      });
+    } catch (e) { setRetencion({ archivo: a, mensaje: e.message, confirmar: false }); }
+  };
+
+  const papeleraConfirmada = async () => {
+    const a = retencion.archivo;
+    const forzar = retencion.forzar;
+    setRetencion(null);
+    try { await pedir(`/files/${a.id}${forzar ? '?forzar=1' : ''}`, { method: 'DELETE' }); await cargar(); }
+    catch (e) { setRetencion({ archivo: a, mensaje: e.message, confirmar: false }); }
   };
 
   const abrirVinculo = async (a) => {
@@ -610,10 +799,151 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     catch (e) { setError(e.message); }
   };
 
+  // Una fila de documento (15/10/2026: función para poder agruparlas por año).
+  const filaArchivo = (a, i) => (
+              <li key={a.id} className={`flex flex-wrap items-center gap-3 px-4 py-2 ${caducado(a) ? 'bg-destructive text-on-destructive' : claseFila(i)}`}>
+                {/* Acciones a la izquierda, como en todas las listas */}
+                <span className="flex shrink-0 items-center gap-0.5">
+                  {!Number(a.cifrado) && a.extension !== 'zip' && <BotonFila icono={<Eye size={15} />} titulo={t('ver', 'Ver')} onClick={() => descargar(a, 'ver')} />}
+                  <BotonFila icono={<Download size={15} />} titulo={t('descargar', 'Descargar')} onClick={() => (Number(a.cifrado) ? descargarCifrado(a) : descargar(a))} />
+                  {!soloLectura && <>
+                    {/* `leibles === true` (27/10/2026): en Facturas se leen todos, para Hacienda. */}
+                    {a.principal && (leibles === true || leibles.includes(a.categoria_codigo)) && onLeer && (
+                      <BotonFila icono={<ScanText size={15} />} titulo={tipoHacienda ? t('datos_factura', 'Datos para Hacienda') : t('leer_datos', 'Leer datos y pasarlos a la ficha')} onClick={() => onLeer(a)} />
+                    )}
+                    <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, destino: destinoDe(a), campos: { nombre: String(a.nombre_original || '').replace(/\.[^.]+$/, ''), categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', sufijo: a.sufijo || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)), ...(tipoHacienda ? { tipo_hacienda: a.tipo_hacienda || haciendaDe(a.categoria_id) } : {}) } })} />
+                    {a.principal && <BotonFila icono={<Trash2 size={15} />} titulo={t('papelera', 'Mover a la papelera')} onClick={() => papelera(a)} />}
+                  </>}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-black tracking-tight">
+                    {caducado(a) && <span className="mr-2 rounded-full border-2 border-on-destructive px-2 text-[10px] uppercase tracking-widest">{t('caducado', 'Caducado')}</span>}
+                    {Number(a.confidencial) === 1 && <Lock size={13} className="mr-1 inline" aria-label={t('confidencial_corto', 'Confidencial')} />}
+                    {Number(a.cifrado) === 1 && <KeyRound size={13} className="mr-1 inline" aria-label={t('cifrado', 'Guardado cifrado')} />}
+                    {Number(a.cifrado)
+                      ? <span title={t('cifrado', 'Guardado cifrado')}>{a.nombre_original}</span>
+                      : <button type="button" onClick={() => descargar(a, 'ver')} title={t('ver', 'Ver')} className="truncate text-left underline-offset-2 hover:underline">{a.nombre_original}</button>}
+                  </p>
+                  <p className="text-xs font-bold">
+                    {[fecha(a.fecha_documento), a.ejercicio && `${t('ejercicio', 'Ejercicio')} ${a.ejercicio}${a.sufijo ? `-${a.sufijo}` : ''}`, tamano(a.tamanyo_bytes),
+                      a.tipo_hacienda && `${t('hacienda_corto', 'Hacienda')}: ${nombreHacienda(a.tipo_hacienda)}`,
+                      tipoHacienda && (Number(a.con_datos_factura) ? (a.factura_total != null && `${t('total_factura', 'Total')} ${formatImporte(a.factura_total, '€')}`) : t('sin_datos_factura', 'sin datos para Hacienda')),
+                      a.fecha_caducidad && `${t('caduca', 'caduca')} ${fecha(a.fecha_caducidad)}`,
+                      !a.principal && t('vinculado', 'vinculado desde otro objeto'), a.descripcion].filter(Boolean).join(' · ')}
+                  </p>
+                  {Number(a.con_contrasena) === 1 && (
+                    <p className="flex items-center gap-2 text-xs font-bold">
+                      {t('contrasena_cert', 'Contraseña del certificado')}:
+                      <span className="font-mono">{claves[a.id] ?? '••••••••'}</span>
+                      <button type="button" onClick={() => verContrasena(a)} aria-label={claves[a.id] ? t('ocultar_contrasena', 'Ocultar contraseña') : t('ver_contrasena', 'Ver contraseña')}
+                        title={claves[a.id] ? t('ocultar_contrasena', 'Ocultar contraseña') : t('ver_contrasena', 'Ver contraseña')} className="rounded p-1 hover:bg-surface-hover hover:text-on-surface-hover">
+                        {claves[a.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </p>
+                  )}
+                  {a.vinculos?.length > 0 && (
+                    <p className="text-xs font-bold">
+                      {t('se_ve_en', 'También se ve en')}: {a.vinculos.map((v) => (
+                        <span key={v.id} className="mr-2">{v.objeto_tabla} {v.objeto_id}
+                          {!soloLectura && a.principal && <button type="button" className="ml-1" aria-label={t('desvincular', 'Desvincular')} onClick={() => desvincular(a, v)}><Unlink size={12} className="inline" /></button>}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                </div>
+                {retencion?.archivo.id === a.id && (
+                  <div className="basis-full">
+                    <AvisoError>
+                      <span>{retencion.mensaje}</span>
+                      <span className="mt-2 flex gap-2">
+                        {retencion.confirmar && <button type="button" onClick={papeleraConfirmada} className="rounded-lg border border-white px-3 py-1 text-xs font-black uppercase tracking-widest">{retencion.forzar ? t('eliminar_igualmente', 'Eliminar igualmente') : t('mover_papelera', 'Mover a la papelera')}</button>}
+                        <button type="button" onClick={() => setRetencion(null)} className="rounded-lg border border-white px-3 py-1 text-xs font-black uppercase tracking-widest">{retencion.confirmar ? t('cancelar', 'Cancelar') : t('cerrar', 'Cerrar')}</button>
+                      </span>
+                    </AvisoError>
+                  </div>
+                )}
+              </li>
+  );
+  // Documentos de un tipo, por ejercicio: del más nuevo al más viejo, «Sin año» al final.
+  // Facturas (`porAnyo`): todos, por ejercicio o por el año de su fecha. Resto de listas
+  // (16/10/2026, petición del usuario): solo los que tienen ejercicio van en su año; los
+  // que no, arriba, sueltos como siempre. Sin ninguno con ejercicio, la lista no cambia.
+  const porAnyos = (g, pre = '') => {
+    const grupos = new Map();
+    const sueltos = [];
+    for (const a of g.archivos) {
+      if (!porAnyo && !a.ejercicio) { sueltos.push(a); continue; }
+      // Sufijo (19/10/2026): C1, C2… separan los documentos de un mismo año en su propio grupo.
+      const y0 = porAnyo ? anyoDe(a) : String(a.ejercicio);
+      // Mayúsculas y sin espacios (27/10/2026): «c1» y «C1» van al mismo grupo.
+      const suf = String(a.sufijo || '').trim().toUpperCase();
+      const y = suf ? `${y0}|${suf}` : y0;
+      if (!grupos.has(y)) grupos.set(y, []);
+      grupos.get(y).push(a);
+    }
+    if (!grupos.size) return g.archivos.map(filaArchivo);
+    const anyos = [...grupos.keys()].sort((a, b) => {
+      const [ya, sa = ''] = a.split('|'); const [yb, sb = ''] = b.split('|');
+      return (ya === 'sin') - (yb === 'sin') || Number(yb) - Number(ya) || sa.localeCompare(sb, undefined, { numeric: true });
+    });
+    return [...sueltos.map(filaArchivo), ...anyos.flatMap((y) => {
+      const abierto = anyoAbierto(pre + g.codigo, y);
+      const [anyoG, sufijoG] = y.split('|');
+      const titulo = `${anyoG === 'sin' ? t('sin_anyo', 'Sin año') : anyoG}${sufijoG ? `-${sufijoG}` : ''}`;
+      return [
+        <li key={`anyo-${pre}${y}`}>
+          <button type="button" onClick={() => plegarAnyo(pre + g.codigo, y)} aria-expanded={abierto}
+            className="flex w-full items-center gap-2 border-b border-border bg-surface2 px-4 py-1.5 text-left text-[11px] font-black uppercase tracking-widest text-on-surface1 transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
+            <ChevronRight size={16} className={`transition-transform ${abierto ? 'rotate-90' : ''}`} />
+            {titulo} ({grupos.get(y).length})
+          </button>
+        </li>,
+        ...(abierto ? grupos.get(y).map(filaArchivo) : []),
+      ];
+    })];
+  };
+
+  const pintarArbol = (lista, pre = '', destino = null) => lista.map(({ g, nivel, total, tieneHijos }) => (
+        <section key={pre + g.codigo} className="overflow-hidden rounded-2xl border border-border" style={nivel ? { marginLeft: `${nivel * 2}rem` } : undefined}>
+          {/* Títulos de nivel 1 (grupos principales) en un tono más oscuro del
+              color de cabecera del tema (15/10/2026); los subgrupos, el normal. */}
+          <h3 className={`flex items-center gap-3 bg-table-header px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-on-table-header ${g.archivos.length && !plegados.has(pre + g.codigo) ? 'border-b border-border' : ''}`}
+            style={nivel ? undefined : { backgroundColor: 'color-mix(in srgb, var(--color-table-header) 60%, black)' }}>
+            {/* Flecha a la izquierda en grupos y subgrupos: oculta o muestra sus documentos (y sus subgrupos) (06/10/2026). */}
+            {(tieneHijos || g.archivos.length > 0) && (
+              <button type="button" onClick={() => plegar(pre + g.codigo)} aria-expanded={!plegados.has(pre + g.codigo)}
+                aria-label={plegados.has(pre + g.codigo) ? t('desplegar_grupo', 'Mostrar documentos') : t('plegar_grupo', 'Ocultar documentos')}
+                title={plegados.has(pre + g.codigo) ? t('desplegar_grupo', 'Mostrar documentos') : t('plegar_grupo', 'Ocultar documentos')}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
+                <ChevronRight size={18} className={`transition-transform ${plegados.has(pre + g.codigo) ? '' : 'rotate-90'}`} />
+              </button>
+            )}
+            {/* «+» delante del nombre del grupo: subir otro documento de este tipo (04/10/2026). */}
+            {!soloLectura && (
+              <button type="button" onClick={() => nuevaSubida(datos.categorias.find((c) => c.codigo === g.codigo) || null, destino)}
+                aria-label={t('subir_tipo', 'Subir «{tipo}»').replace('{tipo}', nombreCat(g))} title={t('subir_tipo', 'Subir «{tipo}»').replace('{tipo}', nombreCat(g))}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-on-table-header transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
+                <Plus size={16} />
+              </button>
+            )}
+            <span>{nombreCat(g)} ({total})</span>
+          </h3>
+          {g.archivos.length > 0 && !plegados.has(pre + g.codigo) && <ul>
+            {porAnyos(g, pre)}
+          </ul>}
+        </section>
+      ));
+
   if (!datos && !error) return <p className="py-6 text-center text-xs font-bold uppercase tracking-widest">{t('cargando', 'Cargando…')}</p>;
 
   return (
     <div className="space-y-4">
+      {visor && <VisorOffice archivo={visor} t={t} onCerrar={() => setVisor(null)} onDescargar={() => descargar(visor)} />}
+      {visorFactura && (
+        <VisorFactura archivo={visorFactura} propiedadId={id} nombreHacienda={nombreHacienda} tiposHacienda={TIPOS_HACIENDA} soloLectura={soloLectura}
+          onCerrar={() => { setVisorFactura(null); cargar(); }} onGuardado={() => {}} onDescargar={(a) => descargar(a)}
+          onDatos={onLeer && !soloLectura ? (a) => { setVisorFactura(null); onLeer(a); } : null} />
+      )}
       {!subida && <AvisoError>{error}</AvisoError>}
       <AvisoOk>{aviso}</AvisoOk>
 
@@ -642,6 +972,12 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                 </Tooltip>
               </div>
             )}
+            <Tooltip texto={t('recargar', 'Recargar la lista')}>
+              <Button variant="secondary" isIconOnly rounded="full" onClick={recargar} disabled={recargando}
+                aria-label={t('recargar', 'Recargar la lista')} className="h-[45px] w-[45px] shrink-0">
+                <RotateCw size={18} className={recargando ? 'animate-spin' : ''} />
+              </Button>
+            </Tooltip>
             <div className="w-full flex-1 space-y-1.5">
               <label htmlFor={`filtro-tipo-${tabla}-${id}`} className="ml-1 text-[11px] font-black uppercase tracking-widest">{t('grupos_documentos', 'Grupos de documentos')}</label>
               <div className="relative">
@@ -650,7 +986,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                   opciones={[{ value: '', label: t('todos_tipos', 'Todos los tipos') }, ...datos.categorias.map((c) => {
                     const falta = !sinObligatorio && datos.faltan.some((f) => f.id === c.id);
                     const n = (datos.archivos || []).filter((x) => x.categoria_id === c.id).length;
-                    return { value: c.codigo, label: `${sangria(c)}${nombreCat(c)}${obl(c)} · ${falta ? `⚠ ${t('falta', 'falta')}` : n}` };
+                    return { value: c.codigo, label: `${sangria(c)}${nombreCat(c)}${obl(c)}${falta ? ` · ⚠ ${t('falta', 'falta')}` : ` (${n})`}` };
                   })]} />
               </div>
             </div>
@@ -665,10 +1001,20 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         <VentanaEmergente titulo={t('subir', 'Subir documentos')} etiquetaCerrar={t('cerrar', 'Cerrar')} onCerrar={() => !ocupado && setSubida(null)}>
         <form onSubmit={subir} className="space-y-4">
           <AvisoError>{error}</AvisoError>
+          {/* Con `destinos`, el primer campo es a qué va (16/10/2026): obligatorio; sin espacio, a la propiedad. */}
+          {destinos && (
+            <Campo etiqueta={`${destinos.etiqueta} *`}>
+              <select required autoFocus value={subida.destino} onChange={(e) => setSubida((x) => ({ ...x, destino: e.target.value }))} className={CLASE_INPUT}>
+                <option value="">{t('elige_destino', '— Elige —')}</option>
+                {destinos.opciones.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                <option value="base">{destinos.base}</option>
+              </select>
+            </Campo>
+          )}
           {/* Primer campo: el tipo de documento (04/10/2026). Vale para los
               archivos que se añadan; cada uno se puede cambiar abajo. */}
           <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-            <select autoFocus value={subida.categoria_id} onChange={(e) => {
+            <select autoFocus={!destinos} value={subida.categoria_id} onChange={(e) => {
               const c = datos.categorias.find((x) => String(x.id) === e.target.value);
               setSubida((x) => ({
                 ...x, categoria_id: e.target.value, confidencial: Boolean(Number(c?.confidencial)),
@@ -708,7 +1054,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           })()}
           <Campo etiqueta={t('ficheros_1gb', 'Archivos (cualquier tipo menos programas ejecutables; máx. 1 GB cada uno)')}>
             <ZonaArchivos
-              carpetas textoCarpeta={t('elegir_carpeta', 'Elegir carpeta (sus subcarpetas pasan a ser subtipos)')}
+              carpetas textoCarpeta={t('elegir_carpeta_corto', 'Elegir carpeta')}
+              textoAyudaCarpeta={t('ayuda_carpeta', 'Sus subcarpetas pasan a ser subtipos')}
               ficheros={subida.ficheros} onCambio={(lista) => setSubida((s) => { const ficheros = lista.map(conTipo); return { ...s, ficheros, detalles: detallesPara(ficheros, { ...s, detalles: s.ficheros.length === ficheros.length ? s.detalles : s.detalles.filter((_, i) => s.ficheros[i] && ficheros.some((f) => rutaArchivo(f) === rutaArchivo(s.ficheros[i]) && f.size === s.ficheros[i].size)) }) }; })}
               textoPrincipal={t('arrastra', 'Arrastra aquí los archivos')}
               textoSecundario={t('o_elige', 'o pulsa para elegirlos del ordenador')}
@@ -721,6 +1068,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
 
             <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><CampoFecha max={hoy()} value={subida.fecha_documento} onChange={(e) => setSubida((s) => ({ ...s, fecha_documento: e.target.value }))} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={subida.ejercicio} onChange={(e) => setSubida((s) => ({ ...s, ejercicio: e.target.value }))} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('sufijo', 'Sufijo (C1, Contrato 1…)')}><input maxLength={20} value={subida.sufijo} onChange={(e) => setSubida((s) => ({ ...s, sufijo: e.target.value }))} className={CLASE_INPUT} /></Campo>
             {algunaCaduca(subida) && (
               <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><CampoFecha value={subida.fecha_caducidad} onChange={(e) => setSubida((s) => ({ ...s, fecha_caducidad: e.target.value }))} className={CLASE_INPUT} /></Campo>
             )}
@@ -775,9 +1123,24 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                       </Campo>
                     )}
                     <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
-                      <input value={det.nombreManual ? det.nombre : nombreDe(det, subida)} placeholder={fich.name.replace(/\.[^.]+$/, '')} maxLength={190}
-                        onChange={(e) => cambiar({ nombre: e.target.value, nombreManual: true })} className={CLASE_INPUT} />
+                      <div className="flex items-center gap-2">
+                        <input value={det.nombreManual ? det.nombre : nombreDe(det, subida)} placeholder={fich.name.replace(/\.[^.]+$/, '')} maxLength={190}
+                          onChange={(e) => cambiar({ nombre: e.target.value, nombreManual: true })} className={CLASE_INPUT} />
+                        <Extension nombre={fich.name} />
+                      </div>
                     </Campo>
+                    {tipoHacienda && (() => {
+                      const v = haciendaDeDetalle(det, subida);
+                      return (
+                        <Campo etiqueta={`${t('tipo_hacienda', 'Tipo para Hacienda')} *`}>
+                          <select required value={v} onChange={(e) => cambiar({ tipo_hacienda: e.target.value, haciendaManual: true })} className={CLASE_INPUT}>
+                            <option value="">{t('hacienda_elige', '— Elige —')}</option>
+                            {TIPOS_HACIENDA.map(([k]) => <option key={k} value={k}>{nombreHacienda(k)}</option>)}
+                          </select>
+                          {v && <span className="mt-1 block text-xs font-bold">{ayudaHacienda(v)}</span>}
+                        </Campo>
+                      );
+                    })()}
                     {categoria(det.categoria_id)?.codigo === 'CERT_DIGITAL' && (
                       <div className="space-y-2 sm:col-span-2">
                         {esP12(fich) && (
@@ -866,13 +1229,26 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         </VentanaEmergente>
       )}
 
+      {avisoExcluido && <p className="text-xs font-bold uppercase tracking-widest">{avisoExcluido}</p>}
+
       {/* Expandir / compactar todos los grupos de golpe (09/10/2026). */}
-      {arbol.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+      {(arbol.length > 0 || (porAnyo && filtroAnyo)) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {porAnyo && (
+            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
+              {t('ejercicio', 'Ejercicio')}
+              <select value={filtroAnyo} onChange={(e) => setFiltroAnyo(e.target.value)}
+                className="input-base h-8 rounded-lg border-border bg-background px-2 text-sm font-bold normal-case tracking-normal">
+                <option value="">{t('todos_ejercicios', 'Todos los años')}</option>
+                {[...new Set((datos?.archivos || []).map(anyoDe))].sort((a, b) => (a === 'sin') - (b === 'sin') || Number(b) - Number(a))
+                  .map((y) => <option key={y} value={y}>{y === 'sin' ? t('sin_anyo', 'Sin año') : y}</option>)}
+              </select>
+            </label>
+          )}
           <Button type="button" size="sm" variant="secondary" leftIcon={<ChevronsUpDown size={16} />} onClick={() => setPlegados(new Set())}>
             {t('expandir_todos', 'Expandir todos')}
           </Button>
-          <Button type="button" size="sm" variant="secondary" leftIcon={<ChevronsDownUp size={16} />} onClick={() => setPlegados(new Set(arbol.map((f) => f.g.codigo)))}>
+          <Button type="button" size="sm" variant="secondary" leftIcon={<ChevronsDownUp size={16} />} onClick={() => setPlegados(new Set(bloques ? [...bloques.map((b) => `destino|${b.id}`), ...bloques.flatMap((b) => b.arbol.map((f) => `${b.id}|${f.g.codigo}`))] : arbol.map((f) => f.g.codigo)))}>
             {t('compactar_todos', 'Compactar todos')}
           </Button>
         </div>
@@ -885,92 +1261,48 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           {!soloLectura && <Button size="xs" leftIcon={<Upload size={14} />} onClick={() => nuevaSubida(datos.categorias.find((c) => c.codigo === filtroTipo))}>{t('subir', 'Subir documentos')}</Button>}
         </p>
       )}
-      {visibles.map(({ g, nivel, total, tieneHijos }) => (
-        <section key={g.codigo} className="overflow-hidden rounded-2xl border border-border" style={nivel ? { marginLeft: `${nivel * 2}rem` } : undefined}>
-          <h3 className={`flex items-center gap-3 bg-table-header px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-on-table-header ${g.archivos.length && !plegados.has(g.codigo) ? 'border-b border-border' : ''}`}>
-            {/* Flecha a la izquierda en grupos y subgrupos: oculta o muestra sus documentos (y sus subgrupos) (06/10/2026). */}
-            {(tieneHijos || g.archivos.length > 0) && (
-              <button type="button" onClick={() => plegar(g.codigo)} aria-expanded={!plegados.has(g.codigo)}
-                aria-label={plegados.has(g.codigo) ? t('desplegar_grupo', 'Mostrar documentos') : t('plegar_grupo', 'Ocultar documentos')}
-                title={plegados.has(g.codigo) ? t('desplegar_grupo', 'Mostrar documentos') : t('plegar_grupo', 'Ocultar documentos')}
+      {bloques ? bloques.map((b) => {
+        const k = `destino|${b.id}`;
+        const total = b.porCategoria.reduce((n, g) => n + g.archivos.length, 0);
+        return (
+          <section key={k} className="space-y-2">
+            {/* Primer nivel con destinos (16/10/2026): el espacio o la propiedad; dentro, sus tipos. */}
+            <h3 className="flex items-center gap-3 rounded-2xl border-2 border-border px-4 py-2.5 text-sm font-black uppercase tracking-widest text-on-surface2">
+              <button type="button" onClick={() => plegar(k)} aria-expanded={!plegados.has(k)}
+                aria-label={plegados.has(k) ? t('desplegar_grupo', 'Mostrar documentos') : t('plegar_grupo', 'Ocultar documentos')}
                 className="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
-                <ChevronRight size={18} className={`transition-transform ${plegados.has(g.codigo) ? '' : 'rotate-90'}`} />
+                <ChevronRight size={18} className={`transition-transform ${plegados.has(k) ? '' : 'rotate-90'}`} />
               </button>
-            )}
-            {/* «+» delante del nombre del grupo: subir otro documento de este tipo (04/10/2026). */}
-            {!soloLectura && (
-              <button type="button" onClick={() => nuevaSubida(datos.categorias.find((c) => c.codigo === g.codigo) || null)}
-                aria-label={t('subir_tipo', 'Subir «{tipo}»').replace('{tipo}', nombreCat(g))} title={t('subir_tipo', 'Subir «{tipo}»').replace('{tipo}', nombreCat(g))}
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-on-table-header transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
-                <Plus size={16} />
-              </button>
-            )}
-            <span>{nombreCat(g)} · {total}</span>
-          </h3>
-          {g.archivos.length > 0 && !plegados.has(g.codigo) && <ul>
-            {g.archivos.map((a, i) => (
-              <li key={a.id} className={`flex flex-wrap items-center gap-3 px-4 py-2 ${caducado(a) ? 'bg-destructive text-on-destructive' : claseFila(i)}`}>
-                {/* Acciones a la izquierda, como en todas las listas */}
-                <span className="flex shrink-0 items-center gap-0.5">
-                  {!Number(a.cifrado) && a.extension !== 'zip' && <BotonFila icono={<Eye size={15} />} titulo={t('ver', 'Ver')} onClick={() => descargar(a, 'ver')} />}
-                  <BotonFila icono={<Download size={15} />} titulo={t('descargar', 'Descargar')} onClick={() => (Number(a.cifrado) ? descargarCifrado(a) : descargar(a))} />
-                  {!soloLectura && <>
-                    {a.principal && leibles.includes(a.categoria_codigo) && onLeer && (
-                      <BotonFila icono={<ScanText size={15} />} titulo={t('leer_datos', 'Leer datos y pasarlos a la ficha')} onClick={() => onLeer(a)} />
-                    )}
-                    <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, campos: { nombre: String(a.nombre_original || '').replace(/\.[^.]+$/, ''), categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)) } })} />
-                    {a.principal && <BotonFila icono={<Trash2 size={15} />} titulo={t('papelera', 'Mover a la papelera')} onClick={() => papelera(a)} />}
-                  </>}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-black tracking-tight">
-                    {caducado(a) && <span className="mr-2 rounded-full border-2 border-on-destructive px-2 text-[10px] uppercase tracking-widest">{t('caducado', 'Caducado')}</span>}
-                    {Number(a.confidencial) === 1 && <Lock size={13} className="mr-1 inline" aria-label={t('confidencial_corto', 'Confidencial')} />}
-                    {Number(a.cifrado) === 1 && <KeyRound size={13} className="mr-1 inline" aria-label={t('cifrado', 'Guardado cifrado')} />}
-                    {Number(a.cifrado)
-                      ? <span title={t('cifrado', 'Guardado cifrado')}>{a.nombre_original}</span>
-                      : <button type="button" onClick={() => descargar(a, 'ver')} title={t('ver', 'Ver')} className="truncate text-left underline-offset-2 hover:underline">{a.nombre_original}</button>}
-                  </p>
-                  <p className="text-xs font-bold">
-                    {[fecha(a.fecha_documento), a.ejercicio && `${t('ejercicio', 'Ejercicio')} ${a.ejercicio}`, tamano(a.tamanyo_bytes),
-                      a.fecha_caducidad && `${t('caduca', 'caduca')} ${fecha(a.fecha_caducidad)}`,
-                      !a.principal && t('vinculado', 'vinculado desde otro objeto'), a.descripcion].filter(Boolean).join(' · ')}
-                  </p>
-                  {Number(a.con_contrasena) === 1 && (
-                    <p className="flex items-center gap-2 text-xs font-bold">
-                      {t('contrasena_cert', 'Contraseña del certificado')}:
-                      <span className="font-mono">{claves[a.id] ?? '••••••••'}</span>
-                      <button type="button" onClick={() => verContrasena(a)} aria-label={claves[a.id] ? t('ocultar_contrasena', 'Ocultar contraseña') : t('ver_contrasena', 'Ver contraseña')}
-                        title={claves[a.id] ? t('ocultar_contrasena', 'Ocultar contraseña') : t('ver_contrasena', 'Ver contraseña')} className="rounded p-1 hover:bg-surface-hover hover:text-on-surface-hover">
-                        {claves[a.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </p>
-                  )}
-                  {a.vinculos?.length > 0 && (
-                    <p className="text-xs font-bold">
-                      {t('se_ve_en', 'También se ve en')}: {a.vinculos.map((v) => (
-                        <span key={v.id} className="mr-2">{v.objeto_tabla} {v.objeto_id}
-                          {!soloLectura && a.principal && <button type="button" className="ml-1" aria-label={t('desvincular', 'Desvincular')} onClick={() => desvincular(a, v)}><Unlink size={12} className="inline" /></button>}
-                        </span>
-                      ))}
-                    </p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>}
-        </section>
-      ))}
+              {!soloLectura && (
+                <button type="button" onClick={() => nuevaSubida(null, b.id)}
+                  aria-label={t('subir_a', 'Subir a «{d}»').replace('{d}', b.nombre)} title={t('subir_a', 'Subir a «{d}»').replace('{d}', b.nombre)}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-current transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
+                  <Plus size={16} />
+                </button>
+              )}
+              <span>{b.nombre} ({total})</span>
+            </h3>
+            {!plegados.has(k) && <div className="space-y-2 pl-4">{pintarArbol(visiblesDe(b.arbol, `${b.id}|`), `${b.id}|`, b.id)}</div>}
+          </section>
+        );
+      }) : pintarArbol(visiblesDe(arbol))}
 
       {edicion && (
-        <Recuadro as="form" onSubmit={guardarEdicion} className="space-y-3">
-          <div className="flex justify-between text-on-surface2">
-            <h3 className="font-black tracking-tight">{t('editar_titulo', 'Editar «{nombre}»').replace('{nombre}', edicion.archivo.nombre_original)}</h3>
-            <BotonFila icono={<X size={18} />} titulo={t('cerrar', 'Cerrar')} onClick={() => setEdicion(null)} />
-          </div>
+        // Ventana propia (18/10/2026): antes el formulario salía al final de la lista y, con muchos documentos, parecía que no pasaba nada.
+        <VentanaModal ancho="max-w-3xl" titulo={t('editar_titulo', 'Editar «{nombre}»').replace('{nombre}', edicion.archivo.nombre_original)} onCerrar={() => !ocupado && setEdicion(null)}>
+        <AvisoError>{error}</AvisoError>
+        <form onSubmit={guardarEdicion} className="mt-3 space-y-3">
+          {destinos && (
+            <Campo etiqueta={destinos.etiqueta}>
+              <select value={edicion.destino} onChange={(e) => setEdicion((s) => ({ ...s, destino: e.target.value }))} className={CLASE_INPUT}>
+                {destinos.opciones.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                <option value="base">{destinos.base}</option>
+              </select>
+            </Campo>
+          )}
           {/* El tipo (etiqueta) es el primer campo (04/10/2026). */}
           <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-            <select autoFocus value={edicion.campos.categoria_id} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(e.target.value) } }))} className={CLASE_INPUT}>
+            <select autoFocus={!destinos} value={edicion.campos.categoria_id} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(e.target.value) } }))} className={CLASE_INPUT}>
               {!datos.categorias.some((c) => c.id === Number(edicion.campos.categoria_id)) && <option value={edicion.campos.categoria_id}>{edicion.archivo.categoria_nombre}</option>}
               {datos.categorias.map((c) => <option key={c.id} value={c.id}>{sangria(c)}{nombreCat(c)}</option>)}
             </select>
@@ -978,12 +1310,22 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
             <div className="flex gap-2">
               <input value={edicion.campos.nombre} maxLength={190} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, nombre: e.target.value } }))} className={CLASE_INPUT} />
+              <Extension ext={edicion.archivo.extension} nombre={edicion.archivo.nombre_original} />
               <Button type="button" variant="secondary" size="sm"
                 onClick={() => setEdicion((s) => ({ ...s, campos: { ...s.campos, nombre: nombrePropuesto(categoria(s.campos.categoria_id)?.codigo, datos?.objeto, s.campos) || s.campos.nombre } }))}>
                 {t('nombre_propuesto', 'Nombre propuesto')}
               </Button>
             </div>
           </Campo>
+          {tipoHacienda && (
+            <Campo etiqueta={`${t('tipo_hacienda', 'Tipo para Hacienda')} *`}>
+              <select required value={edicion.campos.tipo_hacienda || ''} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, tipo_hacienda: e.target.value } }))} className={CLASE_INPUT}>
+                <option value="">{t('hacienda_elige', '— Elige —')}</option>
+                {TIPOS_HACIENDA.map(([k]) => <option key={k} value={k}>{nombreHacienda(k)}</option>)}
+              </select>
+              {edicion.campos.tipo_hacienda && <span className="mt-1 block text-xs font-bold">{ayudaHacienda(edicion.campos.tipo_hacienda)}</span>}
+            </Campo>
+          )}
           {Number(edicion.archivo.cifrado) === 1 && /\.(p12|pfx)$/i.test(edicion.archivo.nombre_original || '') && (
             <Campo etiqueta={t('nueva_contrasena', 'Nueva contraseña del certificado (vacío = no cambia)')}>
               <CampoContrasena valor={edicion.campos.contrasena || ''} onCambio={(v) => setEdicion((s) => ({ ...s, campos: { ...s.campos, contrasena: v } }))}
@@ -993,6 +1335,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           <div className="grid gap-3 sm:grid-cols-3">
             <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><CampoFecha value={edicion.campos.fecha_documento} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_documento: e.target.value } }))} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" value={edicion.campos.ejercicio} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, ejercicio: e.target.value } }))} className={CLASE_INPUT} /></Campo>
+            <Campo etiqueta={t('sufijo', 'Sufijo (C1, Contrato 1…)')}><input maxLength={20} value={edicion.campos.sufijo} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, sufijo: e.target.value } }))} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('fecha_caducidad', 'Caduca el')}><CampoFecha value={edicion.campos.fecha_caducidad} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, fecha_caducidad: e.target.value } }))} className={CLASE_INPUT} /></Campo>
             <div className="sm:col-span-2"><Campo etiqueta={t('descripcion', 'Descripción')}><input maxLength={500} value={edicion.campos.descripcion} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, descripcion: e.target.value } }))} className={CLASE_INPUT} /></Campo></div>
           </div>
@@ -1001,13 +1344,15 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             <Button type="button" variant="secondary" onClick={() => setEdicion(null)}>{t('cancelar', 'Cancelar')}</Button>
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>
-        </Recuadro>
+        </form>
+        </VentanaModal>
       )}
 
       {editandoTipos && (
         <TiposDocumento tabla={tabla} t={t} nombreCat={nombreCat} onCerrar={() => setEditandoTipos(false)} onCambio={cargar}
           cuentas={(datos?.archivos || []).reduce((n, a) => ({ ...n, [a.categoria_id]: (n[a.categoria_id] || 0) + 1 }), {})}
-          editarCodigo={typeof editandoTipos === 'string' ? editandoTipos : null} sinObligatorio={sinObligatorio} />
+          editarCodigo={typeof editandoTipos === 'string' ? editandoTipos : null} sinObligatorio={sinObligatorio}
+          grupo={grupo} excluirGrupo={excluirGrupo} />
       )}
 
       {vinculo && (

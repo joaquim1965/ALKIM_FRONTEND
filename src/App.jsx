@@ -46,6 +46,7 @@ import ExtractosPage from "./pages/Tesoreria/Extractos/ExtractosPage";
 import ExtractosLog from "./pages/Tesoreria/Extractos/ExtractosLog";
 import ProgramacionPage from "./pages/Tesoreria/Extractos/ProgramacionPage";
 import ExtractosBancariosPage from "./pages/Fiscalidad/ExtractosBancariosPage";
+import ParametrosFiscalesPage from "./pages/Fiscalidad/ParametrosFiscalesPage";
 import BancosCuentasPage from "./pages/Tesoreria/BancosCuentas/BancosCuentasPage";
 import MovimientosPage from "./pages/Tesoreria/MovimientosPage";
 import ExploradorArchivosPage from "./pages/Sistema/ExploradorArchivosPage";
@@ -56,6 +57,7 @@ import PropiedadesPage from "./pages/Cartera/PropiedadesPage";
 import RecibosPage from "./pages/Cartera/RecibosPage";
 import ContratosPage from "./pages/Cartera/ContratosPage";
 import IaPage from "./pages/Sistema/IaPage";
+import ElegirIa from "./components/IA/ElegirIa";
 
 /**
  * ProtectedRoute (Fase 1)
@@ -96,6 +98,7 @@ function AppContent() {
   if (!sessionChecked) return null;
 
   return (
+    <>
     <Router>
       <MainLayout>
         <Routes>
@@ -177,6 +180,15 @@ function AppContent() {
             }
           />
           {/* Fiscalidad */}
+          {/* Parámetros fiscales (28/10/2026): % de amortización y plazos de garantía. */}
+          <Route
+            path="/fiscalidad/parametros"
+            element={
+              <ProtectedRoute table="im_property">
+                <ParametrosFiscalesPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/fiscalidad/extractos"
             element={
@@ -328,6 +340,9 @@ function AppContent() {
         </Routes>
       </MainLayout>
     </Router>
+    {/* Ventana «La IA está saturada» (18/10/2026): la abre services/api.js. */}
+    <ElegirIa />
+    </>
   );
 }
 

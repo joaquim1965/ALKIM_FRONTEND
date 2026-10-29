@@ -27,6 +27,19 @@ function cajaVisible(d, w, h) {
 
 const aBlob = (c, tipo, calidad) => new Promise((ok) => c.toBlob(ok, tipo, calidad));
 
+/** Plan B para decodificar: una etiqueta <img> (algunos navegadores leen con ella lo que createImageBitmap rechaza). */
+async function imagenPorEtiqueta(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return img;
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+}
+
 /**
  * Devuelve un File nuevo normalizado (o el mismo si no es una imagen).
  * @param {File} file
@@ -34,10 +47,19 @@ const aBlob = (c, tipo, calidad) => new Promise((ok) => c.toBlob(ok, tipo, calid
  */
 export async function normalizarImagen(file, maxLado = LADO_A4) {
   if (!TIPOS.test(file.type)) return file;
-  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  // Si el navegador no puede leer la imagen (27/10/2026: «The source image could not be decoded»;
+  // p. ej. una foto HEIC del iPhone renombrada a .jpg, o un JPEG dañado), se prueba con <img> y,
+  // si tampoco, se sube el archivo TAL CUAL en vez de parar la subida.
+  let bmp;
+  try {
+    bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    bmp = await imagenPorEtiqueta(file).catch(() => null);
+    if (!bmp) return file;
+  }
   // Primero a tamaño completo para saber si hay transparencia.
   let c = document.createElement('canvas');
-  c.width = bmp.width; c.height = bmp.height;
+  c.width = bmp.naturalWidth || bmp.width; c.height = bmp.naturalHeight || bmp.height;
   let ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(bmp, 0, 0);
   bmp.close?.();

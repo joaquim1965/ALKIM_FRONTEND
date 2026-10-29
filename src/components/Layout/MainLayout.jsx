@@ -16,7 +16,7 @@ import {
     LayoutDashboard, Briefcase, FileText, Wallet, CalendarClock, 
     Settings2, History, Building2, Sparkles, FileSignature,
     Receipt, Landmark, PiggyBank, Calendar, Contact2, Key,
-    ReceiptEuro, HelpCircle, Cpu, Scale, FileCheck
+    ReceiptEuro, HelpCircle, Cpu, Scale, FileCheck, Percent
 } from 'lucide-react';
 import { useStore } from '../../hooks/useStore';
 import { useTmTr } from '../../contexts/TmTrContext';
@@ -45,6 +45,7 @@ export const MainLayout = ({ children }) => {
     const verConciliacion = canSee('ban_transaction');
     const verExtractos = canSee('ban_crawler');
     const verHistorialExtractos = canSee('ban_crawler_log');
+    const verParametrosFiscales = canSee('im_property');
     const verMovimientos = canSee('ban_transaction');
     const verContactos = canSee('m_contact');
 
@@ -150,13 +151,15 @@ export const MainLayout = ({ children }) => {
                         )}
 
                         {/* Fiscalidad: lo que se entrega a Hacienda (25/09/2026) */}
-                        {verHistorialExtractos && (
+                        {(verHistorialExtractos || verParametrosFiscales) && (
                             <SidebarGroup
                                 icon={<Scale size={18} />}
                                 label="Fiscalidad"
                                 collapsed={!sidebarOpen}
                             >
-                                <SidebarSubItem to="/fiscalidad/extractos" icon={<FileCheck size={13}/>} label="Extractos bancarios" />
+                                {verHistorialExtractos && <SidebarSubItem to="/fiscalidad/extractos" icon={<FileCheck size={13}/>} label="Extractos bancarios" />}
+                                {/* Parámetros fiscales (28/10/2026) */}
+                                {verParametrosFiscales && <SidebarSubItem to="/fiscalidad/parametros" icon={<Percent size={13}/>} label="Parámetros fiscales" />}
                             </SidebarGroup>
                         )}
 

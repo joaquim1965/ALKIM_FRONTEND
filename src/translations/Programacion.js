@@ -215,5 +215,75 @@ export const ProgramacionTranslations = {
     english: "There are no accounts with downloads configured",
     catalan: "No hi ha comptes amb descàrrega configurada",
     french: "Aucun compte n'a de téléchargement configuré"
+  },
+  auto_download: {
+    label: "Interruptor SÍ/NO de la descarga automática",
+    spanish: "Descarga automática",
+    english: "Automatic download",
+    catalan: "Descàrrega automàtica",
+    french: "Téléchargement automatique"
+  },
+  auto_download_hint: {
+    label: "Ayuda del interruptor de descarga automática",
+    spanish: "SÍ: cada día laborable, a la hora indicada, se descargan solas las cuentas programadas. NO: no se descarga nada solo. «Descargar ahora» funciona igual en los dos casos.",
+    english: "YES: every working day, at the set time, scheduled accounts are downloaded automatically. NO: nothing is downloaded automatically. «Download now» works the same in both cases.",
+    catalan: "SÍ: cada dia laborable, a l'hora indicada, es descarreguen soles els comptes programats. NO: no es descarrega res sol. «Descarregar ara» funciona igual en tots dos casos.",
+    french: "OUI : chaque jour ouvrable, à l'heure indiquée, les comptes programmés sont téléchargés automatiquement. NON : rien n'est téléchargé automatiquement. « Télécharger maintenant » fonctionne de la même façon dans les deux cas."
+  },
+  auto_off: {
+    label: "Próxima ejecución cuando la descarga automática está en NO",
+    spanish: "Desactivada",
+    english: "Disabled",
+    catalan: "Desactivada",
+    french: "Désactivé"
+  },
+  col_today: {
+    label: "Columna: descargada bien hoy",
+    spanish: "Hoy",
+    english: "Today",
+    catalan: "Avui",
+    french: "Aujourd'hui"
+  },
+  today_ok: {
+    label: "Ayuda del tic verde",
+    spanish: "Descargada bien hoy",
+    english: "Downloaded successfully today",
+    catalan: "Descarregada bé avui",
+    french: "Téléchargé correctement aujourd'hui"
+  },
+  today_ko: {
+    label: "Ayuda de la X roja",
+    spanish: "Hoy no se ha descargado bien",
+    english: "Not downloaded successfully today",
+    catalan: "Avui no s'ha descarregat bé",
+    french: "Pas téléchargé correctement aujourd'hui"
+  },
+  just_title: {
+    label: "Título del aviso de justificantes",
+    spanish: "Esta descarga pedirá justificantes",
+    english: "This download will request statements",
+    catalan: "Aquesta descàrrega demanarà justificants",
+    french: "Ce téléchargement demandera des justificatifs"
+  },
+  just_text: {
+    label: "Texto del aviso de justificantes",
+    spanish: "Además de los movimientos, se van a descargar justificantes de periodos ya cerrados. Normalmente necesitan que estés delante para atender el banco (verificación, pantallas…).",
+    english: "Besides the transactions, statements for closed periods will be downloaded. They usually need you to be present to handle the bank (verification, screens…).",
+    catalan: "A més dels moviments, es descarregaran justificants de períodes ja tancats. Normalment cal que hi siguis per atendre el banc (verificació, pantalles…).",
+    french: "En plus des mouvements, des justificatifs de périodes clôturés seront téléchargés. Ils nécessitent généralement votre présence pour la banque (vérification, écrans…)."
+  },
+  just_continue: {
+    label: "Botón: descargar igualmente",
+    spanish: "Descargar igualmente",
+    english: "Download anyway",
+    catalan: "Descarregar igualment",
+    french: "Télécharger quand même"
+  },
+  cancel: {
+    label: "Botón cancelar",
+    spanish: "Cancelar",
+    english: "Cancel",
+    catalan: "Cancel·lar",
+    french: "Annuler"
   }
 };

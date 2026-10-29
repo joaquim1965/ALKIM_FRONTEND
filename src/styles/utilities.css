@@ -940,3 +940,26 @@ select:not([multiple]):not([size]):not(.select-propia) {
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
   }
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Login y Registro en tema oscuro: TODO el texto en blanco brillante
+   (26/10/2026, petición del usuario). Las páginas llevan la clase
+   «pagina-auth». Gana a cualquier clase de color heredada (p. ej. el
+   «text-primary» azul que Checkbox pone en su contenedor y heredaba la
+   etiqueta «Mantener sesión iniciada…»).
+   ───────────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] .pagina-auth,
+:root[data-theme="dark"] .pagina-auth *,
+:root[data-theme="dark"] .pagina-auth a:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+:root[data-theme="dark"] .pagina-auth ::placeholder {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+:root[data-theme="dark"] .pagina-auth input:-webkit-autofill {
+  -webkit-text-fill-color: #ffffff !important;
+}

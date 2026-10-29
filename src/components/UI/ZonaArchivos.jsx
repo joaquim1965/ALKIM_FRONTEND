@@ -54,7 +54,7 @@ async function leerEntrada(entrada, ruta = '') {
 
 export default function ZonaArchivos({
   ficheros = [], onCambio, multiple = true, accept, carpetas = false,
-  textoCarpeta = 'Elegir carpeta',
+  textoCarpeta = 'Elegir carpeta', textoAyudaCarpeta = '',
   textoPrincipal = 'Arrastra aquí los archivos', textoSecundario = 'o pulsa para elegirlos del ordenador',
   textoQuitar = 'Quitar', textoRepetidos = 'Documentos descartados por repetidos:',
   textoCuenta = (n) => `${n} ${n === 1 ? 'archivo' : 'archivos'} a cargar`,
@@ -115,10 +115,14 @@ export default function ZonaArchivos({
       />
       {carpetas && (
         <>
-          <button type="button" onClick={() => entradaCarpeta.current?.click()}
-            className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-bold text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover">
-            <FolderOpen size={16} />{textoCarpeta}
-          </button>
+          {/* Explicación a la derecha del botón, en la misma fila (27/10/2026). */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => entradaCarpeta.current?.click()}
+              className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-bold text-on-surface1 hover:bg-surface-hover hover:text-on-surface-hover">
+              <FolderOpen size={16} />{textoCarpeta}
+            </button>
+            {textoAyudaCarpeta && <span className="text-sm font-bold text-on-surface1">{textoAyudaCarpeta}</span>}
+          </div>
           <input ref={entradaCarpeta} type="file" webkitdirectory="" directory="" multiple className="hidden"
             onChange={(e) => { anadir([...e.target.files].filter((f) => !ES_DE_SISTEMA.test(f.name))); e.target.value = ''; }} />
         </>
@@ -153,15 +157,20 @@ export default function ZonaArchivos({
  * funcione también abierto desde DENTRO de otra ventana (la ficha con pestañas
  * usa una animación con `transform`, que encierra a los `position: fixed`).
  */
-export function VentanaEmergente({ titulo, onCerrar, etiquetaCerrar = 'Cerrar', ancho = 'max-w-2xl', children }) {
+// `cerrarIzquierda` (28/10/2026, petición del usuario): en los visores la X va arriba a la izquierda.
+export function VentanaEmergente({ titulo, onCerrar, etiquetaCerrar = 'Cerrar', ancho = 'max-w-2xl', cerrarIzquierda = false, children }) {
+  const cerrar = (
+    <button type="button" onClick={onCerrar} aria-label={etiquetaCerrar} title={etiquetaCerrar} className="shrink-0 rounded-full p-2 text-on-surface2 transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
+      <X size={cerrarIzquierda ? 24 : 20} />
+    </button>
+  );
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-modal-backdrop/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={titulo}>
       <div className={`flex max-h-[92vh] w-full ${ancho} flex-col overflow-hidden rounded-3xl border border-border bg-surface1 shadow-2xl`}>
-        <div className="flex items-center justify-between gap-4 border-b border-border bg-surface2 p-5">
+        <div className={`flex items-center gap-4 border-b border-border bg-surface2 p-5 ${cerrarIzquierda ? '' : 'justify-between'}`}>
+          {cerrarIzquierda && cerrar}
           <h2 className="truncate text-xl font-black leading-none tracking-tight text-on-background">{titulo}</h2>
-          <button type="button" onClick={onCerrar} aria-label={etiquetaCerrar} className="rounded-full p-2 text-on-surface2 transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
-            <X size={20} />
-          </button>
+          {!cerrarIzquierda && cerrar}
         </div>
         <div className="custom-scrollbar flex-1 overflow-y-auto p-6 text-on-surface1">{children}</div>
       </div>
