@@ -101,6 +101,12 @@ export const apiFetch = async (endpoint, options = {}) => {
   for (let elegida = await iaElegidaTrasSaturacion(respuesta); elegida; elegida = await iaElegidaTrasSaturacion(respuesta)) {
     respuesta = await apiFetchBase(endpoint, { ...options, headers: { ...options.headers, 'X-IA-Proveedor': String(elegida) } });
   }
+  // Semáforo de subidas (01/11/2026): al borrar, mandar a la papelera o restaurar un archivo desde
+  // cualquier pantalla, el círculo rojo y su lista se actualizan al momento.
+  if (respuesta.ok && /^\/files\/\d+(\/(restaurar|definitivo))?(\?|$)/.test(String(endpoint))
+    && ['DELETE', 'POST'].includes(String(options.method || 'GET').toUpperCase())) {
+    window.dispatchEvent(new CustomEvent('subidas-pendientes-cambiadas'));
+  }
   return respuesta;
 };
 

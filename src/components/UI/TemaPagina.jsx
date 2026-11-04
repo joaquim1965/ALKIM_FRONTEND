@@ -5,7 +5,7 @@
  * Las pantallas del Plan core inmobiliaria (Entidades, Terceros, Propiedades,
  * Recibos, Explorador de archivos…) se escribieron cada una con su propio
  * formulario, sus propias tablas y su propia cabecera, y se saltaban las normas
- * de `docs/CRITERIOS_UI_LISTADOS.md` y `docs/NORMAS_DESARROLLO.md` §8:
+ * de `docs_IA/CRITERIOS_UI_LISTADOS.md` y `docs_IA/NORMAS_DESARROLLO.md` §8:
  *   · texto `text-on-background` dentro de las celdas de DataTable (blanco sobre
  *     fila blanca en el tema oscuro);
  *   · casillas nativas en lugar de `Toggle`;
@@ -118,10 +118,11 @@ export const Ayuda = ({ children, className = '' }) => (
 );
 
 /** Ausencia de dato: se escribe, no se deja un guion (CRITERIOS «Tipografía dentro de las celdas»). */
-export const SinDato = ({ texto }) => {
-  const { t } = useTmTr('Comun');
-  return <span className="text-[11px] font-bold uppercase tracking-widest">{texto || t('sin_datos', 'Sin datos')}</span>;
-};
+// Celda sin dato (30/10/2026, petición del usuario): en blanco, nunca «Sin datos».
+// Con `texto` se muestra ese texto (p. ej. «Vigente», «Sin precio»), que sí dice algo.
+export const SinDato = ({ texto }) => (texto
+  ? <span className="text-[11px] font-bold uppercase tracking-widest">{texto}</span>
+  : null);
 
 /** Ventana modal: la de Tesorería → Bancos y cuentas. */
 export const VentanaModal = ({ titulo, icono, onCerrar, ancho = 'max-w-3xl', children, anadir }) => {

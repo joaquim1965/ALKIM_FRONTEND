@@ -1,7 +1,7 @@
 /**
  * LecturaCompraventa.jsx — al subir una ESCRITURA DE COMPRAVENTA en Documentos de
  * la propiedad se lee sola y se pasa a la propiedad con la forma estándar
- * (components/Documentos/ComparadorCampos.jsx, docs/NORMAS_DESARROLLO.md §12).
+ * (components/Documentos/ComparadorCampos.jsx, docs_IA/NORMAS_DESARROLLO.md §12).
  *
  *   - Ficha (pestaña Datos): finca, registro, ref. catastral, superficies,
  *     dirección y año, como la nota simple.

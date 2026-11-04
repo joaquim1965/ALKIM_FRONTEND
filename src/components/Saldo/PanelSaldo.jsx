@@ -15,7 +15,7 @@ import {
  *
  * Los colores salen del tema. Los de estado —rojo, ámbar, verde, azul— son los
  * únicos que se escriben, y se escriben con los tokens del tema, porque ahí el
- * color ES el dato (ver docs/CRITERIOS_UI_LISTADOS.md).
+ * color ES el dato (ver docs_IA/CRITERIOS_UI_LISTADOS.md).
  */
 
 const COLOR = {

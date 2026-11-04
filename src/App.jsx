@@ -57,6 +57,7 @@ import PropiedadesPage from "./pages/Cartera/PropiedadesPage";
 import RecibosPage from "./pages/Cartera/RecibosPage";
 import ContratosPage from "./pages/Cartera/ContratosPage";
 import IaPage from "./pages/Sistema/IaPage";
+import ParametrosSistemaPage from "./pages/Sistema/ParametrosSistemaPage";
 import ElegirIa from "./components/IA/ElegirIa";
 
 /**
@@ -227,6 +228,8 @@ function AppContent() {
           <Route path="/sistema/tareas" element={<TareasPage />} />
           {/* Auxiliares → Claves de IA (05/10/2026) */}
           <Route path="/aux/ia" element={<IaPage />} />
+          {/* Auxiliares → Parámetros del sistema (01/11/2026) */}
+          <Route path="/aux/parametros" element={<ParametrosSistemaPage />} />
           <Route path="/sistema/ia" element={<Navigate to="/aux/ia" replace />} />
           {/* Navegador del servidor al grabar guiones, en ventana aparte (27/09/2026) */}
           <Route path="/pantalla-remota" element={<ProtectedRoute><PantallaRemotaPage /></ProtectedRoute>} />

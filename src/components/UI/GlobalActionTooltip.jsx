@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { speakMenuLabel } from '../../hooks/useMenuSpeech';
+import { speakMenuLabel, hablarAlPasar, cancelarAlPasar } from '../../hooks/useMenuSpeech';
 
 // Cualquier elemento con `title` entra (26/09/2026): los contadores del Panel
 // (■ 3, ● 9, ◆ 1) son <div title=…>, no botones, y su tooltip ni se dibujaba
 // con este sistema ni se leía en voz alta.
-const selector = '[data-speech-label], [title], button[aria-label], a[aria-label], [role="button"][aria-label]';
+// Títulos (03/11/2026, petición del usuario): h1–h3, legend y [data-speech-only] se leen al
+// pasar el ratón, sin dibujar recuadro (el texto ya se ve).
+const selector = '[data-speech-label], [title], button[aria-label], a[aria-label], [role="button"][aria-label], h1, h2, h3, legend, [data-speech-only]';
+const esTitulo = (el) => el?.matches?.('h1, h2, h3, legend, [data-speech-only]') && !el.hasAttribute('title') && !el.dataset.speechLabel;
 
 export default function GlobalActionTooltip() {
   const [tooltip, setTooltip] = useState(null);
@@ -20,7 +23,8 @@ export default function GlobalActionTooltip() {
       if (node.closest('[data-alkim-tooltip]')) return null;
       return node.closest(selector);
     };
-    const getText = (target) => target?.dataset.globalTooltipTitle || target?.dataset.tooltip || target?.getAttribute('title') || target?.getAttribute('aria-label');
+    const getText = (target) => target?.dataset.globalTooltipTitle || target?.dataset.tooltip || target?.getAttribute('title') || target?.getAttribute('aria-label')
+      || (esTitulo(target) ? String(target.innerText || '').split('\n').map((x) => x.trim()).filter(Boolean)[0]?.slice(0, 80) : '');
     const restoreTitle = () => {
       if (activeTarget?.dataset.globalTooltipTitle) {
         activeTarget.setAttribute('title', activeTarget.dataset.globalTooltipTitle);
@@ -29,10 +33,11 @@ export default function GlobalActionTooltip() {
       activeTarget = null;
     };
     const hide = () => {
+      cancelarAlPasar();
       restoreTitle();
       setTooltip(null);
     };
-    const show = (target) => {
+    const show = (target, { conRaton = false } = {}) => {
       const text = getText(target);
       if (!text) return;
       if (activeTarget === target) return;
@@ -42,13 +47,22 @@ export default function GlobalActionTooltip() {
         target.dataset.globalTooltipTitle = target.getAttribute('title');
         target.removeAttribute('title');
       }
-      const rect = target.getBoundingClientRect();
-      const top = Math.min(window.innerHeight - 36, Math.max(8, rect.bottom + 8));
-      const left = Math.min(window.innerWidth - 12, Math.max(12, rect.left + (rect.width / 2)));
-      setTooltip({ text, top, left });
-      speakMenuLabel(text);
+      if (esTitulo(target)) setTooltip(null);
+      else {
+        const rect = target.getBoundingClientRect();
+        const top = Math.min(window.innerHeight - 36, Math.max(8, rect.bottom + 8));
+        const left = Math.min(window.innerWidth - 12, Math.max(12, rect.left + (rect.width / 2)));
+        setTooltip({ text, top, left });
+      }
+      // Con el ratón, la voz espera 1 s encima; si sale antes, no dice nada (03/11/2026).
+      if (conRaton) hablarAlPasar(text);
+      else speakMenuLabel(text);
     };
-    const onPointerOver = (event) => show(getTarget(event.target));
+    const onPointerOver = (event) => {
+      const target = getTarget(event.target);
+      if (!target) { if (activeTarget) hide(); return; }
+      show(target, { conRaton: true });
+    };
     const onPointerOut = (event) => {
       const from = getTarget(event.target);
       const to = getTarget(event.relatedTarget);

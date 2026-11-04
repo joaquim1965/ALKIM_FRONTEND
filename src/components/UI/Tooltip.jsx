@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { speakMenuLabel } from '../../hooks/useMenuSpeech';
+import { speakMenuLabel, hablarAlPasar, cancelarAlPasar } from '../../hooks/useMenuSpeech';
 
 /**
  * Tooltip.
@@ -29,13 +29,16 @@ export function Tooltip({ content, texto, position = 'top', children, className 
   // Además de dibujarlo, se lee en voz alta, igual que hace GlobalActionTooltip
   // con los `title` del resto de la aplicación. Sin esto, cambiar un `title` por
   // este componente dejaba el botón mudo, que es peor que dejarlo feo.
-  const mostrar = useCallback(() => {
+  // Con el ratón, la voz espera 1 s encima (03/11/2026); con el teclado (foco), al momento.
+  const mostrar = useCallback((ev) => {
     if (!referencia.current) return;
     setCaja(referencia.current.getBoundingClientRect());
-    if (mensaje) speakMenuLabel(String(mensaje));
+    if (!mensaje) return;
+    if (ev?.type === 'mouseenter') hablarAlPasar(String(mensaje));
+    else speakMenuLabel(String(mensaje));
   }, [mensaje]);
 
-  const ocultar = useCallback(() => setCaja(null), []);
+  const ocultar = useCallback(() => { cancelarAlPasar(); setCaja(null); }, []);
 
   if (!mensaje) return children;
 

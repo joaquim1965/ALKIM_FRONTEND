@@ -2,7 +2,7 @@
  * LecturaPrestamo.jsx — al subir una ESCRITURA DE HIPOTECA / PRÉSTAMO (o la oferta,
  * FEIN o simulación del banco) en Documentos de la propiedad, se lee sola y se pasa
  * al préstamo con la forma estándar (components/Documentos/ComparadorCampos.jsx,
- * docs/NORMAS_DESARROLLO.md §12).
+ * docs_IA/NORMAS_DESARROLLO.md §12).
  *
  * Arriba, a dónde va: Préstamos ▸ préstamo (nuevo o uno que ya existe) y, si es
  * nuevo, la cuenta de cargo (se propone la del banco leído). Debajo, qué datos se

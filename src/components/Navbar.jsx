@@ -9,6 +9,7 @@ import Button from "./UI/Button";
 import LanguageDropdown from "./LanguageDropdown";
 import ThemeDropdown from "./ThemeDropdown";
 import AvisosBadge from "./AvisosBadge";
+import SemaforoSubidas from "./Documentos/SemaforoSubidas";
 import UserMenu from "./UserMenu";
 import CompanyDropdown from "./CompanyDropdown";
 import SoundToggle from "./SoundToggle";
@@ -82,6 +83,8 @@ const Navbar = () => {
             <UserMenu />
           </>
         )}
+        {/* Subida diferida a R2 (01/11/2026): punto rojo con los archivos pendientes; nada si no hay. */}
+        {isAuthenticated && <SemaforoSubidas />}
         <AvisosBadge />
         {/* Oír o no los rótulos: solo con sesión iniciada, antes del idioma. */}
         {isAuthenticated && <SoundToggle />}

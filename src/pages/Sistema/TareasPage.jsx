@@ -23,7 +23,7 @@ const DIAS = [null, 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado
 const DIAS_ES = [null, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 const fecha = (v) => {
-    if (!v) return '—';
+    if (!v) return '';
     const d = new Date(v);
     if (Number.isNaN(d.getTime())) return String(v);
     return d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -326,7 +326,7 @@ const TareasPage = () => {
                                         {!tarea.activo && <div className="text-warning text-xs">{t('desactivada', 'Desactivada')}</div>}
                                     </td>
                                     <td className="p-2">{tarea.horario}</td>
-                                    <td className="p-2 whitespace-nowrap">{tarea.activo ? fecha(tarea.proxima_ejecucion) : '—'}</td>
+                                    <td className="p-2 whitespace-nowrap">{tarea.activo ? fecha(tarea.proxima_ejecucion) : ''}</td>
                                     <td className="p-2 whitespace-nowrap">{fecha(tarea.ultima_ejecucion)}</td>
                                     <td className="p-2 max-w-xs">
                                         <Estado estado={tarea.ultimo_estado} />

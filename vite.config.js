@@ -74,7 +74,9 @@ export default defineConfig(({ mode }) => {
         '^/terceros(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         '^/avisos(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
         // Proveedores de IA (05/10/2026). La pantalla es «/sistema/ia».
-        '^/ia(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
+        '^/ia(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true },
+        // Parámetros del sistema (01/11/2026). La pantalla es «/aux/parametros».
+        '^/parametros-sistema(/|\\?|$)': { target: 'https://localhost:3000', secure: false, changeOrigin: true }
       }
     },
     build: {

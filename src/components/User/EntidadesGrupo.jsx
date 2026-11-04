@@ -138,7 +138,7 @@ const EntidadesGrupo = () => {
         datos.entidades.length === 0 ? (
           <p className="p-4 text-on-surface2">{t('sin_entidades', 'Este grupo aún no tiene entidades.')}</p>
         ) : (
-          // Colores de tabla del tema (docs/CRITERIOS_UI_LISTADOS.md): la fila
+          // Colores de tabla del tema (docs_IA/CRITERIOS_UI_LISTADOS.md): la fila
           // da el color; la celda solo espacio.
           <TablaTema columnas={[{ texto: t('miembro', 'Miembro') }, ...datos.entidades.map((e) => ({ texto: e.nombre }))]}>
             {datos.miembros.map((m, i) => {

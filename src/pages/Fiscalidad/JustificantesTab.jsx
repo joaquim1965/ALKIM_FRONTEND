@@ -18,9 +18,9 @@ import useEmpresaActiva, { esDeLaEmpresa } from '../../hooks/useEmpresaActiva';
  * repite.
  */
 const pad = (n) => String(n).padStart(2, '0');
-const fecha = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '—');
+const fecha = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '');
 const guardado = (d) => {
-  if (!d) return '—';
+  if (!d) return '';
   const f = new Date(d);
   return `${pad(f.getDate())}/${pad(f.getMonth() + 1)}/${f.getFullYear()} ${pad(f.getHours())}:${pad(f.getMinutes())}`;
 };
@@ -127,7 +127,7 @@ const JustificantesTab = ({ anios }) => {
     }
   };
 
-  const periodo = (f) => (f.desde ? `${fecha(f.desde)} – ${fecha(f.hasta)}` : '—');
+  const periodo = (f) => (f.desde ? `${fecha(f.desde)} – ${fecha(f.hasta)}` : '');
 
   const COLUMNAS = [
     { texto: t('col_actions', 'Acciones') },

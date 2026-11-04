@@ -16,7 +16,7 @@ import {
     LayoutDashboard, Briefcase, FileText, Wallet, CalendarClock, 
     Settings2, History, Building2, Sparkles, FileSignature,
     Receipt, Landmark, PiggyBank, Calendar, Contact2, Key,
-    ReceiptEuro, HelpCircle, Cpu, Scale, FileCheck, Percent
+    ReceiptEuro, HelpCircle, Cpu, Scale, FileCheck, Percent, SlidersHorizontal
 } from 'lucide-react';
 import { useStore } from '../../hooks/useStore';
 import { useTmTr } from '../../contexts/TmTrContext';
@@ -27,6 +27,8 @@ export const MainLayout = ({ children }) => {
     const { isAuthenticated, can, user } = useStore();
     // Claves de IA: solo superadmin y sysadmin (05/10/2026).
     const verClavesIa = Number(user?.rol) >= 3;
+    // Parámetros del sistema: solo administradores (01/11/2026).
+    const verParametrosSistema = [2, 3, 4].includes(Number(user?.rol));
     const { t } = useTmTr('Sidebar');
     useMenuSpeech();
 
@@ -103,7 +105,7 @@ export const MainLayout = ({ children }) => {
                             collapsed={!sidebarOpen}
                         >
                             <SidebarSubItem to="/gestion/empresas" icon={<Building2 size={13}/>} label="Entidades" />
-                            <SidebarSubItem to="/gestion/terceros/inquilino" icon={<Contact2 size={13}/>} label="Terceros" />
+                            <SidebarSubItem to="/gestion/terceros/todos" icon={<Contact2 size={13}/>} label="Terceros" />
                             <SidebarSubItem to="/gestion/calendario" icon={<Calendar size={13}/>} label="Calendario" />
                             <SidebarSubItem to="/gestion/impuestos" icon={<ReceiptEuro size={13}/>} label="Impuestos (Saldo/Recibos)" />
                         </SidebarGroup>
@@ -185,6 +187,7 @@ export const MainLayout = ({ children }) => {
                             {verContactos && <SidebarSubItem to="/aux/contactos" icon={<Contact2 size={13}/>} label="Contactos" />}
                             <SidebarSubItem to="/aux/llaves" icon={<Key size={13}/>} label="Control de llaves" />
                             {verClavesIa && <SidebarSubItem to="/aux/ia" icon={<Sparkles size={13}/>} label="Claves de IA" />}
+                            {verParametrosSistema && <SidebarSubItem to="/aux/parametros" icon={<SlidersHorizontal size={13}/>} label="Parámetros del sistema" />}
                         </SidebarGroup>
 
                         {/* Espaciado / Ayuda */}

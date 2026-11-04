@@ -14,6 +14,7 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
+import { speakMenuLabel } from '../../hooks/useMenuSpeech';
 
 const MARGEN = 12;        // separación con el borde de la ventana
 const MINIMO = 160;       // por debajo de esto, mejor abrir hacia arriba
@@ -53,6 +54,14 @@ export default function SelectLista({ id, value, onChange, opciones = [], classN
     window.addEventListener('scroll', mover, true);
     return () => { document.removeEventListener('mousedown', fuera); window.removeEventListener('resize', colocar); window.removeEventListener('scroll', mover, true); };
   }, [abierta]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Voz (03/11/2026, petición del usuario): al moverse por la lista (flechas, ratón, letras) se lee
+  // deprisa la opción en la que se está. Una pausa corta: al pasar rápido solo se lee donde se para.
+  useEffect(() => {
+    if (!abierta) return undefined;
+    const reloj = window.setTimeout(() => speakMenuLabel(opciones[activa]?.label, { rapido: true }), 120);
+    return () => window.clearTimeout(reloj);
+  }, [abierta, activa]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // La opción activa siempre a la vista.
   useLayoutEffect(() => {

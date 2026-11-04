@@ -61,7 +61,7 @@ const enmascararTarjeta = (tarjeta) => {
 const lineasPersonas = (valor, t) => {
     const lineas = String(valor || '').split('\n').map((l) => l.trim()).filter(Boolean);
     if (!lineas.length) {
-        return <span className="text-[11px] font-bold uppercase tracking-widest">{t('sin_datos')}</span>;
+        return null; // celda en blanco (30/10/2026)
     }
     return lineas.slice(0, 3).map((linea, i) => (
         <span key={i} className="block text-xs font-bold leading-tight">{linea}</span>
@@ -459,7 +459,7 @@ const BancosCuentasPage = () => {
             render: (c) => {
                 const saldo = formatearSaldo(c);
                 if (saldo === null) {
-                    return <span className="text-[11px] font-bold uppercase tracking-widest">{t('sin_datos')}</span>;
+                    return null; // celda en blanco (30/10/2026)
                 }
                 const fecha = formatearFecha(c.fecha_ultima_consulta);
                 return (
@@ -513,7 +513,7 @@ const BancosCuentasPage = () => {
             sortField: 'fecha_caducidad',
             render: (tj) => (tj.fecha_caducidad
                 ? <span className="whitespace-nowrap font-mono text-xs font-bold">{tj.fecha_caducidad}</span>
-                : <span className="text-[11px] font-bold uppercase tracking-widest">{t('sin_datos')}</span>),
+                : null),
         },
         {
             id: 'limite',
@@ -523,7 +523,7 @@ const BancosCuentasPage = () => {
                 ? <span className="font-mono text-sm font-black">
                     {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' }).format(Number(tj.limite))}
                   </span>
-                : <span className="text-[11px] font-bold uppercase tracking-widest">{t('sin_datos')}</span>),
+                : null),
         },
         {
             id: 'gestor',
@@ -531,7 +531,7 @@ const BancosCuentasPage = () => {
             sortField: null,
             render: (tj) => (tj.referencia_gestor
                 ? <span className="text-xs font-bold">{tj.referencia_gestor}</span>
-                : <span className="text-[11px] font-bold uppercase tracking-widest">{t('sin_datos')}</span>),
+                : null),
         },
     ];
 

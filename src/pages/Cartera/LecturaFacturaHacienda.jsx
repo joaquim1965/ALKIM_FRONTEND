@@ -55,6 +55,7 @@ export default function LecturaFacturaHacienda({ propiedadId, archivo, posicion 
     { c: 'total', nombre: t('fh_total', 'Importe total'), tipo: 'importe' },
   ], [t]);
   const [lectura, setLectura] = useState(null);   // { datos, leido_por, avisos }
+  const [repetida, setRepetida] = useState('');   // la misma factura ya registrada (código único, 30/10/2026)
   const [actual, setActual] = useState(null);     // fila de im_invoice, si ya había
   const [tipoHacienda, setTipoHacienda] = useState(archivo.tipo_hacienda || '');
   const [eleccion, setEleccion] = useState({});
@@ -70,6 +71,7 @@ export default function LecturaFacturaHacienda({ propiedadId, archivo, posicion 
     try {
       const { data } = await pedir(`/propiedades/${propiedadId}/facturas/leer`, { method: 'POST', body: JSON.stringify({ archivo_id: archivo.id, modo }) });
       setLectura(data.lectura);
+      setRepetida(data.repetida || '');
       setActual(data.actual);
       setTipoHacienda((v) => v || data.tipo_hacienda || '');
       const act = data.actual ? Object.fromEntries(CAMPOS.map((f) => [f.c, data.actual[f.c] ?? null])) : {};
@@ -134,6 +136,7 @@ export default function LecturaFacturaHacienda({ propiedadId, archivo, posicion 
             </span>
           </AvisoError>
         )}
+        {repetida && <AvisoError>{repetida}</AvisoError>}
         {lectura?.avisos?.map((a) => <AvisoAtencion key={a}>{a}</AvisoAtencion>)}
         {ocupado && !lectura && <Ayuda>{t('fh_leyendo', 'Leyendo la factura…')}</Ayuda>}
         {lectura && <ComparadorCampos campos={CAMPOS} leidos={leidos} actuales={actuales} eleccion={eleccion} t={t}

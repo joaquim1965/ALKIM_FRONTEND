@@ -1,6 +1,6 @@
 /**
  * ComparadorCampos — forma ESTÁNDAR de pasar a un formulario los datos leídos
- * de un documento (06/10/2026). Ver docs/NORMAS_DESARROLLO.md «Lectura de documentos».
+ * de un documento (06/10/2026). Ver docs_IA/NORMAS_DESARROLLO.md «Lectura de documentos».
  *
  * Una fila por dato detectado: Campo · Valor actual · Valor leído · Qué se guarda
  * (Actual / Leído / Otro con su casilla). Si actual y leído coinciden pone «Coincide».

@@ -149,7 +149,9 @@ export default function VisorFactura({ archivo, propiedadId, tiposHacienda = [],
     try {
       const cuerpo = {
         ...form, base: aNumero(form.base), iva: aNumero(form.iva), total: aNumero(form.total), tipo_iva: aNumero(form.tipo_iva),
-        ejercicio: form.ejercicio || (form.fecha ? form.fecha.slice(0, 4) : null),
+        // El ejercicio es un dato independiente de la fecha. Si el usuario lo
+        // borra debe guardarse como null y no reconstruirse al volver a abrir.
+        ejercicio: form.ejercicio ? Number(form.ejercicio) : null,
       };
       // Nombre del archivo (28/10/2026): si ha cambiado, se renombra el documento (el que se ve y con el que se descarga).
       const nombre = String(form.nombre || '').trim();
@@ -224,7 +226,7 @@ export default function VisorFactura({ archivo, propiedadId, tiposHacienda = [],
             <div className="grid grid-cols-2 gap-3">
               <Fila etiqueta={t('fh_fecha', 'Fecha')}>
                 <CampoFecha value={form.fecha} disabled={soloLectura || guardando}
-                  onChange={(e) => { const v = e.target.value; setForm((x) => ({ ...x, fecha: v, ejercicio: (!x.ejercicio || x.ejercicio === String(x.fecha || '').slice(0, 4)) && v ? v.slice(0, 4) : x.ejercicio })); }}
+                  onChange={(e) => { const v = e.target.value; setForm((x) => ({ ...x, fecha: v, ejercicio: x.ejercicio && x.ejercicio === String(x.fecha || '').slice(0, 4) && v ? v.slice(0, 4) : x.ejercicio })); }}
                   className={CLASE_INPUT} />
               </Fila>
               <Fila etiqueta={t('fh_ejercicio', 'Año (ejercicio)')}><input type="number" min="1990" max="2100" {...f('ejercicio')} className={`${CLASE_INPUT} font-mono`} /></Fila>

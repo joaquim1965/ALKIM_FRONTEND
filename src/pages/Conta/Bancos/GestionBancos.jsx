@@ -125,7 +125,7 @@ const GestionBancos = ({ defaultSubTab, hideTabs = false }) => {
     const lineasPersonas = (valor) => {
         const lineas = String(valor || '').split('\n').map((l) => l.trim()).filter(Boolean);
         if (!lineas.length) {
-            return <span className="text-[11px] font-bold uppercase tracking-widest text-on-surface2">Sin datos</span>;
+            return null; // celda en blanco (30/10/2026)
         }
         return lineas.slice(0, 3).map((linea, i) => (
             <span key={i} className="block text-xs font-bold text-on-surface1 leading-tight">{linea}</span>

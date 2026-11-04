@@ -222,8 +222,8 @@ export default function MovimientosPage() {
                 <td className="p-3">{new Date(item.fecha).toLocaleDateString('es-ES')}</td>
                 <td className="max-w-[320px] truncate p-3" title={item.concepto_bancario}>{item.concepto_bancario}</td>
                 <td className="p-3 text-right">{money(item.importe, item.moneda)}</td>
-                <td className="p-3 text-right">{item.saldo_posterior == null ? '—' : money(item.saldo_posterior, item.moneda)}</td>
-                <td className="p-3">{item.referencia || '—'}</td>
+                <td className="p-3 text-right">{item.saldo_posterior == null ? '' : money(item.saldo_posterior, item.moneda)}</td>
+                <td className="p-3">{item.referencia || ''}</td>
                 {/* Una letra, no una etiqueta de color: en blanco está
                     pendiente y con «C» conciliado. Ocupa una columna estrecha y
                     se lee de un vistazo en una lista larga. */}

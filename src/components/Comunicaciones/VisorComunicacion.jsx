@@ -70,7 +70,7 @@ const ordenarAdjuntos = (lista) => [...lista].sort((a, b) => tipoDe(a) - tipoDe(
  * Pantalla completa (27/10/2026): fotos Y documentos, en el orden de la lista.
  * Sin carrusel: en el primero no sale ◀ y en el último no sale ▶ (tampoco con el teclado).
  */
-function PantallaCompleta({ items, indice, setIndice, archivos, onCerrar, onDescargar, t }) {
+export function PantallaCompleta({ items, indice, setIndice, archivos, onCerrar, onDescargar, t }) {
   const item = items[indice];
   const datos = archivos[item?.id];
   const hayAnterior = indice > 0;

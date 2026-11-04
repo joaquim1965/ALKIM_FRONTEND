@@ -77,7 +77,13 @@ function Extension({ ext, nombre }) {
 }
 
 async function pedir(url, opciones = {}) {
-  const r = await apiFetch(url, { ...opciones, headers: authHeaders() });
+  let r;
+  try {
+    r = await apiFetch(url, { ...opciones, headers: authHeaders() });
+  } catch (e) {
+    // «Failed to fetch» (03/11/2026): la petición no llegó al servidor o se cortó por el camino.
+    throw Object.assign(new Error('No se ha podido contactar con el servidor de ALKIM (la petición se ha cortado). Comprueba que el backend está en marcha y vuelve a intentarlo.'), { code: 'NETWORK', causa: e });
+  }
   const b = await r.json().catch(() => ({}));
   if (!r.ok) { const err = new Error(b.errors?.[0]?.message || b.message || `Error ${r.status}`); err.code = b.code; throw err; }
   return b;
@@ -183,7 +189,7 @@ const REVISAR = ['domicilio', 'municipio', 'provincia'];
  *                      (plegable; abierto el año en curso), hay filtro de ejercicio y, al
  *                      subir sin ejercicio, se pone el año de la fecha del documento (o el actual).
  */
-export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDocumentoIdentidad, ficha = null, onDatosDocumento, onSubido, leibles = [], onLeer, grupo = null, excluirGrupo = null, avisoExcluido = '', porAnyo = false, destinos = null, tipoHacienda = false }) {
+export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDocumentoIdentidad, ficha = null, onDatosDocumento, onSubido, leibles = [], onLeer, grupo = null, excluirGrupo = null, avisoExcluido = '', porAnyo = false, destinos = null, tipoHacienda = false, conRaiz = false, conEnlaces = false }) {
   const { t } = useTmTr('Documentos');
   const { t: tc } = useTmTr('CategoriaArchivo');
   const [datos, setDatos] = useState(null);
@@ -220,6 +226,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   }, [plegados, clavePlegados]);
   const [filtroTipo, setFiltroTipo] = useState('');   // '' = todos los grupos   // lápiz de «Tipos de documentos»          // formulario de subida
   const [edicion, setEdicion] = useState(null);        // { archivo, campos }
+  // Edición rápida de un grupo de año (02/11/2026): ejercicio y sufijo de todos sus documentos.
+  const [lote, setLote] = useState(null);              // { titulo, archivos, ejercicio, sufijo, quitarSufijo }
   const [vinculo, setVinculo] = useState(null);        // { archivo, entidad_id }
   const [entidades, setEntidades] = useState([]);
 
@@ -236,9 +244,10 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     setError('');
     try {
       // Tipos en el orden del catálogo, cada subtipo bajo su tipo (06/10/2026).
-      const d = (await pedir(`/files/objeto/${tabla}/${id}`)).data;
+      // conEnlaces (30/10/2026, Multimedia): también las fotos enlazadas en cada carpeta, como filas de enlace.
+      const d = (await pedir(`/files/objeto/${tabla}/${id}${conEnlaces ? '?enlaces=1' : ''}`)).data;
       let categorias = ordenArbol(d.categorias || []);
-      let archivos = d.archivos || [];
+      let archivos = [...(d.archivos || []), ...(conEnlaces ? d.enlaces || [] : [])];
       // Solo un grupo, o todo menos un grupo (15/10/2026): mismos documentos, otra vista.
       // Varios excluidos (16/10/2026): Documentos no enseña ni FACTURAS ni CONTRATOS.
       if (!grupo && excluidos.length) {
@@ -257,13 +266,14 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         const dentro = (c) => ids.has(Number(c.id));
         const codigosDentro = new Set(categorias.filter(dentro).map((c) => c.codigo));
         // Con `grupo`, la raíz no se enseña: sus hijos salen como grupos principales (15/10/2026).
-        categorias = ordenArbol(categorias.filter((c) => (grupo ? dentro(c) && c.codigo !== grupo : !dentro(c))));
+        // conRaiz (30/10/2026, Multimedia): la raíz SÍ se enseña, con sus carpetas debajo.
+        categorias = ordenArbol(categorias.filter((c) => (grupo ? dentro(c) && (conRaiz || c.codigo !== grupo) : !dentro(c))));
         archivos = archivos.filter((a) => codigosDentro.has(a.categoria_codigo) === Boolean(grupo));
       }
       setDatos({ ...d, categorias, archivos });
     }
     catch (e) { setError(e.message); }
-  }, [tabla, id, grupo, claveExcluidos]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tabla, id, grupo, claveExcluidos, conRaiz, conEnlaces]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { cargar(); }, [cargar]);
   // Botón «Recargar» (15/10/2026): vuelve a pedir la lista sin recargar la
   // página; se conservan el tipo elegido, lo plegado y la posición.
@@ -277,9 +287,18 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   };
   const [visor, setVisor] = useState(null);   // archivo Word/Excel abierto en el visor
 
-  // Años (solo con `porAnyo`, 15/10/2026). El año de un documento es su
-  // ejercicio; si no tiene, el de su fecha; si tampoco, «Sin año».
-  const anyoDe = (a) => String(a.ejercicio || (a.fecha_documento ? String(a.fecha_documento).slice(0, 4) : '') || 'sin');
+  // Años (solo con `porAnyo`, 15/10/2026). `ejercicio` es el dato que manda:
+  // no se reconstruye desde la fecha porque, al borrarlo, Contratos volvía a
+  // mostrar el mismo año y parecía que no se había eliminado.
+  const anyoDe = (a) => String(a.ejercicio || 'sin');
+  const sufijoDe = (a) => String(a.sufijo || '').trim().toUpperCase();
+  const periodoYSufijo = (a) => {
+    const ejercicio = a.ejercicio ? String(a.ejercicio) : '';
+    const sufijo = sufijoDe(a);
+    if (!ejercicio && !sufijo) return '';
+    const periodo = ejercicio || t('sin_anyo', 'Sin año');
+    return `${t('ejercicio', 'Ejercicio')} ${periodo}${sufijo ? `-${sufijo}` : ''}`;
+  };
   const anyoActual = String(new Date().getFullYear());
   const [filtroAnyo, setFiltroAnyo] = useState('');
   const [anyosCambiados, setAnyosCambiados] = useState(() => new Set());   // los que difieren de su estado por defecto
@@ -310,6 +329,11 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       const k = a.categoria_codigo || 'SIN_CLASIFICAR';
       if (!grupos.has(k)) grupos.set(k, { codigo: k, nombre: a.categoria_nombre, archivos: [] });
       grupos.get(k).archivos.push(a);
+    }
+    // Multimedia (03/11/2026, petición del usuario): las fotos y vídeos, por nombre ascendente
+    // (FOTO001, FOTO002…), igual que en la vista Galería. El resto, por fecha (como viene).
+    if (grupo === 'FOTOS') {
+      for (const g of grupos.values()) g.archivos.sort((a, b) => String(a.nombre_original).localeCompare(String(b.nombre_original), 'es', { numeric: true }));
     }
     // Mismo orden que «Tipos de documentos» (arrastrando filas); los subtipos, sangrados.
     const pos = new Map((datos?.categorias || []).map((c, i) => [c.codigo, i]));
@@ -381,6 +405,16 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   // DNI se suben juntos y cada uno sale con su nombre. El nombre es el
   // propuesto por el tipo, salvo que el usuario lo cambie.
   const categoria = (id) => datos?.categorias.find((x) => String(x.id) === String(id));
+  /** «Compra › Vendedor docs»: el tipo y los que tiene encima, traducidos (02/11/2026). */
+  const rutaTipo = (g) => {
+    const nombres = [];
+    let c = (g?.id != null && categoria(g.id)) || g;
+    for (let n = 0; c && n < 12; n += 1) {
+      nombres.unshift(nombreCat(c));
+      c = c.padre_id != null ? categoria(c.padre_id) : null;
+    }
+    return nombres.join(' › ');
+  };
   // Tipo para Hacienda propuesto: el del tipo o el del primero de su rama que lo tenga.
   const haciendaDe = (id) => {
     let c = categoria(id);
@@ -397,11 +431,11 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     : haciendaDe(det?.carpeta ? baseCarpetas(sub)?.id : (det?.categoria_id ?? sub.categoria_id))) || '';
   const idDeCodigo = (codigo) => datos?.categorias.find((x) => x.codigo === codigo)?.id;
   const nombreDe = (d, s) => (d.nombreManual ? d.nombre.trim() : nombrePropuesto(categoria(d.categoria_id)?.codigo, datos?.objeto, s));
-  /** Tipo que parece por el nombre del archivo (solo se propone): «Nota simple…» → Nota simple; «Factura…», «Fra…», «Tasación…» → Facturas de la compra. */
+  /** Tipo que parece por el nombre del archivo (solo se propone): «Nota simple…» → Nota simple; «Factura…», «Fra…», «Tasación…» → Valor de adquisición. */
   const tipoPorNombre = (nombre = '') => {
     if (/nota[\s_.-]*simple/i.test(nombre)) return idDeCodigo('NOTA_SIMPLE') || null;
     if (/hipotec|pr[eé]stamo|prestec|pr[eé]stec|\bfein\b/i.test(nombre)) return idDeCodigo('ESCRITURA_HIPOTECA') || null;
-    if (/factura|\bfra\b|tasaci|taxaci/i.test(nombre)) return idDeCodigo('FACTURA_COMPRA') || null;
+    if (/factura|\bfra\b|tasaci|taxaci/i.test(nombre)) return idDeCodigo('FACT_VALOR_ADQUISICION') || idDeCodigo('FACTURA_COMPRA') || null;
     // Contratos de alquiler (16/10/2026): solo si ese tipo está en la lista (Contratos → Documentos).
     if (/contrat|arrendam|alquiler|lloguer/i.test(nombre)) return idDeCodigo('CONTRATO_ARRENDAMIENTO') || null;
     return null;
@@ -614,6 +648,9 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     }
     setOcupado(true); setError('');
     const subidos = [];
+    const repetidos = []; // ya subidos antes (misma huella, 29/10/2026): se saltan y se avisa al final
+    let diferidos = 0;    // guardados en el PC porque R2 no responde (subida diferida, 01/11/2026)
+    let heics = 0;        // fotos HEIC convertidas a JPG en el servidor (03/11/2026)
     try {
       const deCarpeta = await asegurarCarpetas(subida.detalles, baseCarpetas(subida));
       for (const [i, fichero] of subida.ficheros.entries()) {
@@ -623,6 +660,12 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         const det = destino
           ? { ...base, categoria_id: destino.id, ...(destino.sobra.length ? { nombre: `${destino.sobra.join(' - ')} - ${fichero.name.replace(/\.[^.]+$/, '')}`.slice(0, 190), nombreManual: true } : {}) }
           : base;
+        // ¿Se puede leer el archivo? (03/11/2026): si el navegador no puede (p. ej. una foto que solo
+        // está en iCloud/OneDrive y no descargada, o que ha cambiado después de elegirla), la subida
+        // fallaba con un «Failed to fetch» sin decir cuál. Ahora se dice el archivo y el motivo.
+        try { await fichero.slice(0, 1).arrayBuffer(); } catch {
+          throw new Error(t('no_se_lee', 'No se puede leer «{n}» del ordenador. Si está en iCloud, OneDrive o Google Drive, descárgalo antes (o cópialo a una carpeta normal) y vuelve a elegirlo.').replace('{n}', fichero.name));
+        }
         const esDni = CATEGORIAS_IDENTIDAD.includes(categoria(det.categoria_id)?.codigo) && Boolean(datos?.objeto?.documento);
         // Solo se guarda la versión normalizada (decidido con el usuario).
         const cod = categoria(det.categoria_id)?.codigo;
@@ -640,7 +683,18 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         if (tipoHacienda) fd.append('tipo_hacienda', haciendaDeDetalle(base, subida));
         if (nombreDe(det, subida)) fd.append('nombre', nombreDe(det, subida));
         if (det.contrasena) fd.append('contrasena', det.contrasena);
-        const subido = (await pedir('/files', { method: 'POST', body: fd })).data;
+        let subido;
+        try {
+          const respuesta = await pedir('/files', { method: 'POST', body: fd });
+          subido = respuesta.data;
+          if (respuesta.diferido) diferidos += 1;
+          if (respuesta.convertido_heic) heics += 1;
+        } catch (e) {
+          if (e.code === 'NETWORK') throw new Error(`«${fichero.name}»: ${e.message}`);
+          if (e.code !== 'FILE_DUPLICATE') throw e;
+          repetidos.push(e.message);
+          continue; // eslint-disable-line no-continue
+        }
         // Con `destinos` (16/10/2026): el documento se vincula a la opción elegida (p. ej. el espacio).
         if (subido && destinos && subida.destino && subida.destino !== 'base') {
           await pedir(`/files/${subido.id}/vinculos`, { method: 'POST', body: JSON.stringify({ objeto_tabla: destinos.tabla, objeto_id: Number(subida.destino) }) });
@@ -658,9 +712,16 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           onDocumentoIdentidad?.(doc);
         }
       }
-      setAviso(t('subidos', '{n} archivo(s) subido(s).').replace('{n}', subida.ficheros.length));
+      setAviso([
+        subidos.length - diferidos > 0 && t('subidos', '{n} archivo(s) subido(s).').replace('{n}', subidos.length - diferidos),
+        heics > 0 && t('heic_convertidas', 'Se han convertido {n} foto(s) HEIC a JPG de calidad similar.').replace('{n}', heics),
+        diferidos > 0 && t('subidos_diferidos', '{n} archivo(s) guardado(s) en el ordenador: no hay conexión con el almacenamiento y se subirán solos cuando vuelva.').replace('{n}', diferidos),
+      ].filter(Boolean).join(' '));
+      if (diferidos) window.dispatchEvent(new CustomEvent('subidas-pendientes-cambiadas'));
       setSubida(null);
       await cargar();
+      // Después de cargar(), que borra el error.
+      if (repetidos.length) setError(`${t('repetidos_servidor', 'No se han subido porque ya estaban subidos:')} ${repetidos.join(' ')}`);
       subidos.forEach((a) => onSubido?.(a));
     } catch (e) { setError(e.message); }
     finally { setOcupado(false); }
@@ -725,12 +786,36 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     } catch (e) { setError(e.message); }
   };
 
+  const guardarLote = async (ev) => {
+    ev.preventDefault();
+    // Se aplica lo que hay en los dos campos; en blanco = se quita (02/11/2026, petición del usuario).
+    const ejercicio = String(lote.ejercicio || '').trim();
+    if (ejercicio && !/^\d{4}$/.test(ejercicio)) return setError(t('lote_ejercicio_mal', 'El ejercicio son 4 cifras (p. ej. 2024).'));
+    const sufijo = String(lote.sufijo || '').trim().toUpperCase();
+    const cambios = { ejercicio: ejercicio ? Number(ejercicio) : null, sufijo: sufijo || null };
+    setOcupado(true); setError('');
+    try {
+      for (const a of lote.archivos) await pedir(`/files/${a.id}`, { method: 'PATCH', body: JSON.stringify(cambios) }); // eslint-disable-line no-await-in-loop
+      setLote(null);
+      await cargar();
+      setAviso(t('lote_hecho', '{n} documento(s) actualizado(s).').replace('{n}', lote.archivos.length));
+    } catch (e) { setError(e.message); }
+    finally { setOcupado(false); }
+  };
+
   const guardarEdicion = async (ev) => {
     ev.preventDefault();
     setOcupado(true); setError('');
     try {
       const c = edicion.campos;
-      await pedir(`/files/${edicion.archivo.id}`, { method: 'PATCH', body: JSON.stringify({ ...c, confidencial: Boolean(c.confidencial) }) });
+      const ejercicio = String(c.ejercicio || '').trim();
+      const sufijo = String(c.sufijo || '').trim().toUpperCase();
+      await pedir(`/files/${edicion.archivo.id}`, { method: 'PATCH', body: JSON.stringify({
+        ...c,
+        ejercicio: ejercicio ? Number(ejercicio) : null,
+        sufijo: sufijo || null,
+        confidencial: Boolean(c.confidencial),
+      }) });
       // Cambio de espacio (16/10/2026): fuera el vínculo anterior y, si no es la base, el nuevo.
       if (destinos && edicion.destino !== destinoDe(edicion.archivo)) {
         for (const v of vinculoDestino(edicion.archivo)) await pedir(`/files/${edicion.archivo.id}/vinculos/${v.id}`, { method: 'DELETE' });
@@ -794,6 +879,15 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     } catch (e) { setError(e.message); }
     finally { setOcupado(false); }
   };
+  // Enlaces de Multimedia (30/10/2026): dónde está la foto de verdad y quitar el enlace.
+  const carpetaOriginal = (a) => {
+    const o = (datos?.archivos || []).find((x) => x.id === a.id && !x.es_enlace);
+    return o ? nombreCat({ codigo: o.categoria_codigo, nombre: o.categoria_nombre }) : '';
+  };
+  const quitarEnlace = async (a) => {
+    try { await pedir(`/files/${a.id}/vinculos/${a.enlace_id}`, { method: 'DELETE' }); await cargar(); }
+    catch (e) { setError(e.message); }
+  };
   const desvincular = async (a, v) => {
     try { await pedir(`/files/${a.id}/vinculos/${v.id}`, { method: 'DELETE' }); await cargar(); }
     catch (e) { setError(e.message); }
@@ -801,7 +895,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
 
   // Una fila de documento (15/10/2026: función para poder agruparlas por año).
   const filaArchivo = (a, i) => (
-              <li key={a.id} className={`flex flex-wrap items-center gap-3 px-4 py-2 ${caducado(a) ? 'bg-destructive text-on-destructive' : claseFila(i)}`}>
+              <li key={a.es_enlace ? `enlace-${a.enlace_id}` : a.id} className={`flex flex-wrap items-center gap-3 px-4 py-2 ${caducado(a) ? 'bg-destructive text-on-destructive' : claseFila(i)}`}>
                 {/* Acciones a la izquierda, como en todas las listas */}
                 <span className="flex shrink-0 items-center gap-0.5">
                   {!Number(a.cifrado) && a.extension !== 'zip' && <BotonFila icono={<Eye size={15} />} titulo={t('ver', 'Ver')} onClick={() => descargar(a, 'ver')} />}
@@ -811,7 +905,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                     {a.principal && (leibles === true || leibles.includes(a.categoria_codigo)) && onLeer && (
                       <BotonFila icono={<ScanText size={15} />} titulo={tipoHacienda ? t('datos_factura', 'Datos para Hacienda') : t('leer_datos', 'Leer datos y pasarlos a la ficha')} onClick={() => onLeer(a)} />
                     )}
-                    <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, destino: destinoDe(a), campos: { nombre: String(a.nombre_original || '').replace(/\.[^.]+$/, ''), categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', sufijo: a.sufijo || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)), ...(tipoHacienda ? { tipo_hacienda: a.tipo_hacienda || haciendaDe(a.categoria_id) } : {}) } })} />
+                    {a.es_enlace && <BotonFila icono={<Unlink size={15} />} titulo={t('quitar_enlace', 'Quitar enlace (la foto original no se toca)')} onClick={() => quitarEnlace(a)} />}
+                    {!a.es_enlace && <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, destino: destinoDe(a), campos: { nombre: String(a.nombre_original || '').replace(/\.[^.]+$/, ''), categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', sufijo: a.sufijo || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)), ...(tipoHacienda ? { tipo_hacienda: a.tipo_hacienda || haciendaDe(a.categoria_id) } : {}) } })} />}
                     {a.principal && <BotonFila icono={<Trash2 size={15} />} titulo={t('papelera', 'Mover a la papelera')} onClick={() => papelera(a)} />}
                   </>}
                 </span>
@@ -820,16 +915,18 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                     {caducado(a) && <span className="mr-2 rounded-full border-2 border-on-destructive px-2 text-[10px] uppercase tracking-widest">{t('caducado', 'Caducado')}</span>}
                     {Number(a.confidencial) === 1 && <Lock size={13} className="mr-1 inline" aria-label={t('confidencial_corto', 'Confidencial')} />}
                     {Number(a.cifrado) === 1 && <KeyRound size={13} className="mr-1 inline" aria-label={t('cifrado', 'Guardado cifrado')} />}
+                    {Number(a.subida_pendiente) === 1 && <span className="mr-2 rounded-full border-2 border-on-destructive bg-destructive px-2 text-[10px] uppercase tracking-widest text-on-destructive">{t('pendiente_subir', 'Pendiente de subir')}</span>}
                     {Number(a.cifrado)
                       ? <span title={t('cifrado', 'Guardado cifrado')}>{a.nombre_original}</span>
                       : <button type="button" onClick={() => descargar(a, 'ver')} title={t('ver', 'Ver')} className="truncate text-left underline-offset-2 hover:underline">{a.nombre_original}</button>}
                   </p>
                   <p className="text-xs font-bold">
-                    {[fecha(a.fecha_documento), a.ejercicio && `${t('ejercicio', 'Ejercicio')} ${a.ejercicio}${a.sufijo ? `-${a.sufijo}` : ''}`, tamano(a.tamanyo_bytes),
+                    {[fecha(a.fecha_documento), periodoYSufijo(a), tamano(a.tamanyo_bytes),
                       a.tipo_hacienda && `${t('hacienda_corto', 'Hacienda')}: ${nombreHacienda(a.tipo_hacienda)}`,
                       tipoHacienda && (Number(a.con_datos_factura) ? (a.factura_total != null && `${t('total_factura', 'Total')} ${formatImporte(a.factura_total, '€')}`) : t('sin_datos_factura', 'sin datos para Hacienda')),
                       a.fecha_caducidad && `${t('caduca', 'caduca')} ${fecha(a.fecha_caducidad)}`,
-                      !a.principal && t('vinculado', 'vinculado desde otro objeto'), a.descripcion].filter(Boolean).join(' · ')}
+                      a.es_enlace ? t('enlace_de', 'Enlace: la foto está en «{c}»').replace('{c}', carpetaOriginal(a))
+                        : !a.principal && t('vinculado', 'vinculado desde otro objeto'), a.descripcion].filter(Boolean).join(' · ')}
                   </p>
                   {Number(a.con_contrasena) === 1 && (
                     <p className="flex items-center gap-2 text-xs font-bold">
@@ -864,19 +961,20 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                 )}
               </li>
   );
-  // Documentos de un tipo, por ejercicio: del más nuevo al más viejo, «Sin año» al final.
-  // Facturas (`porAnyo`): todos, por ejercicio o por el año de su fecha. Resto de listas
-  // (16/10/2026, petición del usuario): solo los que tienen ejercicio van en su año; los
-  // que no, arriba, sueltos como siempre. Sin ninguno con ejercicio, la lista no cambia.
+  // Documentos de un tipo, por ejercicio: del más nuevo al más viejo.
+  // La fecha no sustituye al ejercicio. Si se borran ejercicio y sufijo, desaparece
+  // el subgrupo y el documento queda suelto dentro de su tipo, igual que en Documentos.
+  // Un sufijo sin ejercicio sí conserva el grupo «Sin año-SUFIJO», porque el sufijo
+  // sigue siendo una agrupación elegida expresamente por el usuario.
   const porAnyos = (g, pre = '') => {
     const grupos = new Map();
     const sueltos = [];
     for (const a of g.archivos) {
-      if (!porAnyo && !a.ejercicio) { sueltos.push(a); continue; }
+      const suf = sufijoDe(a);
+      if (!a.ejercicio && !suf) { sueltos.push(a); continue; }
       // Sufijo (19/10/2026): C1, C2… separan los documentos de un mismo año en su propio grupo.
       const y0 = porAnyo ? anyoDe(a) : String(a.ejercicio);
       // Mayúsculas y sin espacios (27/10/2026): «c1» y «C1» van al mismo grupo.
-      const suf = String(a.sufijo || '').trim().toUpperCase();
       const y = suf ? `${y0}|${suf}` : y0;
       if (!grupos.has(y)) grupos.set(y, []);
       grupos.get(y).push(a);
@@ -890,13 +988,19 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       const abierto = anyoAbierto(pre + g.codigo, y);
       const [anyoG, sufijoG] = y.split('|');
       const titulo = `${anyoG === 'sin' ? t('sin_anyo', 'Sin año') : anyoG}${sufijoG ? `-${sufijoG}` : ''}`;
+      // Lápiz (02/11/2026): cambiar a la vez el ejercicio y el sufijo de los documentos del grupo (no los enlaces).
+      const propios = grupos.get(y).filter((a) => !a.es_enlace);
       return [
-        <li key={`anyo-${pre}${y}`}>
+        <li key={`anyo-${pre}${y}`} className="flex items-center border-b border-border bg-surface2 text-on-surface1">
           <button type="button" onClick={() => plegarAnyo(pre + g.codigo, y)} aria-expanded={abierto}
-            className="flex w-full items-center gap-2 border-b border-border bg-surface2 px-4 py-1.5 text-left text-[11px] font-black uppercase tracking-widest text-on-surface1 transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
+            className="flex items-center gap-2 px-4 py-1.5 text-left text-[11px] font-black uppercase tracking-widest transition-colors hover:bg-surface-hover hover:text-on-surface-hover">
             <ChevronRight size={16} className={`transition-transform ${abierto ? 'rotate-90' : ''}`} />
             {titulo} ({grupos.get(y).length})
           </button>
+          {!soloLectura && propios.length > 0 && (
+            <BotonFila icono={<Pencil size={13} />} titulo={t('lote_editar', 'Cambiar ejercicio y sufijo de todos')}
+              onClick={() => { setError(''); setLote({ titulo: `${rutaTipo(g)} › ${titulo}`, archivos: propios, ejercicio: anyoG === 'sin' ? '' : anyoG, sufijo: sufijoG || '' }); }} />
+          )}
         </li>,
         ...(abierto ? grupos.get(y).map(filaArchivo) : []),
       ];
@@ -1286,6 +1390,27 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           </section>
         );
       }) : pintarArbol(visiblesDe(arbol))}
+
+      {lote && (
+        <VentanaModal ancho="max-w-lg" titulo={t('lote_titulo', 'Cambiar «{g}» ({n} documentos)').replace('{g}', lote.titulo).replace('{n}', lote.archivos.length)} onCerrar={() => !ocupado && setLote(null)}>
+          <AvisoError>{error}</AvisoError>
+          <form onSubmit={guardarLote} className="mt-3 space-y-3">
+            <p className="text-xs font-bold">{t('lote_ayuda2', 'Se cambian todos los documentos de este grupo. Si dejas un campo en blanco, se quita.')}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Campo etiqueta={t('ejercicio', 'Ejercicio')}>
+                <input inputMode="numeric" maxLength={4} value={lote.ejercicio} onChange={(e) => setLote((l) => ({ ...l, ejercicio: e.target.value.replace(/\D/g, '') }))} className={`${CLASE_INPUT} font-mono`} />
+              </Campo>
+              <Campo etiqueta={t('sufijo', 'Sufijo (C1, contrato 1…)')}>
+                <input maxLength={20} value={lote.sufijo} onChange={(e) => setLote((l) => ({ ...l, sufijo: e.target.value.toUpperCase() }))} className={`${CLASE_INPUT} font-mono`} />
+              </Campo>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setLote(null)}>{t('cancelar', 'Cancelar')}</Button>
+              <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
+            </div>
+          </form>
+        </VentanaModal>
+      )}
 
       {edicion && (
         // Ventana propia (18/10/2026): antes el formulario salía al final de la lista y, con muchos documentos, parecía que no pasaba nada.

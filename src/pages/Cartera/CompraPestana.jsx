@@ -7,8 +7,8 @@
  * impuestos, tasación…): base, IVA y TOTAL. El total suma al valor de
  * adquisición y se reparte solo entre los titulares (pestaña Titulares).
  *
- * Al añadir un gasto se puede subir su factura (queda en Documentos, tipo
- * «Facturas de la compra») y leerla: primero «Leer factura» (gratis, PDF con
+ * Al añadir un gasto se puede subir su factura (queda en Facturas, dentro de
+ * «Valor de adquisición») y leerla: primero «Leer factura» (gratis, PDF con
  * texto) y, si falta algo, «Leer con IA» (proveedor de Auxiliares ▸ Claves de IA).
  *
  * API: /propiedades/:id/gastos-compra[/:gasto] · /propiedades/:id/gastos-compra/leer · /files
@@ -40,8 +40,8 @@ export const CONCEPTOS = [
 // Mejoras (05/10/2026): la misma pantalla con otra lista de conceptos y otra ruta.
 export const CONCEPTOS_MEJORA = [['OBRA', 'Obra / reforma'], ['INSTALACIONES', 'Instalaciones (luz, agua, gas, clima)'], ['EQUIPAMIENTO', 'Equipamiento fijo (cocina, baños)'], ['OTROS', 'Otros']];
 const TIPOS = {
-  compra: { ruta: 'gastos-compra', conceptos: null, categoria: 'FACTURA_COMPRA', conceptoInicial: 'NOTARIA' },
-  mejoras: { ruta: 'mejoras', conceptos: CONCEPTOS_MEJORA, categoria: 'FACTURA_MEJORA', conceptoInicial: 'OBRA' },
+  compra: { ruta: 'gastos-compra', conceptos: null, categoria: 'FACT_VALOR_ADQUISICION', nombreCategoria: 'Valor de adquisición', conceptoInicial: 'NOTARIA' },
+  mejoras: { ruta: 'mejoras', conceptos: CONCEPTOS_MEJORA, categoria: 'AMPLIACION_Y_MEJORAS', nombreCategoria: 'Ampliación y mejora', conceptoInicial: 'OBRA' },
 };
 const VACIO = { concepto: 'NOTARIA', descripcion: '', emisor_nombre: '', emisor_nif: '', numero_factura: '', fecha: '', base: '', iva: '', total: '', sin_justificante: false, archivo_id: null, leido_por: null, notas: '' };
 const euros = (v) => (v == null || v === '' ? null : formatImporte(v, ''));
@@ -65,12 +65,13 @@ export default function CompraPestana({ propiedadId, puedeEscribir, onCambio, ti
   const cargar = useCallback(async () => {
     try { setDatos((await pedir(`/propiedades/${propiedadId}/${cfg.ruta}`)).data); }
     catch (e) { setError(e.message); setDatos({ lineas: [], totales: {} }); }
-  }, [propiedadId]);
+  }, [propiedadId, cfg.ruta]);
   useEffect(() => { cargar(); }, [cargar, version]);   // version: sube cuando se pasa una factura desde Documentos
   useEffect(() => {
+    setCatFactura(null);
     pedir('/files/categorias?objeto=im_property')
       .then((b) => setCatFactura((b.data || []).find((c) => c.codigo === cfg.categoria)?.id || null)).catch(() => {});
-  }, []);
+  }, [cfg.categoria]);
 
   const nuevo = () => { setError(''); setAviso(''); setAvisosLectura([]); setFichero([]); setArchivoNombre(''); setForm({ ...VACIO, concepto: cfg.conceptoInicial }); };
   const editar = (g) => {
@@ -82,7 +83,7 @@ export default function CompraPestana({ propiedadId, puedeEscribir, onCambio, ti
   const subirFactura = async () => {
     if (form.archivo_id) return form.archivo_id;
     if (!fichero[0]) throw new Error(t('falta_factura', 'Elige primero la factura.'));
-    if (!catFactura) throw new Error(t('falta_tipo', 'Falta el tipo «Facturas de la compra»: reinicia el backend.'));
+    if (!catFactura) throw new Error(t('falta_tipo_actual', 'No está disponible el tipo documental «{tipo}».').replace('{tipo}', cfg.nombreCategoria));
     const fd = new FormData();
     fd.append('archivo', fichero[0]);
     fd.append('objeto_tabla', 'im_property');

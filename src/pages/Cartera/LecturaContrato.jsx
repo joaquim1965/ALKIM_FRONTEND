@@ -1,7 +1,7 @@
 /**
  * LecturaContrato.jsx — al subir un CONTRATO DE ARRENDAMIENTO (Contratos → Documentos
  * de la propiedad) se lee solo y se pasa a Contratos → Datos con la forma estándar
- * (components/Documentos/ComparadorCampos.jsx, docs/NORMAS_DESARROLLO.md §12). 16/10/2026.
+ * (components/Documentos/ComparadorCampos.jsx, docs_IA/NORMAS_DESARROLLO.md §12). 16/10/2026.
  *
  * Arriba, a dónde va: contrato nuevo o uno que ya existe y, si la propiedad tiene
  * espacios, el espacio (se propone el que nombra el contrato: «habitación nº 2»).

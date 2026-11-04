@@ -21,3 +21,8 @@ tmp/
 *.bak
 *.bak-*
 *.bak[0-9]*
+
+# 29/10/2026: no se suben a GitHub. dist lo genera Vercel al publicar;
+# certificates son los certificados de localhost (solo para el PC).
+dist/
+certificates/

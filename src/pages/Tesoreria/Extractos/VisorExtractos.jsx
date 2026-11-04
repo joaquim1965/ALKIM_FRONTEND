@@ -143,7 +143,7 @@ const VisorExtractos = ({ modo, onClose }) => {
         {lista !== null && lista.length > 0 && (
           <div className="flex min-h-0 flex-1 gap-4">
             {/* El listado sigue los criterios de la aplicación (ver
-                docs/CRITERIOS_UI_LISTADOS.md): panel `surface2` con borde, la
+                docs_IA/CRITERIOS_UI_LISTADOS.md): panel `surface2` con borde, la
                 cabecera un tono por debajo, y **los colores de fila los pone el
                 tema** —`table-row`, `-hover`, `-selected` con sus `on-`—. Dentro
                 de la celda no se pinta ningún color: si se pintara, ganaría

@@ -46,6 +46,19 @@ import {
 } from 'lucide-react';
 import Button from './Button';
 import Dropdown from './Dropdown';
+import { speakMenuLabel } from '../../hooks/useMenuSpeech';
+
+/**
+ * Nombre de una fila para la voz (03/11/2026, petición del usuario): al pulsar Ver, Editar o
+ * Eliminar se dice la acción y de qué fila, p. ej. «Editar Severo Ochoa». Lo da `nombreFila`
+ * o, si no, el nombre/razón social de la fila. En MAYÚSCULAS se pasa a «Tipo Título» para que
+ * la voz no lo deletree.
+ */
+const nombrePorDefecto = (r) => r?.razon_social || [r?.nombre, r?.apellidos].filter(Boolean).join(' ') || r?.descripcion || r?.codigo || '';
+const legible = (t) => {
+  const s = String(t || '').trim();
+  return s && s === s.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(s) ? s.toLowerCase().replace(/(^|[\s·(/-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()) : s;
+};
 
 // ============================================================================
 // SORT ICON — tres estados: asc / desc / sin orden
@@ -303,6 +316,7 @@ const FilterModal = ({ filterFields = [], filters, onApply, onClose }) => {
  * @param {Function} extraActions  - (row) => ReactNode  (acciones extra opcionales)
  * @param {string}   emptyMessage  - Texto cuando no hay resultados
  * @param {boolean}  sinBarra      - true = sin la fila de buscador y contador (04/10/2026)
+ * @param {Function} nombreFila    - (row) => texto que dice la voz tras «Ver/Editar/Eliminar» (03/11/2026)
  */
 export function DataTable({
     columns       = [],
@@ -322,7 +336,9 @@ export function DataTable({
     hoverable     = true,
     selectedId    = null,
     sinBarra      = false,
+    nombreFila,
 }) {
+    const decir = (accion, row) => speakMenuLabel(`${accion} ${legible((nombreFila || nombrePorDefecto)(row))}`.trim());
     // ── Estado ────────────────────────────────────────────
     const [searchInput, setSearchInput] = useState('');
     const [sortField,   setSortField]   = useState(null);
@@ -537,13 +553,13 @@ export function DataTable({
                                                 <div className="flex flex-col items-center">
                                                     <div className="flex items-center gap-0.5">
                                                         {onView && (
-                                                            <button onClick={() => onView(row)} title="Ver"
+                                                            <button onClick={() => { decir('Ver', row); onView(row); }} title="Ver"
                                                                 className="p-1 rounded hover:bg-surface-hover hover:text-on-surface-hover transition-all">
                                                                 <Eye size={12}/>
                                                             </button>
                                                         )}
                                                         {onEdit && (
-                                                            <button onClick={() => onEdit(row)} title="Editar"
+                                                            <button onClick={() => { decir('Editar', row); onEdit(row); }} title="Editar"
                                                                 className="p-1 rounded hover:bg-surface-hover hover:text-on-surface-hover transition-all">
                                                                 <Edit size={12}/>
                                                             </button>
@@ -553,6 +569,7 @@ export function DataTable({
                                                     {onDelete && (
                                                         <button
                                                             onClick={e => {
+                                                                decir('Eliminar', row);
                                                                 const r = e.currentTarget.getBoundingClientRect();
                                                                 setConfirmDel({ row, pos: r });
                                                             }}
@@ -568,7 +585,7 @@ export function DataTable({
                                         {/* Celdas de datos */}
                                         {orderedCols.map((col, cidx) => (
                                             <td key={col.id} className={`px-4 py-1.5 ${cidx < orderedCols.length - 1 ? 'border-r' : ''} border-border`}>
-                                                {col.render ? col.render(row) : (row[col.id] ?? '—')}
+                                                {col.render ? col.render(row) : (row[col.id] ?? '')}
                                             </td>
                                         ))}
                                     </tr>

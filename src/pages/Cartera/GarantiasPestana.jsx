@@ -56,10 +56,14 @@ export function sumarMeses(fecha, meses) {
 const fechaEs = (f) => (f ? String(f).slice(0, 10).split('-').reverse().join('/') : '');
 const euros = (v) => (v == null || v === '' ? '' : formatImporte(v, '€'));
 const sinExt = (n) => String(n || '').replace(/\.[^.]+$/, '');
-const BIEN_VACIO = { espacio_id: '', nombre: '', marca: '', modelo: '', numero_serie: '', archivo_id: '', proveedor_nombre: '', proveedor_nif: '', fecha_compra: '', importe: '', garantia_meses: '', fin_garantia: '', notas: '', finManual: false };
-const REP_VACIA = { archivo_id: '', fecha: '', proveedor_nombre: '', descripcion: '', importe: '', garantia_meses: '', fin_garantia: '', finManual: false, conFactura: true };
+const BIEN_VACIO = { espacio_id: '', nombre: '', marca: '', modelo: '', numero_serie: '', archivo_id: '', proveedor_nombre: '', proveedor_nif: '', fecha_compra: '', importe: '', garantia_meses: '', garantia_anios: '', fin_garantia: '', notas: '', finManual: false };
+const REP_VACIA = { archivo_id: '', fecha: '', proveedor_nombre: '', descripcion: '', importe: '', garantia_meses: '', garantia_anios: '', fin_garantia: '', finManual: false, conFactura: true };
 /** Campos solo de pantalla: no se envían. */
-const limpio = ({ id, equipo, finManual, conFactura, ...resto }) => resto;
+const limpio = ({ id, equipo, finManual, conFactura, garantia_anios, ...resto }) => resto;
+/** Garantía en años (29/10/2026, petición del usuario): editable; se guarda en meses. 1,5 años = 18 meses. */
+const aniosDe = (meses) => (meses === '' || meses == null || Number.isNaN(Number(meses)) ? '' : String(Math.round((Number(meses) / 12) * 100) / 100).replace('.', ','));
+const mesesDe = (anios) => { const x = Number(String(anios).replace(',', '.')); return String(anios).trim() === '' || Number.isNaN(x) ? '' : String(Math.round(x * 12)); };
+const conAnios = (f) => ({ ...f, garantia_anios: aniosDe(f.garantia_meses) });
 const numero = (v) => (v == null || v === '' ? null : Number(String(v).replace(',', '.')));
 const LECTURA_VACIA = { leyendo: '', avisos: [], leido_por: null, datos: null, subido: null };
 const aTexto = (v) => (v == null ? '' : String(v));
@@ -229,23 +233,25 @@ export default function GarantiasPestana({ propiedadId, espacios = [], puedeEscr
     setError(''); setAviso(''); setRep(null); setLec(LECTURA_VACIA);
     const fecha = f ? (f.fecha || f.fecha_documento || '') : '';
     const meses = String(d?.meses?.compra ?? 36);
-    setBien({
+    setBien(conAnios({
       ...BIEN_VACIO, garantia_meses: meses, fecha_compra: fecha, fin_garantia: sumarMeses(fecha, meses),
       ...(f ? {
         nombre: f.concepto || sinExt(f.nombre_original), archivo_id: String(f.archivo_id),
         proveedor_nombre: f.emisor_nombre || '', proveedor_nif: f.emisor_nif || '', importe: importeTexto(f.total),
       } : {}),
-    });
+    }));
   };
   const editarBien = (e) => {
     setError(''); setAviso(''); setRep(null); setLec(LECTURA_VACIA);
-    setBien({
+    setBien(conAnios({
       ...Object.fromEntries(Object.keys(BIEN_VACIO).map((k) => [k, aTexto(e[k])])),
       id: e.id, importe: importeTexto(e.importe), finManual: true,
-    });
+    }));
   };
   const cambiarBien = (k, v) => setBien((b) => {
     const n = { ...b, [k]: v };
+    if (k === 'garantia_anios') { n.garantia_meses = mesesDe(v); n.finManual = false; n.fin_garantia = sumarMeses(n.fecha_compra, n.garantia_meses); return n; }
+    if (k === 'garantia_meses') n.garantia_anios = aniosDe(v);
     if (k === 'fin_garantia') n.finManual = true;
     if ((k === 'fecha_compra' || k === 'garantia_meses') && !b.finManual) n.fin_garantia = sumarMeses(n.fecha_compra, n.garantia_meses);
     if (k === 'archivo_id' && v) {
@@ -279,18 +285,20 @@ export default function GarantiasPestana({ propiedadId, espacios = [], puedeEscr
   const nuevaRep = (e) => {
     setError(''); setAviso(''); setBien(null); setLec(LECTURA_VACIA);
     setAbiertos((s) => new Set(s).add(e.id));
-    setRep({ ...REP_VACIA, equipo: e.id, garantia_meses: String(d?.meses?.reparacion ?? 6) });
+    setRep(conAnios({ ...REP_VACIA, equipo: e.id, garantia_meses: String(d?.meses?.reparacion ?? 6) }));
   };
   const editarRep = (e, r) => {
     setError(''); setAviso(''); setBien(null); setLec(LECTURA_VACIA);
-    setRep({
+    setRep(conAnios({
       ...Object.fromEntries(Object.keys(REP_VACIA).map((k) => [k, aTexto(r[k])])),
       equipo: e.id, id: r.id, importe: importeTexto(r.importe), finManual: true,
       conFactura: Number(r.importe) > 0 || Boolean(factura(r.archivo_id)?.es_factura),
-    });
+    }));
   };
   const cambiarRep = (k, v) => setRep((b) => {
     const n = { ...b, [k]: v };
+    if (k === 'garantia_anios') { n.garantia_meses = mesesDe(v); n.finManual = false; n.fin_garantia = sumarMeses(n.fecha, n.garantia_meses); return n; }
+    if (k === 'garantia_meses') n.garantia_anios = aniosDe(v);
     if (k === 'fin_garantia') n.finManual = true;
     if ((k === 'fecha' || k === 'garantia_meses') && !b.finManual) n.fin_garantia = sumarMeses(n.fecha, n.garantia_meses);
     if (k === 'archivo_id' && v) {
@@ -446,6 +454,7 @@ export default function GarantiasPestana({ propiedadId, espacios = [], puedeEscr
           </Campo>
           <Campo etiqueta={t('importe', 'Importe')}><input inputMode="decimal" {...fb('importe')} className={`${CLASE_INPUT} text-right font-mono`} /></Campo>
           <Campo etiqueta={t('meses', 'Garantía (meses)')}><input type="number" min="0" max="600" {...fb('garantia_meses')} className={`${CLASE_INPUT} font-mono`} /></Campo>
+          <Campo etiqueta={t('anios', 'Garantía (años)')}><input inputMode="decimal" {...fb('garantia_anios')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           <Campo etiqueta={t('fin', 'Fin de garantía')}>
             <CampoFecha value={bien.fin_garantia} onChange={(e) => cambiarBien('fin_garantia', e.target.value)} className={CLASE_INPUT} />
           </Campo>
@@ -484,6 +493,7 @@ export default function GarantiasPestana({ propiedadId, espacios = [], puedeEscr
           <Campo etiqueta={t('descripcion', 'Qué se reparó')} ancho="sm:col-span-full"><input maxLength={255} {...fr('descripcion')} className={CLASE_INPUT} /></Campo>
           {rep.conFactura && <Campo etiqueta={t('importe', 'Importe')}><input inputMode="decimal" {...fr('importe')} className={`${CLASE_INPUT} text-right font-mono`} /></Campo>}
           <Campo etiqueta={t('meses', 'Garantía (meses)')}><input type="number" min="0" max="600" {...fr('garantia_meses')} className={`${CLASE_INPUT} font-mono`} /></Campo>
+          <Campo etiqueta={t('anios', 'Garantía (años)')}><input inputMode="decimal" {...fr('garantia_anios')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           <Campo etiqueta={t('fin', 'Fin de garantía')}>
             <CampoFecha value={rep.fin_garantia} onChange={(e) => cambiarRep('fin_garantia', e.target.value)} className={CLASE_INPUT} />
           </Campo>

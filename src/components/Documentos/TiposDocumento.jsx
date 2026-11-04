@@ -18,7 +18,7 @@
  *      PUT /files/categorias/:id · PUT /files/categorias/orden · GET /files/categorias/:id/uso · DELETE /files/categorias/:id
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pencil, Trash2, Check, X, GripVertical, CornerDownRight } from 'lucide-react';
+import { Pencil, Trash2, Check, X, GripVertical, CornerDownRight, Download } from 'lucide-react';
 import Button from '../UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { Campo, AvisoError, CLASE_INPUT, BotonFila, BotonAnadir } from '../UI/TemaPagina';
@@ -288,6 +288,29 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
     return visibles.filter((c) => !propios.has(Number(c.id))
       && (form?.id ? moverTipo(tipos, form.id, c.id, 'dentro') != null : (c.nivel || 0) < NIVEL_MAXIMO));
   };
+  /**
+   * Descargar la lista en texto (03/11/2026, petición del usuario): un tipo por línea, con su
+   * sangría de subtipo, los documentos de esta ficha (si se cuentan), si caduca y si es confidencial.
+   */
+  const descargarTexto = () => {
+    const lineas = [t('tipos_documentos', 'Tipos de documentos'), ''];
+    for (const c of visibles) {
+      const nivel = nivelDe(c);
+      const extra = [
+        cuentas && `(${cuentas[c.id] || 0})`,
+        Number(c.caduca) && `${t('caduca', 'Caduca')}: ${t('si', 'Sí')}${c.meses_aviso ? ` · ${c.meses_aviso} m` : ''}`,
+        Number(c.confidencial) && t('confidencial', 'Confidencial'),
+      ].filter(Boolean).join(' · ');
+      lineas.push(`${'    '.repeat(nivel)}${nivel ? '↳ ' : ''}${nombreCat(c)}${extra ? ` ${extra}` : ''}`);
+    }
+    const blob = new Blob([`\uFEFF${lineas.join('\r\n')}\r\n`], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${t('tipos_documentos', 'Tipos de documentos')}.txt`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   const casilla = (k, txt) => (
     <label className="flex items-center gap-2 text-sm font-bold">
       <input type="checkbox" className="h-5 w-5" checked={Boolean(form[k])} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.checked }))} />{txt}
@@ -304,6 +327,10 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
             {t('tipos_ayuda', 'Los tipos son comunes a todas las fichas de este apartado.')}{' '}
             {t('tipos_arrastrar', 'Arrastra una fila con el ratón: al borde de otra para cambiar el orden, encima de otra para dejarla como subtipo (también dentro de un subtipo).')}
           </p>
+          {/* Lista en texto (03/11/2026): el mismo botón «Descargar» que el resto de la app. */}
+          {!form && visibles.length > 0 && (
+            <Button type="button" leftIcon={<Download size={16} />} onClick={descargarTexto} className="ml-auto shrink-0">{t('descargar', 'Descargar')}</Button>
+          )}
         </div>
 
         {form && (
@@ -400,12 +427,13 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
                   <td className={`px-3 py-1.5 ${nivelDe(c) ? 'font-bold' : 'font-black'}`} style={{ paddingLeft: `${12 + nivelDe(c) * 24}px` }}>
                     {nivelDe(c) ? <CornerDownRight size={14} className="mr-2 inline align-[-2px]" aria-label={t('subtipo', 'Subtipo')} /> : null}
                     {nombreCat(c)}
-                    {cuentas && <span className="ml-1 font-bold" title={t('docs_en_ficha', 'Documentos de esta ficha')}>({cuentas[c.id] || 0})</span>}
+                    {/* Sin title (03/11/2026, petición del usuario): el rótulo «Documentos de esta ficha» molestaba al pulsar. */}
+                    {cuentas && <span className="ml-1 font-bold">({cuentas[c.id] || 0})</span>}
                   </td>
                   {tabla === 'm_company' && <td className="px-3 py-1.5">{nombreForma(c.condicion)}</td>}
                   {!sinObligatorio && <td className="px-3 py-1.5">{Number(c.obligatorio) ? <Check size={16} aria-label={t('si', 'Sí')} /> : <X size={14} aria-label={t('no', 'No')} />}</td>}
-                  <td className="px-3 py-1.5">{Number(c.caduca) ? `${t('si', 'Sí')}${c.meses_aviso ? ` · ${c.meses_aviso} m` : ''}` : '—'}</td>
-                  <td className="px-3 py-1.5">{Number(c.confidencial) ? t('si', 'Sí') : '—'}</td>
+                  <td className="px-3 py-1.5">{Number(c.caduca) ? `${t('si', 'Sí')}${c.meses_aviso ? ` · ${c.meses_aviso} m` : ''}` : ''}</td>
+                  <td className="px-3 py-1.5">{Number(c.confidencial) ? t('si', 'Sí') : ''}</td>
                 </tr>
               ))}
             </tbody>

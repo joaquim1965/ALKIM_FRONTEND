@@ -32,7 +32,14 @@ export const DESTINOS = {
   mejoras: { nombre: 'Mejoras', ruta: 'mejoras', conceptos: CONCEPTOS_MEJORA, inicial: 'OBRA' },
 };
 /** Tipo de documento → grupo al que va la factura. */
-export const DESTINO_DE_CATEGORIA = { FACTURA_COMPRA: 'compra', FACTURA_MEJORA: 'mejoras' };
+export const DESTINO_DE_CATEGORIA = {
+  // Categorías actuales del árbol de Facturas.
+  FACT_VALOR_ADQUISICION: 'compra',
+  AMPLIACION_Y_MEJORAS: 'mejoras',
+  // Compatibilidad con documentos históricos que todavía conserven los códigos anteriores.
+  FACTURA_COMPRA: 'compra',
+  FACTURA_MEJORA: 'mejoras',
+};
 
 const CAMPOS = [
   { c: 'emisor_nombre', nombre: 'Emisor' }, { c: 'emisor_nif', nombre: 'NIF del emisor' }, { c: 'numero_factura', nombre: 'Nº de factura' },

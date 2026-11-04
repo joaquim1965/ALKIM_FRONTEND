@@ -30,6 +30,8 @@ import PrestamosPestana from './PrestamosPestana';
 import ContratosPestana from './ContratosPestana';
 import ComunicacionesPestana from './ComunicacionesPestana';
 import GarantiasPestana from './GarantiasPestana';
+import ClavesPestana from './ClavesPestana';
+import GaleriaMultimedia, { GRUPO_MULTIMEDIA } from '../../components/Documentos/GaleriaMultimedia';
 import CompraPestana from './CompraPestana';
 import ResumenCompra from './ResumenCompra';
 import LecturaNotaSimple from './LecturaNotaSimple';
@@ -83,6 +85,8 @@ export default function PropiedadesPage() {
   const puedeComunicaciones = puede('im_communication', 'Write');
   const veGarantias = puede('im_equipment', 'Read');
   const puedeGarantias = puede('im_equipment', 'Write');
+  const veClaves = puede('im_property_key', 'Read');       // Claves (30/10/2026)
+  const puedeClaves = puede('im_property_key', 'Write');
 
   const [propiedades, setPropiedades] = useState([]);
   const [tipos, setTipos] = useState({ propiedad: [], espacio: [] });
@@ -111,7 +115,7 @@ export default function PropiedadesPage() {
   // Documentos recién subidos que se leen y se pasan a su formulario, uno detrás de otro (05-06/10/2026):
   // nota simple → ficha; facturas → Gastos de compra / Mejoras.
   const [porLeer, setPorLeer] = useState({ cola: [], hechos: 0 });
-  // Documentos que se leen al subirlos (o con el botón «Leer datos» de su fila): docs/NORMAS_DESARROLLO.md §12.
+  // Documentos que se leen al subirlos (o con el botón «Leer datos» de su fila): docs_IA/NORMAS_DESARROLLO.md §12.
   // CONTRATO_ARRENDAMIENTO (16/10/2026): Contratos → Documentos → pasa a Contratos → Datos.
   const LEIBLES = ['NOTA_SIMPLE', 'ESCRITURA_COMPRA', 'ESCRITURA_HIPOTECA', 'CONTRATO_ARRENDAMIENTO', ...Object.keys(DESTINO_DE_CATEGORIA)];
   const encolar = (a) => {
@@ -185,13 +189,17 @@ export default function PropiedadesPage() {
     } catch (e) { setError(e.message); }
   };
 
+  // También si ya estás en esta pantalla (01/11/2026: la ruta del semáforo de subidas abre la
+  // propiedad en la pestaña donde está el documento).
   useEffect(() => {
     const id = Number(params.get('id'));
     if (!id) return;
+    const pestana = params.get('pestana');
     setParams({}, { replace: true });
+    if (pestana) { pestanaInicial.current = pestana; setPestanaFicha(pestana); }
     abrir({ id });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [params]);
 
   const guardar = async (ev) => {
     ev.preventDefault();
@@ -527,7 +535,10 @@ export default function PropiedadesPage() {
             // Resumen para la Renta por año (28/10/2026): de momento solo gastos.
             { id: 'hacienda', etiqueta: t('pestana_hacienda', 'Hacienda'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <HaciendaPestana propiedadId={ficha.id} propiedadNombre={[ficha.datos?.codigo, ficha.datos?.nombre].filter(Boolean).join(' · ')} puedeEscribir={puedeEscribir} version={versionFacturas} /> },
             ...(veGarantias ? [{ id: 'garantias', etiqueta: t('pestana_garantias', 'Garantías'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <GarantiasPestana key={`gar-${versionFacturas}`} propiedadId={ficha.id} espacios={plano} puedeEscribir={puedeGarantias} /> }] : []),
-            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} excluirGrupo={[GRUPO_FACTURAS, GRUPO_CONTRATOS]} avisoExcluido={`${td('facturas_en_pestana', 'Las facturas están en la pestaña «Facturas».')} ${td('contratos_en_pestana', 'Los contratos están en la pestaña «Contratos» → Documentos.')}`} /> },
+            // Multimedia (29/10/2026): fotos y vídeos, una sola vez, con enlaces entre carpetas.
+            { id: 'multimedia', etiqueta: t('pestana_multimedia', 'Multimedia'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <GaleriaMultimedia propiedadId={ficha.id} puedeEscribir={puedeEscribir} /> },
+            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} excluirGrupo={[GRUPO_FACTURAS, GRUPO_CONTRATOS, GRUPO_MULTIMEDIA]} avisoExcluido={`${td('facturas_en_pestana', 'Las facturas están en la pestaña «Facturas».')} ${td('contratos_en_pestana', 'Los contratos están en la pestaña «Contratos» → Documentos.')} ${td('fotos_en_pestana', 'Las fotos y vídeos están en la pestaña «Multimedia».')}`} /> },
+            ...(veClaves ? [{ id: 'claves', etiqueta: t('pestana_claves', 'Claves'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ClavesPestana propiedadId={ficha.id} puedeEscribir={puedeClaves} /> }] : []),
           ]}
         />
       )}

@@ -11,10 +11,22 @@
  *
  * Textos en s_dictionary, contexto «Terceros» (ES, EN, CA, FR):
  * DATABASE/MIGRATIONS/2026.10.02b - textos terceros.sql
+ *
+ * Grupo (30/10/2026): cada tercero tiene UN grupo (m_party_group: Inquilino,
+ * Reformas, Proveedores…). La columna «Grupo» sustituye a «Papeles». Solo los
+ * administradores (roles 2, 3, 4) añaden, cambian o quitan grupos (botón «Grupos»).
+ * BACKEND/migrations/2026.10.30c - grupos de terceros.sql
+ *
+ * 30/10/2026 (2): las pestañas de arriba son los grupos (Inquilino, Reformas,
+ * Proveedores… y Todos), URL /gestion/terceros/<codigo del grupo en minúsculas>;
+ * buscador a la derecha de las pestañas; campo Empresa; columnas Nombre, Teléfono,
+ * Empresa, Email, Tipo doc., Nº doc., Grupo, Municipio, Notas.
+ * BACKEND/migrations/2026.10.30d - terceros empresa y columnas.sql
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Contact, Plus, KeyRound, Wrench, EyeOff, RotateCcw } from 'lucide-react';
+import { Contact, Plus, KeyRound, Wrench, EyeOff, RotateCcw, Users, Trash2, Hammer, Search } from 'lucide-react';
+import { useStore } from '../../hooks/useStore';
 import Button from '../../components/UI/Button';
 import DataTable from '../../components/UI/DataTable';
 import { apiFetch, authHeaders } from '../../services/api';
@@ -26,14 +38,17 @@ import {
 } from '../../components/UI/TemaPagina';
 import CampoFecha from '../../components/UI/CampoFecha';
 
-const PAPELES = ['inquilino', 'proveedor', 'todos'];
 const TIPOS_DOC = ['NIF', 'NIE', 'PASAPORTE', 'CIF', 'OTRO'];
 const SITUACIONES = ['CUENTA_AJENA', 'AUTONOMO', 'ESTUDIANTE', 'JUBILADO', 'DESEMPLEADO', 'OTRA'];
 const FORMAS_PAGO = ['TRANSFERENCIA', 'DOMICILIACION', 'TARJETA', 'EFECTIVO', 'OTRA'];
 const IDIOMAS = ['es', 'en', 'ca', 'fr'];
+const ROLES_ADMIN = [2, 3, 4]; // admin, superadmin, sysadmin: los únicos que editan los grupos
+/** Direcciones antiguas (/gestion/terceros/proveedor) → pestaña del grupo. */
+const ANTIGUAS = { proveedor: 'proveedores' };
+const ICONO_GRUPO = { INQUILINO: KeyRound, PROVEEDORES: Wrench, REFORMAS: Hammer };
 
 const VACIO = {
-  tipo_persona: 'FISICA', nombre: '', apellidos: '', razon_social: '', tipo_documento: 'NIF', documento: '',
+  grupo_id: '', tipo_persona: 'FISICA', nombre: '', apellidos: '', empresa: '', razon_social: '', tipo_documento: 'NIF', documento: '',
   fecha_nacimiento: '', nacionalidad: '', email: '', telefono: '', iban: '', domicilio: '', codigo_postal: '',
   municipio: '', provincia: '', pais: 'ES', es_empresario: false, consentimiento_rgpd: false,
   fecha_consentimiento: '', finalidad_rgpd: '', borrar_despues_de: '', confidencial: false, notas: '',
@@ -65,9 +80,12 @@ async function pedir(url, opciones = {}) {
 
 export default function TercerosPage() {
   const { t } = useTmTr('Terceros');
+  const { t: tg } = useTmTr('GrupoTercero');
+  const { user } = useStore();
+  const esAdmin = ROLES_ADMIN.includes(Number(user?.rol));
   const { papel: papelUrl } = useParams();
   const navegar = useNavigate();
-  const papel = PAPELES.includes(papelUrl) ? papelUrl : 'todos';
+  const pestana = ANTIGUAS[papelUrl] || papelUrl || 'todos';   // código del grupo en minúsculas, o «todos»
 
   const [terceros, setTerceros] = useState([]);
   const [bajas, setBajas] = useState(false);
@@ -80,21 +98,38 @@ export default function TercerosPage() {
   const [inq, setInq] = useState(null);               // null = sin ficha de inquilino
   const [prov, setProv] = useState(null);             // null = sin ficha de proveedor
   const [ocultos, setOcultos] = useState(false);
+  const [grupos, setGrupos] = useState([]);
+  const [gruposListos, setGruposListos] = useState(false);
+  const [buscar, setBuscar] = useState('');
+  const [editarGrupos, setEditarGrupos] = useState(false);
+  const [nuevoGrupo, setNuevoGrupo] = useState('');
+  const [errorGrupos, setErrorGrupos] = useState('');
+
+  const nombreGrupo = (g) => (g ? tg(g.codigo, g.nombre) : '');
+  const cargarGrupos = useCallback(async () => {
+    try { setGrupos((await pedir('/terceros/grupos?todos=1')).data || []); } catch (e) { setError(e.message); } finally { setGruposListos(true); }
+  }, []);
+  useEffect(() => { cargarGrupos(); }, [cargarGrupos]);
+  // Grupo de la pestaña (null = Todos). Si el código no existe, se muestran todos.
+  const grupoPestana = grupos.find((g) => g.codigo.toLowerCase() === pestana) || null;
+  const grupo = grupoPestana?.id || '';
 
   const cargar = useCallback(async () => {
     setCargando(true); setError('');
-    try { setTerceros((await pedir(`/terceros?papel=${papel}&bajas=${bajas ? 1 : 0}`)).data || []); }
+    try { setTerceros((await pedir(`/terceros?papel=todos&bajas=${bajas ? 1 : 0}${grupo ? `&grupo=${grupo}` : ''}`)).data || []); }
     catch (e) { setError(e.message); }
     finally { setCargando(false); }
-  }, [papel, bajas]);
-  useEffect(() => { cargar(); }, [cargar]);
+  }, [bajas, grupo]);
+  useEffect(() => { if (gruposListos) cargar(); }, [cargar, gruposListos]);
 
   const abrir = async (tercero = null) => {
     setError(''); setAviso('');
     if (!tercero) {
-      setForm(VACIO); setOcultos(false);
-      setInq(papel === 'inquilino' ? { ...INQUILINO } : null);
-      setProv(papel === 'proveedor' ? { ...PROVEEDOR } : null);
+      // Grupo de la pestaña; en «Todos», Inquilino. La ficha de inquilino o de proveedor se abre según el grupo.
+      const g = grupoPestana || grupos.find((x) => x.codigo === 'INQUILINO') || grupos[0];
+      setForm({ ...VACIO, grupo_id: g?.id || '' }); setOcultos(false);
+      setInq(g?.codigo === 'INQUILINO' ? { ...INQUILINO } : null);
+      setProv(['PROVEEDORES', 'REFORMAS'].includes(g?.codigo) ? { ...PROVEEDOR } : null);
       setModal({ tercero: null });
       return;
     }
@@ -110,6 +145,7 @@ export default function TercerosPage() {
   const guardar = async (ev) => {
     ev.preventDefault();
     if (!form.nombre.trim()) return setError(t('falta_nombre', 'Indica el nombre.'));
+    if (!form.grupo_id) return setError(t('falta_grupo', 'Elige el grupo.'));
     setGuardando(true); setError('');
     try {
       const edita = Boolean(modal.tercero);
@@ -139,45 +175,87 @@ export default function TercerosPage() {
     try { await pedir(`/terceros/${x.id}/reactivar`, { method: 'POST' }); await cargar(); } catch (e) { setError(e.message); }
   };
 
+  const accionGrupo = async (fn) => {
+    setErrorGrupos('');
+    try { await fn(); await cargarGrupos(); } catch (e) { setErrorGrupos(e.cuerpo?.code === 'GROUP_IN_USE' ? t('grupo_en_uso', e.message) : e.message); }
+  };
+  const anadirGrupo = (ev) => {
+    ev.preventDefault();
+    const nombre = nuevoGrupo.trim();
+    if (!nombre) return;
+    accionGrupo(async () => { await pedir('/terceros/grupos', { method: 'POST', body: JSON.stringify({ nombre }) }); setNuevoGrupo(''); });
+  };
+  const renombrarGrupo = (g, nombre) => {
+    if (!nombre.trim() || nombre.trim() === g.nombre) return;
+    accionGrupo(() => pedir(`/terceros/grupos/${g.id}`, { method: 'PUT', body: JSON.stringify({ nombre: nombre.trim() }) }));
+  };
+  const quitarGrupo = (g) => {
+    if (!window.confirm(t('confirmar_quitar_grupo', '¿Quitar este grupo?'))) return;
+    accionGrupo(() => pedir(`/terceros/grupos/${g.id}`, { method: 'DELETE' }));
+  };
+
+  const empresaDe = (x) => x.empresa || (x.tipo_persona === 'JURIDICA' ? x.razon_social : '');
   const nombreDe = (x) => x.razon_social || [x.nombre, x.apellidos].filter(Boolean).join(' ');
   const f = (k) => ({ value: form[k] ?? '', onChange: (e) => setForm((s) => ({ ...s, [k]: e.target.value })) });
   const fi = (k) => ({ value: inq?.[k] ?? '', onChange: (e) => setInq((s) => ({ ...s, [k]: e.target.value })) });
   const fp = (k) => ({ value: prov?.[k] ?? '', onChange: (e) => setProv((s) => ({ ...s, [k]: e.target.value })) });
 
+  // Orden pedido por el usuario (30/10/2026): Nombre, Teléfono, Empresa, Email, Tipo doc., Nº doc., Grupo, Municipio, Notas.
   const columnas = [
     { id: 'nombre', label: t('col_nombre', 'Nombre'), sortField: 'nombre', render: (x) => <span className="text-sm font-black tracking-tight">{nombreDe(x)}{!Number(x.activo) && ` · ${t('de_baja', 'de baja')}`}</span> },
-    { id: 'documento', label: t('col_documento', 'Documento'), sortField: 'documento', render: (x) => (x.datos_ocultos ? <EyeOff size={14} aria-label={t('oculto', 'Oculto')} /> : (x.documento ? <span className="font-mono text-xs">{x.documento}</span> : <SinDato />)) },
-    { id: 'papeles', label: t('col_papeles', 'Papeles'), render: (x) => [x.es_inquilino && t('papel_inquilino', 'Inquilino'), x.es_proveedor && `${t('papel_proveedor', 'Proveedor')}${x.gremio ? ` (${x.gremio})` : ''}`].filter(Boolean).join(' · ') || <SinDato /> },
-    { id: 'contacto', label: t('col_contacto', 'Contacto'), render: (x) => [x.telefono, x.email].filter(Boolean).join(' · ') || <SinDato /> },
+    { id: 'telefono', label: t('col_telefono', 'Teléfono'), sortField: 'telefono', render: (x) => x.telefono || <SinDato /> },
+    { id: 'empresa', label: t('col_empresa', 'Empresa'), sortField: 'empresa', render: (x) => empresaDe(x) || <SinDato /> },
+    { id: 'email', label: t('col_email', 'Email'), sortField: 'email', render: (x) => x.email || <SinDato /> },
+    { id: 'tipo_documento', label: t('col_tipo_documento', 'Tipo doc.'), sortField: 'tipo_documento', render: (x) => (x.tipo_documento ? t(`doc_${x.tipo_documento.toLowerCase()}`, x.tipo_documento) : <SinDato />) },
+    { id: 'documento', label: t('col_numero_documento', 'Nº doc.'), sortField: 'documento', render: (x) => (x.datos_ocultos ? <EyeOff size={14} aria-label={t('oculto', 'Oculto')} /> : (x.documento ? <span className="font-mono text-xs">{x.documento}</span> : <SinDato />)) },
+    { id: 'grupo', label: t('col_grupo', 'Grupo'), sortField: 'grupo_nombre', render: (x) => (x.grupo_codigo ? `${tg(x.grupo_codigo, x.grupo_nombre)}${x.gremio ? ` (${x.gremio})` : ''}` : <SinDato />) },
     { id: 'municipio', label: t('col_municipio', 'Municipio'), sortField: 'municipio', render: (x) => x.municipio || <SinDato /> },
+    { id: 'notas', label: t('col_notas', 'Notas'), render: (x) => (x.notas ? <span className="block max-w-xs truncate text-xs select-text">{x.notas}</span> : <SinDato />) },
   ];
   // Reactivar va con las demás acciones, en la primera columna (CRITERIOS «Los botones van SIEMPRE en la primera columna»).
   const accionReactivar = (x) => (!Number(x.activo)
     ? <button type="button" onClick={() => reactivar(x)} title={t('reactivar', 'Reactivar')} aria-label={t('reactivar', 'Reactivar')} className="rounded p-1 transition-all hover:bg-surface-hover hover:text-on-surface-hover"><RotateCcw size={12} /></button>
     : null);
 
-  const titulos = { inquilino: t('titulo_inquilinos', 'Inquilinos'), proveedor: t('titulo_proveedores', 'Proveedores'), todos: t('titulo_todos', 'Todos los terceros') };
-  const iconos = { inquilino: <KeyRound size={20} />, proveedor: <Wrench size={20} />, todos: <Contact size={20} /> };
-  const botonNuevo = { inquilino: t('nuevo_inquilino', 'Nuevo inquilino'), proveedor: t('nuevo_proveedor', 'Nuevo proveedor'), todos: t('nuevo', 'Nuevo tercero') };
+  const titulo = grupoPestana ? nombreGrupo(grupoPestana) : t('todos', 'Todos');
+  const IconoGrupo = grupoPestana ? (ICONO_GRUPO[grupoPestana.codigo] || Users) : Contact;
+  const icono = <IconoGrupo size={20} />;
+  const botonNuevo = grupoPestana ? `${t('nuevo', 'Nuevo tercero')} · ${titulo}` : t('nuevo', 'Nuevo tercero');
+  const q = buscar.trim().toLowerCase();
+  const visibles = q
+    ? terceros.filter((x) => `${nombreDe(x)} ${empresaDe(x)} ${x.documento || ''} ${x.email || ''} ${x.telefono || ''} ${x.gremio || ''} ${x.municipio || ''} ${x.notas || ''}`.toLowerCase().includes(q))
+    : terceros;
   const juridica = form.tipo_persona === 'JURIDICA';
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <CabeceraPagina icono={<Contact size={24} />} titulo={t('titulo', 'Terceros')} subtitulo={t('subtitulo', 'Inquilinos, proveedores y demás personas o empresas con las que trabajas. Una persona, una ficha por papel.')}>
+        {esAdmin && <Button size="sm" variant="outline" onClick={() => { setErrorGrupos(''); setEditarGrupos(true); }}><Users size={14} className="mr-1.5" />{t('grupos', 'Grupos')}</Button>}
       </CabeceraPagina>
 
-      <nav className="flex flex-wrap gap-2" aria-label={t('titulo', 'Terceros')}>
-        {PAPELES.map((p) => (
-          <Button key={p} size="sm" variant={p === papel ? 'primary' : 'outline'} onClick={() => navegar(`/gestion/terceros/${p}`)}>{titulos[p]}</Button>
-        ))}
-      </nav>
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Grupo: desplegable (30/10/2026); al entrar, «Todos». */}
+        <label className="flex items-center gap-2">
+          <span className="text-xs font-black uppercase tracking-widest">{t('grupo', 'Grupo')}</span>
+          <select value={grupoPestana ? pestana : 'todos'} onChange={(e) => navegar(`/gestion/terceros/${e.target.value}`)} aria-label={t('grupo', 'Grupo')}
+            className={`${CLASE_INPUT} w-auto py-1.5 text-sm font-bold`}>
+            <option value="todos">{t('todos', 'Todos')}</option>
+            {grupos.map((g) => <option key={g.id} value={g.codigo.toLowerCase()}>{nombreGrupo(g)}</option>)}
+          </select>
+        </label>
+        <label className="relative ml-auto">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+          <input type="search" value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder={t('buscar', 'Buscar…')} aria-label={t('buscar', 'Buscar…')}
+            className={`${CLASE_INPUT} w-56 py-1.5 pl-9 text-sm md:w-72`} />
+        </label>
+      </div>
 
       {!modal && <AvisoError>{error}</AvisoError>}
       <AvisoAtencion>{aviso}</AvisoAtencion>
 
       <Panel className="overflow-hidden">
-        <CabeceraPanel anadir={{ texto: botonNuevo[papel], onClick: () => abrir() }} icono={iconos[papel]} titulo={titulos[papel]}
-          contador={`${terceros.length} ${terceros.length === 1 ? t('tercero', 'tercero') : t('terceros', 'terceros')}`}>
+        <CabeceraPanel anadir={{ texto: botonNuevo, onClick: () => abrir() }} icono={icono} titulo={titulo}
+          contador={`${visibles.length} ${visibles.length === 1 ? t('tercero', 'tercero') : t('terceros', 'terceros')}`}>
           <Casilla etiqueta={t('ver_bajas', 'Ver bajas')} checked={bajas} onChange={setBajas} />
         </CabeceraPanel>
         {cargando
@@ -185,8 +263,7 @@ export default function TercerosPage() {
           : (
             <div className="p-3">
               <DataTable
-                columns={columnas} data={terceros} keyField="id" rowsPerPage={15}
-                searchFn={(x, q) => `${nombreDe(x)} ${x.documento || ''} ${x.email || ''} ${x.telefono || ''} ${x.gremio || ''}`.toLowerCase().includes(q)}
+                columns={columnas} data={visibles} keyField="id" rowsPerPage={15} sinBarra
                 onEdit={(x) => abrir(x)}
                 onDelete={(x) => (Number(x.activo) ? baja(x) : null)}
                 extraActions={bajas ? accionReactivar : undefined}
@@ -197,7 +274,7 @@ export default function TercerosPage() {
       </Panel>
 
       {modal && (
-        <VentanaModal ancho="max-w-4xl" icono={iconos[papel]} titulo={modal.tercero ? t('editar', 'Editar tercero') : botonNuevo[papel]} onCerrar={() => !guardando && setModal(null)}>
+        <VentanaModal ancho="max-w-4xl" icono={icono} titulo={modal.tercero ? t('editar', 'Editar tercero') : botonNuevo} onCerrar={() => !guardando && setModal(null)}>
             {ocultos && <AvisoAtencion><span className="flex items-center gap-2"><EyeOff size={14} />{t('aviso_ocultos', 'Tercero confidencial: el documento, el IBAN, la fecha de nacimiento y los ingresos no se muestran con tu acceso.')}</span></AvisoAtencion>}
             <div className="mt-4"><AvisoError>{error}</AvisoError></div>
             {modal.tercero && (() => {
@@ -232,6 +309,12 @@ export default function TercerosPage() {
             <form onSubmit={guardar} className="mt-5 space-y-6">
               <fieldset className="grid gap-4 sm:grid-cols-3">
                 <Leyenda>{t('bloque_identidad', 'Identidad')}</Leyenda>
+                <Campo etiqueta={t('grupo', 'Grupo')}>
+                  <select {...f('grupo_id')} className={CLASE_INPUT}>
+                    <option value="">—</option>
+                    {grupos.map((g) => <option key={g.id} value={g.id}>{nombreGrupo(g)}</option>)}
+                  </select>
+                </Campo>
                 <Campo etiqueta={t('tipo_persona', 'Tipo')}>
                   <select {...f('tipo_persona')} className={CLASE_INPUT}>
                     <option value="FISICA">{t('persona_fisica', 'Persona física')}</option>
@@ -242,6 +325,7 @@ export default function TercerosPage() {
                 {juridica
                   ? <Campo etiqueta={t('razon_social', 'Razón social')}><input maxLength={200} {...f('razon_social')} className={CLASE_INPUT} /></Campo>
                   : <Campo etiqueta={t('apellidos', 'Apellidos')}><input maxLength={150} {...f('apellidos')} className={CLASE_INPUT} /></Campo>}
+                <Campo etiqueta={t('empresa', 'Empresa')}><input maxLength={150} {...f('empresa')} className={CLASE_INPUT} /></Campo>
                 <Campo etiqueta={t('tipo_documento', 'Documento')}>
                   <select {...f('tipo_documento')} disabled={ocultos} className={CLASE_INPUT}>
                     {TIPOS_DOC.map((v) => <option key={v} value={v}>{t(`doc_${v.toLowerCase()}`, v)}</option>)}
@@ -321,7 +405,7 @@ export default function TercerosPage() {
                 )}
               </Recuadro>
 
-              <Campo etiqueta={t('notas', 'Notas')}><textarea rows={2} {...f('notas')} className={CLASE_INPUT} /></Campo>
+              <Campo etiqueta={t('notas', 'Notas')}><textarea rows={8} maxLength={5000} {...f('notas')} className={`${CLASE_INPUT} min-h-[10rem] resize-y`} /></Campo>
 
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={() => setModal(null)}>{t('cancelar', 'Cancelar')}</Button>
@@ -335,6 +419,33 @@ export default function TercerosPage() {
                 <DocumentosObjeto tabla="m_party" id={modal.tercero.id} />
               </Recuadro>
             )}
+        </VentanaModal>
+      )}
+
+      {editarGrupos && esAdmin && (
+        <VentanaModal ancho="max-w-lg" icono={<Users size={20} />} titulo={t('grupos_titulo', 'Grupos de terceros')} onCerrar={() => setEditarGrupos(false)}>
+          <p className="mt-3 text-xs font-bold text-on-surface2">{t('grupos_ayuda', 'Cada tercero pertenece a un solo grupo. Solo los administradores pueden añadir, cambiar o quitar grupos.')}</p>
+          <div className="mt-3"><AvisoError>{errorGrupos}</AvisoError></div>
+          <ul className="mt-4 space-y-2">
+            {grupos.map((g) => (
+              <li key={g.id} className="flex items-center gap-2">
+                <input defaultValue={g.nombre} maxLength={80} aria-label={t('grupo_nombre', 'Nombre del grupo')}
+                  onBlur={(e) => renombrarGrupo(g, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                  className={`${CLASE_INPUT} flex-1`} />
+                <span className="w-10 text-right text-xs font-black text-on-surface2">{g.terceros}</span>
+                <button type="button" onClick={() => quitarGrupo(g)} disabled={g.terceros > 0}
+                  aria-label={t('quitar', 'Quitar')} title={g.terceros > 0 ? t('grupo_en_uso', 'Este grupo tiene terceros: cámbialos de grupo antes de quitarlo.') : t('quitar', 'Quitar')}
+                  className="rounded p-1.5 transition-all hover:bg-surface-hover hover:text-on-surface-hover disabled:cursor-not-allowed disabled:opacity-30"><Trash2 size={14} /></button>
+              </li>
+            ))}
+          </ul>
+          <form onSubmit={anadirGrupo} className="mt-4 flex items-center gap-2">
+            <input value={nuevoGrupo} onChange={(e) => setNuevoGrupo(e.target.value)} maxLength={80} placeholder={t('grupo_nuevo', 'Nuevo grupo')} className={`${CLASE_INPUT} flex-1`} />
+            <Button type="submit" size="sm" disabled={!nuevoGrupo.trim()}><Plus size={14} className="mr-1" />{t('anadir', 'Añadir')}</Button>
+          </form>
+          <div className="mt-5 flex justify-end">
+            <Button type="button" variant="secondary" onClick={() => { setEditarGrupos(false); cargar(); }}>{t('cerrar', 'Cerrar')}</Button>
+          </div>
         </VentanaModal>
       )}
     </div>
