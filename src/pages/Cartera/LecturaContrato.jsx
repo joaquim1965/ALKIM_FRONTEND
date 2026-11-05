@@ -75,6 +75,9 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
   // que suma un inquilino). En un contrato nuevo no aplica.
   const [anadirInquilinos, setAnadirInquilinos] = useState(false);
   const [ocupado, setOcupado] = useState('');
+  // Anexo (05/11/2026, petición del usuario): si no se lee ningún dato de contrato, el documento
+  // pasa al tipo «Anexo contrato» (inventario con fotos, Word…). { antes: tipo que tenía }.
+  const [anexo, setAnexo] = useState(null);
   const [error, setError] = useState('');
 
   const alquilables = useMemo(() => espacios.filter((e) => !Number(e.es_comun) && Number(e.activo ?? 1)), [espacios]);
@@ -118,6 +121,8 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
       setContratos(lista); setCat(catalogo);
       setInquilinos((data.leidos.inquilinos || []).map((x) => ({ nombre: '', apellidos: '', telefono: '', email: '', ...Object.fromEntries(Object.entries(x).map(([k, v]) => [k, v ?? ''])) })));
       setLectura(data);
+      if (data.sin_datos && modo === 'propio') await pasarAAnexo();
+      else if (!data.sin_datos && anexo) await volverAContrato();
       // Espacio: el elegido al subir el documento; si no, el que nombra el texto.
       // Con «Leer datos» de un documento ya subido: su vínculo con un espacio, o la propiedad entera.
       const vinculado = (archivo.vinculos || []).find((x) => x.objeto_tabla === 'im_space' && alquilables.some((e) => e.id === Number(x.objeto_id)));
@@ -139,6 +144,19 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
       setEleccion(eleccionInicial(CAMPOS, l, actualesDe(mismo)));
     } catch (e) { setError(e.message); }
     finally { setOcupado(''); }
+  };
+  const tipoAnexo = async () => (await pedir('/files/categorias?objeto=im_property')).data.find((c) => c.codigo === 'CONTRATO_ANEXO');
+  const pasarAAnexo = async () => {
+    const tipo = await tipoAnexo();
+    if (!tipo || Number(tipo.id) === Number(archivo.categoria_id)) return;
+    await pedir(`/files/${archivo.id}`, { method: 'PATCH', body: JSON.stringify({ categoria_id: Number(tipo.id) }) });
+    setAnexo({ antes: archivo.categoria_id });
+    await onAplicado?.();
+  };
+  // Si luego «Leer con IA» sí encuentra datos, vuelve a su tipo de contrato.
+  const volverAContrato = async () => {
+    await pedir(`/files/${archivo.id}`, { method: 'PATCH', body: JSON.stringify({ categoria_id: Number(anexo.antes) }) });
+    setAnexo(null);
   };
   useEffect(() => { leer('propio'); }, [archivo.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Las opciones de las listas llegan con la lectura: se recalcula la elección inicial una vez.
@@ -217,6 +235,7 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
           explotacion: 'TITULARES', forma_pago: 'TRANSFERENCIA', dia_pago: 1, ...cuerpo,
           modalidad_id: Number(v.modalidad_id), tipo_id: Number(v.tipo_id), fecha_inicio: v.fecha_inicio, renta_mensual: v.renta_mensual,
           estado: vigente && terceroPrincipal ? 'VIGENTE' : (vigente ? 'BORRADOR' : 'FINALIZADO'),
+          archivo_id: archivo.id,   // al mandar el documento a la papelera se borra el contrato (05/11/2026)
         }) });
       } else {
         // Con recibos ya emitidos no se cambian ni la renta ni la fecha de inicio (como en el formulario).
@@ -270,8 +289,12 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
         </div>
         {lectura && <Ayuda>{textoResumen}{lectura.leidos?.espacio_texto ? ` ${t('contrato_nombra', 'El contrato nombra: {e}.').replace('{e}', lectura.leidos.espacio_texto)}` : ''}</Ayuda>}
 
-        <AvisoError>{error}</AvisoError>
-        {lectura?.avisos?.map((a) => <AvisoAtencion key={a}>{a}</AvisoAtencion>)}
+        {anexo ? (
+          <AvisoAtencion>{t('anexo_guardado', 'No se han leído datos de contrato: el documento se ha guardado como «Anexo contrato» (por ejemplo, el inventario con las fotos del mobiliario).')}</AvisoAtencion>
+        ) : (<>
+          <AvisoError>{error}</AvisoError>
+          {lectura?.avisos?.map((a) => <AvisoAtencion key={a}>{a}</AvisoAtencion>)}
+        </>)}
         {ocupado === 'propio' && !lectura && <Ayuda>{t('leyendo', 'Leyendo el documento…')}</Ayuda>}
         {lectura && inquilinos.length > 0 && (
           <div className="space-y-2">
@@ -313,15 +336,19 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
               : t('ayuda_inquilinos', 'Al aplicar, los inquilinos se dan de alta en Terceros o, si ya están, se sustituyen sus datos por estos. El primero queda como titular del contrato.')}{titularesActuales ? ` ${t('titulares_antes', 'Ahora en el contrato')}: ${titularesActuales}.` : ''}</Ayuda>
           </div>
         )}
-        {lectura && <ComparadorCampos campos={CAMPOS} leidos={leidos} actuales={actuales} eleccion={eleccion} t={t}
-          onElegir={(c, cambio) => setEleccion((e) => ({ ...e, [c]: { ...e[c], ...cambio } }))} />}
-
+        {/* Botones encima de la tabla de datos (04/11/2026, petición del usuario): se ven sin bajar. */}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="secondary" disabled={Boolean(ocupado)} onClick={onCerrar}>{t('no_pasar', 'No pasar a ningún formulario')}</Button>
-          <Button type="button" loading={ocupado === 'aplicar'} disabled={Boolean(ocupado) || !lectura} leftIcon={<Check size={16} />} onClick={aplicar}>
-            {n ? `${t('aplicar', 'Aplicar')} (${n})` : t('aplicar', 'Aplicar')}
-          </Button>
+          {anexo ? (
+            <Button type="button" disabled={Boolean(ocupado)} leftIcon={<Check size={16} />} onClick={onCerrar}>{t('aceptar', 'Aceptar')}</Button>
+          ) : (<>
+            <Button type="button" variant="secondary" disabled={Boolean(ocupado)} onClick={onCerrar}>{t('no_pasar', 'No pasar a ningún formulario')}</Button>
+            <Button type="button" loading={ocupado === 'aplicar'} disabled={Boolean(ocupado) || !lectura} leftIcon={<Check size={16} />} onClick={aplicar}>
+              {n ? `${t('aplicar', 'Aplicar')} (${n})` : t('aplicar', 'Aplicar')}
+            </Button>
+          </>)}
         </div>
+        {lectura && !anexo && <ComparadorCampos campos={CAMPOS} leidos={leidos} actuales={actuales} eleccion={eleccion} t={t}
+          onElegir={(c, cambio) => setEleccion((e) => ({ ...e, [c]: { ...e[c], ...cambio } }))} />}
       </div>
     </VentanaModal>
   );

@@ -79,14 +79,15 @@ export default function LecturaNotaSimple({ propiedadId, archivo, posicion, onCe
         <AvisoError>{error}</AvisoError>
         {lectura?.avisos?.map((a) => <AvisoAtencion key={a}>{a}</AvisoAtencion>)}
         {ocupado === 'propio' && !lectura && <Ayuda>{t('leyendo', 'Leyendo el documento…')}</Ayuda>}
-        {lectura && <ComparadorCampos campos={CAMPOS_FICHA} leidos={lectura.leidos} actuales={lectura.actuales} eleccion={eleccion} t={t}
-          onElegir={(c, cambio) => setEleccion((e) => ({ ...e, [c]: { ...e[c], ...cambio } }))} />}
+        {/* Botones encima de la tabla de datos (04/11/2026, petición del usuario): se ven sin bajar. */}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" disabled={Boolean(ocupado)} onClick={onCerrar}>{t('no_cambiar', 'No cambiar nada')}</Button>
           <Button type="button" loading={ocupado === 'aplicar'} disabled={Boolean(ocupado) || !lectura} leftIcon={<Check size={16} />} onClick={aplicar}>
             {n ? `${t('aplicar', 'Aplicar')} (${n})` : t('aplicar', 'Aplicar')}
           </Button>
         </div>
+        {lectura && <ComparadorCampos campos={CAMPOS_FICHA} leidos={lectura.leidos} actuales={lectura.actuales} eleccion={eleccion} t={t}
+          onElegir={(c, cambio) => setEleccion((e) => ({ ...e, [c]: { ...e[c], ...cambio } }))} />}
       </div>
     </VentanaModal>
   );

@@ -10,6 +10,9 @@
  *
  * Campos: [{ c, nombre, tipo: 'texto'|'numero'|'importe'|'fecha'|'lista'|'personas', opciones?: [[valor, texto]], sinOtro? }]
  *   'personas': el valor es una lista de ids (p. ej. hipotecantes); se elige Actual o Leído, sin «Otro».
+ *
+ * `conFaltan` (04/11/2026, petición del usuario): debajo de los datos leídos salen también los
+ * campos que NO se han leído (p. ej. el importe total), con «Otro» para escribirlos a mano.
  */
 import React from 'react';
 import { TablaTema, claseFila, TD, CLASE_INPUT, SinDato } from '../UI/TemaPagina';
@@ -69,14 +72,28 @@ export function cambiosElegidos(campos, leidos, actuales, eleccion) {
   return Object.fromEntries(campos.filter((f) => !igualValor(f, v[f.c], actuales[f.c])).map((f) => [f.c, v[f.c]]));
 }
 
-export default function ComparadorCampos({ campos, leidos, actuales, eleccion, onElegir, t, textoVacio }) {
+export default function ComparadorCampos({ campos, leidos, actuales, eleccion, onElegir, t, textoVacio, conFaltan = false }) {
   const filas = campos.filter((f) => !vacio(leidos[f.c]));
+  const faltan = conFaltan ? campos.filter((f) => vacio(leidos[f.c]) && f.tipo !== 'personas') : [];
   const tr = t || ((k, d) => d);
+  /** Casilla para escribir el valor a mano («Otro»). */
+  const casillaPropia = (f, e) => (f.tipo === 'lista' ? (
+    <select value={e.propio ?? ''} onChange={(ev) => onElegir(f.c, { propio: ev.target.value })} className={`${CLASE_INPUT} max-w-[14rem]`} aria-label={f.nombre}>
+      <option value="">—</option>
+      {f.opciones.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+    </select>
+  ) : f.tipo === 'fecha' ? (
+    <CampoFecha value={e.propio ?? ''} onChange={(ev) => onElegir(f.c, { propio: ev.target.value })} className={`${CLASE_INPUT} max-w-[16rem]`} aria-label={f.nombre} autoFocus />
+  ) : (
+    <input value={e.propio ?? ''} onChange={(ev) => onElegir(f.c, { propio: ev.target.value })}
+      type="text" inputMode={NUMERICOS.includes(f.tipo) ? 'decimal' : undefined}
+      className={`${CLASE_INPUT} max-w-[16rem]`} aria-label={f.nombre} autoFocus />
+  ));
   return (
     <TablaTema columnas={[
       { texto: tr('campo', 'Campo') }, { texto: tr('valor_actual', 'Valor actual') }, { texto: tr('valor_leido', 'Valor leído') }, { texto: tr('que_guardar', 'Qué se guarda') },
     ]}>
-      {filas.length === 0 && (
+      {filas.length === 0 && faltan.length === 0 && (
         <tr className={claseFila(0)}><td colSpan={4} className={TD}><SinDato texto={textoVacio || tr('nada_leido', 'No se ha detectado ningún dato')} /></td></tr>
       )}
       {filas.map((f, i) => {
@@ -97,20 +114,39 @@ export default function ComparadorCampos({ campos, leidos, actuales, eleccion, o
                       {et}
                     </label>
                   ))}
-                  {e.opcion === 'propio' && (f.tipo === 'lista' ? (
-                    <select value={e.propio} onChange={(ev) => onElegir(f.c, { propio: ev.target.value })} className={`${CLASE_INPUT} max-w-[14rem]`} aria-label={f.nombre}>
-                      <option value="">—</option>
-                      {f.opciones.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
-                    </select>
-                  ) : f.tipo === 'fecha' ? (
-                    <CampoFecha value={e.propio} onChange={(ev) => onElegir(f.c, { propio: ev.target.value })} className={`${CLASE_INPUT} max-w-[16rem]`} aria-label={f.nombre} autoFocus />
-                  ) : (
-                    <input value={e.propio} onChange={(ev) => onElegir(f.c, { propio: ev.target.value })}
-                      type="text" inputMode={NUMERICOS.includes(f.tipo) ? 'decimal' : undefined}
-                      className={`${CLASE_INPUT} max-w-[16rem]`} aria-label={f.nombre} autoFocus />
-                  ))}
+                  {e.opcion === 'propio' && casillaPropia(f, e)}
                 </div>
               )}
+            </td>
+          </tr>
+        );
+      })}
+      {faltan.length > 0 && (
+        <tr className="bg-table-header text-on-table-header">
+          <td colSpan={4} className={`${TD} text-[11px] font-black uppercase tracking-widest`}>
+            {tr('sin_leer', 'No leídos: si conoces el dato, elige «Otro» y escríbelo')}
+          </td>
+        </tr>
+      )}
+      {faltan.map((f, i) => {
+        const actual = actuales[f.c];
+        const e = eleccion[f.c] || { opcion: 'actual', propio: '' };
+        const opciones = [...(vacio(actual) ? [] : [['actual', tr('opcion_actual', 'Actual')]]), ...(f.sinOtro ? [] : [['propio', tr('opcion_propio', 'Otro')]])];
+        return (
+          <tr key={`falta-${f.c}`} className={claseFila(filas.length + i)}>
+            <td className={TD}>{tr(`campo_${f.c}`, f.nombre)}</td>
+            <td className={TD}>{verValor(f, actual) ?? <SinDato />}</td>
+            <td className={TD} />
+            <td className={TD}>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2" role="radiogroup" aria-label={f.nombre}>
+                {opciones.map(([op, et]) => (
+                  <label key={op} className="flex cursor-pointer items-center gap-2">
+                    <input type="radio" name={`leer_${f.c}`} checked={e.opcion === op} onChange={() => onElegir(f.c, { opcion: op })} className={RADIO} />
+                    {et}
+                  </label>
+                ))}
+                {e.opcion === 'propio' && casillaPropia(f, e)}
+              </div>
             </td>
           </tr>
         );

@@ -62,6 +62,7 @@ const HACIENDA_POR_TIPO = {
   FACT_GASTOS_ANYO: 'GASTO_CORRIENTE', REPARACION_Y_CONSERVACION: 'GASTO_CORRIENTE',
   FACT_VALOR_ADQUISICION: 'MEJORA', AMPLIACION_Y_MEJORAS: 'MEJORA', AMPLICION_Y_MEJORAS: 'MEJORA',
   MUEBLES_ELECTRODOMESTICOS: 'ELECTRODOMESTICO',
+  NO_DEDUCIBLES: 'NO_ADMITIDO',   // «No computables» (04/11/2026): siempre «No se admite»
 };
 
 /**
@@ -646,11 +647,22 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       const faltan = subida.ficheros.filter((f, i) => !haciendaDeDetalle(subida.detalles[i] || { categoria_id: subida.categoria_id }, subida)).map((f) => f.name);
       if (faltan.length) return setError(t('falta_tipo_hacienda', 'Indica el tipo para Hacienda de: {n}.').replace('{n}', faltan.join(', ')));
     }
+    // Periodo y fecha (04/11/2026, petición del usuario): si el ejercicio no es el año de la fecha
+    // del documento, se avisa; pulsando «Subir» otra vez se sube igualmente.
+    {
+      const anyoFecha = String(subida.fecha_documento || '').slice(0, 4);
+      const ej = String(subida.ejercicio || '').trim();
+      if (ej && anyoFecha && ej !== anyoFecha && subida.periodoAvisado !== `${ej}|${anyoFecha}`) {
+        setSubida((s) => ({ ...s, periodoAvisado: `${ej}|${anyoFecha}` }));
+        return setError(t('periodo_no_coincide', 'El ejercicio ({e}) no coincide con el año de la fecha del documento ({a}). Corrígelo o pulsa «Subir» otra vez para subirlo igualmente.').replace('{e}', ej).replace('{a}', anyoFecha));
+      }
+    }
     setOcupado(true); setError('');
     const subidos = [];
     const repetidos = []; // ya subidos antes (misma huella, 29/10/2026): se saltan y se avisa al final
     let diferidos = 0;    // guardados en el PC porque R2 no responde (subida diferida, 01/11/2026)
     let heics = 0;        // fotos HEIC convertidas a JPG en el servidor (03/11/2026)
+    const avisosServidor = [];   // p. ej. «No computables» corregido a «No se admite» (04/11/2026)
     try {
       const deCarpeta = await asegurarCarpetas(subida.detalles, baseCarpetas(subida));
       for (const [i, fichero] of subida.ficheros.entries()) {
@@ -689,6 +701,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           subido = respuesta.data;
           if (respuesta.diferido) diferidos += 1;
           if (respuesta.convertido_heic) heics += 1;
+          if (respuesta.avisos?.length) avisosServidor.push(...respuesta.avisos);
         } catch (e) {
           if (e.code === 'NETWORK') throw new Error(`«${fichero.name}»: ${e.message}`);
           if (e.code !== 'FILE_DUPLICATE') throw e;
@@ -714,6 +727,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       }
       setAviso([
         subidos.length - diferidos > 0 && t('subidos', '{n} archivo(s) subido(s).').replace('{n}', subidos.length - diferidos),
+        ...avisosServidor,
         heics > 0 && t('heic_convertidas', 'Se han convertido {n} foto(s) HEIC a JPG de calidad similar.').replace('{n}', heics),
         diferidos > 0 && t('subidos_diferidos', '{n} archivo(s) guardado(s) en el ordenador: no hay conexión con el almacenamiento y se subirán solos cuando vuelva.').replace('{n}', diferidos),
       ].filter(Boolean).join(' '));
@@ -810,7 +824,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       const c = edicion.campos;
       const ejercicio = String(c.ejercicio || '').trim();
       const sufijo = String(c.sufijo || '').trim().toUpperCase();
-      await pedir(`/files/${edicion.archivo.id}`, { method: 'PATCH', body: JSON.stringify({
+      const respEdicion = await pedir(`/files/${edicion.archivo.id}`, { method: 'PATCH', body: JSON.stringify({
         ...c,
         ejercicio: ejercicio ? Number(ejercicio) : null,
         sufijo: sufijo || null,
@@ -823,6 +837,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       }
       setEdicion(null);
       await cargar();
+      if (respEdicion?.avisos?.length) setAviso(respEdicion.avisos.join(' '));
       // Si se cambia a «Nota simple», se lee igual que al subirla (05/10/2026).
       const nueva = categoria(c.categoria_id)?.codigo;
       if (nueva !== edicion.archivo.categoria_codigo) onSubido?.({ ...edicion.archivo, categoria_id: c.categoria_id, categoria_codigo: nueva });
@@ -842,13 +857,16 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     try {
       const r = await pedir(`/files/${a.id}?comprobar=1`, { method: 'DELETE' });
       const enPlazo = Boolean(r?.data?.conservacion);
+      // Contrato creado con este documento (05/11/2026): se avisa de que se borra con él.
+      const contratos = r?.data?.contratos || [];
+      const delContrato = contratos.length ? ` ${t('borra_contratos', 'También se borrará el contrato {codigos}, que se creó con este documento.').replace('{codigos}', contratos.map((c) => c.codigo).join(', '))}` : '';
       setRetencion({
         archivo: a,
         confirmar: true,
         forzar: enPlazo,
-        mensaje: enPlazo
+        mensaje: (enPlazo
           ? `${r.data.mensaje} ${t('retencion_forzar', 'Si se subió por error, puedes eliminarlo igualmente (irá a la papelera).')}`
-          : t('confirmar_papelera', '¿Mover «{nombre}» a la papelera? Se puede restaurar durante 30 días.').replace('{nombre}', a.nombre_original),
+          : t('confirmar_papelera', '¿Mover «{nombre}» a la papelera? Se puede restaurar durante 30 días.').replace('{nombre}', a.nombre_original)) + delContrato,
       });
     } catch (e) { setRetencion({ archivo: a, mensaje: e.message, confirmar: false }); }
   };
@@ -923,7 +941,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                   <p className="text-xs font-bold">
                     {[fecha(a.fecha_documento), periodoYSufijo(a), tamano(a.tamanyo_bytes),
                       a.tipo_hacienda && `${t('hacienda_corto', 'Hacienda')}: ${nombreHacienda(a.tipo_hacienda)}`,
-                      tipoHacienda && (Number(a.con_datos_factura) ? (a.factura_total != null && `${t('total_factura', 'Total')} ${formatImporte(a.factura_total, '€')}`) : t('sin_datos_factura', 'sin datos para Hacienda')),
+                      tipoHacienda && !Number(a.con_datos_factura) && t('sin_datos_factura', 'sin datos para Hacienda'),
                       a.fecha_caducidad && `${t('caduca', 'caduca')} ${fecha(a.fecha_caducidad)}`,
                       a.es_enlace ? t('enlace_de', 'Enlace: la foto está en «{c}»').replace('{c}', carpetaOriginal(a))
                         : !a.principal && t('vinculado', 'vinculado desde otro objeto'), a.descripcion].filter(Boolean).join(' · ')}
@@ -948,6 +966,20 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                     </p>
                   )}
                 </div>
+                {/* Facturas (04/11/2026, petición del usuario): tres columnas tras el documento —
+                    Total · IVA · Base—, alineadas a la derecha. Vacías si no hay datos. */}
+                {tipoHacienda && [
+                  ['total', t('total_factura', 'Total'), a.factura_total],
+                  ['iva', t('iva_factura', 'IVA'), a.factura_iva],
+                  ['base', t('base_factura', 'Base'), a.factura_base],
+                ].map(([k, rot, v]) => (
+                  <div key={k} className="w-28 shrink-0 text-right">
+                    <p className="text-[10px] font-black uppercase tracking-widest">{rot}</p>
+                    <p className={`select-text font-mono text-sm ${k === 'total' ? 'font-black' : 'font-bold'}`}>
+                      {Number(a.con_datos_factura) === 1 && v != null ? formatImporte(v, '€') : ''}
+                    </p>
+                  </div>
+                ))}
                 {retencion?.archivo.id === a.id && (
                   <div className="basis-full">
                     <AvisoError>
@@ -1168,6 +1200,11 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
               textoCuenta={(n) => (n === 1 ? t('archivos_a_cargar_1', '1 archivo a cargar') : t('archivos_a_cargar', '{n} archivos a cargar').replace('{n}', n))}
             />
           </Campo>
+          {/* Botones encima de los datos (04/11/2026, petición del usuario): se ven sin bajar. */}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setSubida(null)} disabled={ocupado}>{t('cancelar', 'Cancelar')}</Button>
+            <Button type="submit" loading={ocupado} disabled={!subida.ficheros.length || leyendo(subida) || certPendiente(subida)}>{t('subir_boton', 'Subir')}</Button>
+          </div>
           <div className="grid gap-3 sm:grid-cols-3">
 
             <Campo etiqueta={t('fecha_documento', 'Fecha del documento')}><CampoFecha max={hoy()} value={subida.fecha_documento} onChange={(e) => setSubida((s) => ({ ...s, fecha_documento: e.target.value }))} className={CLASE_INPUT} /></Campo>
@@ -1325,10 +1362,6 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             </fieldset>
           )}
           <Casilla etiqueta={t('confidencial', 'Confidencial (solo lo ven quienes gestionan)')} checked={subida.confidencial} onChange={(v) => setSubida((s) => ({ ...s, confidencial: v }))} />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setSubida(null)} disabled={ocupado}>{t('cancelar', 'Cancelar')}</Button>
-            <Button type="submit" loading={ocupado} disabled={!subida.ficheros.length || leyendo(subida) || certPendiente(subida)}>{t('subir_boton', 'Subir')}</Button>
-          </div>
         </form>
         </VentanaEmergente>
       )}

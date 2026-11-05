@@ -14,7 +14,7 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
-import { speakMenuLabel } from '../../hooks/useMenuSpeech';
+import { speakMenuLabel, hablarAlPasar, cancelarAlPasar } from '../../hooks/useMenuSpeech';
 
 const MARGEN = 12;        // separación con el borde de la ventana
 const MINIMO = 160;       // por debajo de esto, mejor abrir hacia arriba
@@ -40,7 +40,7 @@ export default function SelectLista({ id, value, onChange, opciones = [], classN
     setPos({ left: r.left, width: r.width, ...(haciaArriba ? { bottom: window.innerHeight - r.top + 4, maxHeight: arriba - 4 } : { top: r.bottom + 4, maxHeight: abajo - 4 }) });
   };
 
-  const abrir = () => { if (disabled) return; setActiva(elegida); colocar(); setAbierta(true); };
+  const abrir = () => { if (disabled) return; conRaton.current = false; setActiva(elegida); colocar(); setAbierta(true); };
   const cerrar = (devolverFoco = true) => { setAbierta(false); if (devolverFoco) boton.current?.focus(); };
   const elegir = (i) => { const o = opciones[i]; if (o && !o.disabled) onChange?.(o.value); cerrar(); };
 
@@ -57,8 +57,11 @@ export default function SelectLista({ id, value, onChange, opciones = [], classN
 
   // Voz (03/11/2026, petición del usuario): al moverse por la lista (flechas, ratón, letras) se lee
   // deprisa la opción en la que se está. Una pausa corta: al pasar rápido solo se lee donde se para.
+  // Con el ratón (04/11/2026, petición del usuario): solo si se queda 1 s sobre la fila.
+  const conRaton = useRef(false);
   useEffect(() => {
-    if (!abierta) return undefined;
+    if (!abierta) { cancelarAlPasar(); return undefined; }
+    if (conRaton.current) { hablarAlPasar(opciones[activa]?.label); return undefined; }
     const reloj = window.setTimeout(() => speakMenuLabel(opciones[activa]?.label, { rapido: true }), 120);
     return () => window.clearTimeout(reloj);
   }, [abierta, activa]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -72,6 +75,7 @@ export default function SelectLista({ id, value, onChange, opciones = [], classN
   const mover = (d) => setActiva((a) => Math.min(opciones.length - 1, Math.max(0, a + d)));
   const teclado = (e) => {
     if (disabled) return;
+    conRaton.current = false;
     if (!abierta) {
       if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) { e.preventDefault(); abrir(); }
       return;
@@ -119,7 +123,7 @@ export default function SelectLista({ id, value, onChange, opciones = [], classN
           {opciones.map((o, i) => (
             <li
               key={`${o.value}-${i}`} id={`${idLista}-${i}`} data-i={i} role="option" aria-selected={i === elegida} aria-disabled={o.disabled || undefined}
-              onMouseEnter={() => setActiva(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => elegir(i)}
+              onMouseEnter={() => { conRaton.current = true; setActiva(i); }} onMouseLeave={cancelarAlPasar} onMouseDown={(e) => e.preventDefault()} onClick={() => elegir(i)}
               className={`cursor-pointer px-4 py-2 ${i === activa ? 'bg-surface-hover text-on-surface-hover' : ''} ${i === elegida ? 'font-black underline underline-offset-4' : ''} ${o.disabled ? 'opacity-60' : ''}`}
             >
               {o.label}

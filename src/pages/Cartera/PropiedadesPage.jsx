@@ -32,6 +32,7 @@ import ComunicacionesPestana from './ComunicacionesPestana';
 import GarantiasPestana from './GarantiasPestana';
 import ClavesPestana from './ClavesPestana';
 import GaleriaMultimedia, { GRUPO_MULTIMEDIA } from '../../components/Documentos/GaleriaMultimedia';
+import { ordenArbol, subarbol } from '../../components/Documentos/ordenTipos';
 import CompraPestana from './CompraPestana';
 import ResumenCompra from './ResumenCompra';
 import LecturaNotaSimple from './LecturaNotaSimple';
@@ -157,15 +158,60 @@ export default function PropiedadesPage() {
       .catch((e) => setError(`${t('error_entidades', 'Entidades')}: ${e.message}`));
   }, []);
 
+  // Total de documentos de cada pestaña (04/11/2026, petición del usuario): Documentos, Contratos,
+  // Facturas y Multimedia. Mismo reparto que hacen esas pestañas con los grupos del catálogo.
+  const [conteoDocs, setConteoDocs] = useState({});
+  const cargarConteoDocs = useCallback(async (id) => {
+    if (!id) { setConteoDocs({}); return; }
+    try {
+      const d = (await pedir(`/files/objeto/im_property/${id}`)).data;
+      const tipos = ordenArbol(d.categorias || []);
+      const codigosDe = (codigo) => {
+        const raiz = tipos.find((c) => c.codigo === codigo);
+        const ids = raiz ? subarbol(tipos, raiz.id) : new Set();
+        return new Set(tipos.filter((c) => ids.has(Number(c.id))).map((c) => c.codigo));
+      };
+      const grupos = { contratos: codigosDe(GRUPO_CONTRATOS), facturas: codigosDe(GRUPO_FACTURAS), multimedia: codigosDe(GRUPO_MULTIMEDIA) };
+      const n = { documentos: 0, contratos: 0, facturas: 0, multimedia: 0 };
+      for (const a of d.archivos || []) {
+        const g = Object.keys(grupos).find((k) => grupos[k].has(a.categoria_codigo));
+        n[g || 'documentos'] += 1;
+      }
+      // Sin documentos no se pone número (igual que las demás pestañas).
+      setConteoDocs(Object.fromEntries(Object.entries(n).map(([k, v]) => [k, v || null])));
+    } catch { setConteoDocs({}); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // El total se recalcula al abrir la ficha, al cambiar de pestaña y al subir o borrar documentos.
+  useEffect(() => { cargarConteoDocs(ficha?.id); }, [ficha?.id, pestanaFicha, versionFacturas, cargarConteoDocs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fichaIdRef = useRef(null);
+  fichaIdRef.current = ficha?.id;
+  useEffect(() => {
+    const avisar = () => cargarConteoDocs(fichaIdRef.current);
+    // Al mandar un documento a la papelera puede borrarse su contrato (05/11/2026): se recargan los contratos.
+    const alCambiar = (e) => {
+      avisar();
+      if (e?.detail?.metodo === 'DELETE' && fichaIdRef.current) { cargarContratosRef.current?.(fichaIdRef.current); setVersionContratos((v) => v + 1); }
+    };
+    window.addEventListener('subidas-pendientes-cambiadas', avisar);
+    window.addEventListener('documentos-cambiados', alCambiar);
+    return () => { window.removeEventListener('subidas-pendientes-cambiadas', avisar); window.removeEventListener('documentos-cambiados', alCambiar); };
+  }, [cargarConteoDocs]);
+
+  const cargarContratosRef = useRef(null);
   const cargarContratos = async (id) => {
     if (!veContratos) return;
     try { setContratosFicha((await pedir(`/propiedades/${id}/contratos`)).data || []); } catch { setContratosFicha([]); }
   };
-  /** Contrato vigente hoy que alquila ese espacio (o la propiedad entera). */
+  cargarContratosRef.current = cargarContratos;
+  /** Contrato en curso que alquila ese espacio (o la propiedad entera).
+   *  04/11/2026 (petición del usuario): manda el campo «Finalizado». Un contrato no finalizado
+   *  sigue ocupando aunque haya pasado su fecha fin (prórroga tácita); antes se miraba el estado
+   *  y la fecha fin, y las habitaciones con el contrato vencido salían «Libre». */
   const contratoDeEspacio = (espacioId) => {
     const hoyTxt = new Date().toISOString().slice(0, 10);
-    return contratosFicha.find((c) => ['VIGENTE', 'PRORROGADO'].includes(c.estado) && c.fecha_inicio <= hoyTxt
-      && !((c.fecha_rescision || c.fecha_fin) && (c.fecha_rescision || c.fecha_fin) < hoyTxt)
+    const enCurso = (c) => (c.finalizado !== undefined ? Number(c.finalizado) !== 1
+      : ['VIGENTE', 'PRORROGADO'].includes(c.estado));   // sin la columna (backend sin reiniciar)
+    return contratosFicha.find((c) => enCurso(c) && c.fecha_inicio <= hoyTxt
       && (!c.espacios.length || c.espacios.some((e) => Number(e.espacio_id) === Number(espacioId))));
   };
 
@@ -521,24 +567,26 @@ export default function PropiedadesPage() {
           pestanas={[
             { id: 'datos', etiqueta: t('pestana_datos', 'Datos'), contenido: pestanaDatos },
             { id: 'espacios', etiqueta: t('pestana_espacios', 'Espacios'), contador: plano.length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: pestanaEspacios },
-            ...(veContratos ? [{ id: 'contratos', etiqueta: t('pestana_contratos', 'Contratos'), contador: contratosFicha.filter((c) => ['VIGENTE', 'PRORROGADO'].includes(c.estado)).length || null, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ContratosPestana propiedadId={ficha.id} propiedadNombre={ficha.datos?.nombre} espacios={plano} puedeEscribir={puedeContratos} preseleccion={alquilar} onPreseleccionUsada={() => setAlquilar(null)} onCambio={() => { cargarContratos(ficha.id); cargar(); }}
-              version={versionContratos}
-              documentos={<DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} grupo={GRUPO_CONTRATOS} porAnyo destinos={destinosContratos} />} /> }] : []),
             ...(veComunicaciones ? [{ id: 'comunicaciones', etiqueta: t('pestana_comunicaciones', 'Comunicaciones'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ComunicacionesPestana propiedadId={ficha.id} propiedadNombre={[ficha.datos?.codigo, ficha.datos?.nombre].filter(Boolean).join(' · ')} espacios={plano} contratos={contratosFicha} puedeEscribir={puedeComunicaciones} /> }] : []),
             { id: 'compra', etiqueta: t('pestana_compra', 'Compra'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <CompraPestana propiedadId={ficha.id} version={versionCompra} puedeEscribir={puedeEscribir} onCambio={() => setVersionCompra((v) => v + 1)} cabecera={<ResumenCompra propiedadId={ficha.id} version={versionCompra} puedeEscribir={puedeEscribir} />} /> },
             { id: 'mejoras', etiqueta: t('pestana_mejoras', 'Mejoras'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <CompraPestana tipo="mejoras" version={versionCompra} propiedadId={ficha.id} puedeEscribir={puedeEscribir} onCambio={() => setVersionCompra((v) => v + 1)} /> },
             ...(veTitulares ? [{ id: 'titulares', etiqueta: t('pestana_titulares', 'Titulares'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <TitularesPestana propiedadId={ficha.id} puedeEscribir={puedeTitulares && !Number(ficha.datos?.es_de_tercero)} onCambio={cargar} /> }] : []),
             ...(vePrestamos ? [{ id: 'prestamos', etiqueta: t('pestana_prestamos', 'Préstamos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <PrestamosPestana propiedadId={ficha.id} version={versionPrestamos} puedeEscribir={puedePrestamos} /> }] : []),
-            // Facturas (15/10/2026): los documentos del grupo FACTURAS, por años. En
-            // Documentos ese grupo no sale (mismos archivos, otra vista).
-            { id: 'facturas', etiqueta: t('pestana_facturas', 'Facturas'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto key={`facturas-${versionFacturas}`} tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolarFactura} leibles onLeer={encolarFactura} grupo={GRUPO_FACTURAS} porAnyo tipoHacienda /> },
             // Resumen para la Renta por año (28/10/2026): de momento solo gastos.
             { id: 'hacienda', etiqueta: t('pestana_hacienda', 'Hacienda'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <HaciendaPestana propiedadId={ficha.id} propiedadNombre={[ficha.datos?.codigo, ficha.datos?.nombre].filter(Boolean).join(' · ')} puedeEscribir={puedeEscribir} version={versionFacturas} /> },
             ...(veGarantias ? [{ id: 'garantias', etiqueta: t('pestana_garantias', 'Garantías'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <GarantiasPestana key={`gar-${versionFacturas}`} propiedadId={ficha.id} espacios={plano} puedeEscribir={puedeGarantias} /> }] : []),
-            // Multimedia (29/10/2026): fotos y vídeos, una sola vez, con enlaces entre carpetas.
-            { id: 'multimedia', etiqueta: t('pestana_multimedia', 'Multimedia'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <GaleriaMultimedia propiedadId={ficha.id} puedeEscribir={puedeEscribir} /> },
-            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} excluirGrupo={[GRUPO_FACTURAS, GRUPO_CONTRATOS, GRUPO_MULTIMEDIA]} avisoExcluido={`${td('facturas_en_pestana', 'Las facturas están en la pestaña «Facturas».')} ${td('contratos_en_pestana', 'Los contratos están en la pestaña «Contratos» → Documentos.')} ${td('fotos_en_pestana', 'Las fotos y vídeos están en la pestaña «Multimedia».')}`} /> },
             ...(veClaves ? [{ id: 'claves', etiqueta: t('pestana_claves', 'Claves'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ClavesPestana propiedadId={ficha.id} puedeEscribir={puedeClaves} /> }] : []),
+            // Al final y en este orden (04/11/2026, petición del usuario): Documentos, Contratos, Facturas y
+            // Multimedia, cada una con el total de documentos que tiene.
+            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), contador: conteoDocs.documentos, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} excluirGrupo={[GRUPO_FACTURAS, GRUPO_CONTRATOS, GRUPO_MULTIMEDIA]} avisoExcluido={`${td('facturas_en_pestana', 'Las facturas están en la pestaña «Facturas».')} ${td('contratos_en_pestana', 'Los contratos están en la pestaña «Contratos» → Documentos.')} ${td('fotos_en_pestana', 'Las fotos y vídeos están en la pestaña «Multimedia».')}`} /> },
+            ...(veContratos ? [{ id: 'contratos', etiqueta: t('pestana_contratos', 'Contratos'), contador: contratosFicha.filter((c) => Number(c.finalizado) !== 1).length || null,   /* contratos vigentes = no finalizados (04/11/2026, petición del usuario) */ requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ContratosPestana propiedadId={ficha.id} propiedadNombre={ficha.datos?.nombre} espacios={plano} puedeEscribir={puedeContratos} preseleccion={alquilar} onPreseleccionUsada={() => setAlquilar(null)} onCambio={() => { cargarContratos(ficha.id); cargar(); }}
+              version={versionContratos}
+              documentos={<DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} grupo={GRUPO_CONTRATOS} porAnyo destinos={destinosContratos} />} /> }] : []),
+            // Facturas (15/10/2026): los documentos del grupo FACTURAS, por años. En
+            // Documentos ese grupo no sale (mismos archivos, otra vista).
+            { id: 'facturas', etiqueta: t('pestana_facturas', 'Facturas'), contador: conteoDocs.facturas, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto key={`facturas-${versionFacturas}`} tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolarFactura} leibles onLeer={encolarFactura} grupo={GRUPO_FACTURAS} porAnyo tipoHacienda /> },
+            // Multimedia (29/10/2026): fotos y vídeos, una sola vez, con enlaces entre carpetas.
+            { id: 'multimedia', etiqueta: t('pestana_multimedia', 'Multimedia'), contador: conteoDocs.multimedia, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <GaleriaMultimedia propiedadId={ficha.id} puedeEscribir={puedeEscribir} /> },
           ]}
         />
       )}

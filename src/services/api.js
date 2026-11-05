@@ -107,6 +107,11 @@ export const apiFetch = async (endpoint, options = {}) => {
     && ['DELETE', 'POST'].includes(String(options.method || 'GET').toUpperCase())) {
     window.dispatchEvent(new CustomEvent('subidas-pendientes-cambiadas'));
   }
+  // Contadores de las pestañas de la ficha (04/11/2026): cualquier alta, cambio o baja de documentos.
+  if (respuesta.ok && /^\/files(\/|\?|$)/.test(String(endpoint)) && !/^\/files\/(urls|certificado)/.test(String(endpoint))
+    && ['DELETE', 'POST', 'PATCH', 'PUT'].includes(String(options.method || 'GET').toUpperCase())) {
+    window.dispatchEvent(new CustomEvent('documentos-cambiados', { detail: { metodo: String(options.method).toUpperCase() } }));
+  }
   return respuesta;
 };
 

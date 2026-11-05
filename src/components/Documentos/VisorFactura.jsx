@@ -210,6 +210,12 @@ export default function VisorFactura({ archivo, propiedadId, tiposHacienda = [],
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 md:flex-row">
         {/* Izquierda: los datos, editables */}
         <aside className="custom-scrollbar w-full shrink-0 space-y-3 overflow-y-auto rounded-2xl border border-border bg-surface1 p-4 text-on-surface1 md:w-96">
+          {/* X arriba a la derecha del recuadro de datos (04/11/2026, petición del usuario): cierra la
+              vista y vuelve a la pantalla anterior (si hay cambios sin guardar, lo pregunta). */}
+          <div className="sticky top-0 z-10 -mb-2 flex justify-end">
+            <button type="button" onClick={pedirCierre} title={`${td('cerrar', 'Cerrar')} (Esc)`} aria-label={td('cerrar', 'Cerrar')}
+              className="grid h-9 w-9 place-items-center rounded-full border-2 border-border bg-surface1 text-on-surface1 transition-colors hover:bg-surface-hover hover:text-on-surface-hover"><X size={18} /></button>
+          </div>
           {!form ? <p className={MICRO}>{t('fh_leyendo', 'Cargando…')}</p> : (<>
             <Fila etiqueta={td('nombre_archivo', 'Nombre del archivo')}>
               <div className="flex items-center gap-2">

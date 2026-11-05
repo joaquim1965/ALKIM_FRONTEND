@@ -16,15 +16,15 @@
  * API: /propiedades/:id/contratos[/:contrato] · /recibos/catalogos ·
  *      /terceros?papel=inquilino · /companies/mine
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Ban, Receipt, Pencil } from 'lucide-react';
+import { Ban, Receipt, Pencil } from 'lucide-react';
 import Button from '../../components/UI/Button';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import { formatImporte } from '../../utils/format';
 import {
-  Campo, Casilla, AvisoError, Ayuda, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, BotonFila, BotonAnadir, FilaVacia,
+  Campo, Casilla, AvisoError, Ayuda, SinDato, CLASE_INPUT, Recuadro, TablaTema, claseFila, TD, BotonFila, BotonAnadir, FilaVacia, VentanaModal,
 } from '../../components/UI/TemaPagina';
 import CampoFecha from '../../components/UI/CampoFecha';
 
@@ -34,9 +34,12 @@ const fechaEs = (f) => (f ? f.split('-').reverse().join('/') : null);
 const VACIO = {
   espacios: [], eleccion: '', modalidad_id: '', explotacion: 'TITULARES', arrendador_id: '', tipo_id: '', fecha_inicio: hoy(), fecha_fin: '',
   renta_mensual: '', dia_pago: 1, forma_pago: 'TRANSFERENCIA', fianza_importe: '', fianza_depositada_en: '', tercero_id: '',
-  estado: 'VIGENTE', es_vivienda_habitual_inquilino: false, notas: '',
+  estado: 'VIGENTE', es_vivienda_habitual_inquilino: false, finalizado: false, notas: '',
 };
 const VIGENTES = ['VIGENTE', 'PRORROGADO'];
+// «Finalizado» Sí/No (04/11/2026, petición del usuario): manda en el color, el orden y en quién
+// sale como inquilino actual. Un contrato está en curso si no está finalizado.
+const enCurso = (c) => Number(c.finalizado) !== 1;
 
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: { ...authHeaders(), ...(opciones.body ? { 'Content-Type': 'application/json' } : {}) } });
@@ -90,6 +93,13 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preseleccion, contratos, cat.modalidades.length]);
 
+  // Al editar (o crear) desde una fila de abajo, el formulario sale arriba de la lista: se lleva
+  // a la vista para que se vea que el lápiz ha hecho algo (04/11/2026, petición del usuario).
+  const refFormulario = useRef(null);
+  useEffect(() => {
+    if (form) window.setTimeout(() => refFormulario.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }, [form?.id, Boolean(form)]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const editar = (c) => {
     setError('');
     const titular = c.partes.find((p) => p.rol === 'TITULAR');
@@ -99,7 +109,7 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
       arrendador_id: c.explotacion === 'ENTIDAD' ? c.arrendador_id : '', tipo_id: c.tipo_id, fecha_inicio: c.fecha_inicio, fecha_fin: c.fecha_fin || '',
       renta_mensual: c.renta_mensual, dia_pago: c.dia_pago, forma_pago: c.forma_pago, fianza_importe: c.fianza_importe ?? '',
       fianza_depositada_en: c.fianza_depositada_en || '', tercero_id: titular?.tercero_id || '', estado: c.estado,
-      es_vivienda_habitual_inquilino: Boolean(Number(c.es_vivienda_habitual_inquilino)), notas: c.notas || '',
+      es_vivienda_habitual_inquilino: Boolean(Number(c.es_vivienda_habitual_inquilino)), finalizado: Boolean(Number(c.finalizado)), notas: c.notas || '',
       // Resto de partes (cotitulares, ocupantes, avalistas): se conservan al guardar (18/10/2026).
       info_partes: c.partes, fecha_rescision: c.fecha_rescision || '',
       otras_partes: c.partes.filter((p) => p.rol !== 'TITULAR').map((p) => ({ tercero_id: p.tercero_id || undefined, entidad_id: p.entidad_id || undefined, rol: p.rol })),
@@ -115,6 +125,13 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
     ev.preventDefault();
     ejecutar(async () => {
       const { id, recibos, tercero_id, eleccion, otras_partes = [], info_partes, fecha_rescision, ...resto } = form;
+      // Fecha salida y Finalizado (04/11/2026, petición del usuario): al editar, marcar «Finalizado»
+      // hace lo mismo que el botón Finalizar (estado Rescindido + fecha salida); quitarlo lo reabre.
+      if (id) {
+        resto.fecha_rescision = form.finalizado ? (fecha_rescision || hoy()) : null;
+        if (form.finalizado) resto.estado = 'RESCINDIDO';
+        else if (['RESCINDIDO', 'FINALIZADO'].includes(resto.estado)) resto.estado = 'VIGENTE';
+      }
       const cuerpo = { ...resto, partes: [...(tercero_id ? [{ tercero_id: Number(tercero_id), rol: 'TITULAR' }] : []), ...otras_partes.filter((x) => Number(x.tercero_id) !== Number(tercero_id))] };
       if (cuerpo.explotacion !== 'ENTIDAD') delete cuerpo.arrendador_id;
       if (recibos) { delete cuerpo.renta_mensual; delete cuerpo.fecha_inicio; }
@@ -122,15 +139,18 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
       setForm(null);
     });
   };
-  const rescindir = (c) => {
-    const f = window.prompt(t('rescindir_desde', 'Fecha de fin del contrato {codigo} (AAAA-MM-DD)').replace('{codigo}', c.codigo), hoy());
-    if (f) ejecutar(() => pedir(`/propiedades/${propiedadId}/contratos/${c.id}`, { method: 'PUT', body: JSON.stringify({ estado: 'RESCINDIDO', fecha_rescision: f }) }));
+  // Finalizar (antes «Rescindir»; 04/11/2026, petición del usuario): ventana propia con la fecha
+  // salida (fecha real de terminación). Pone el contrato en Rescindido y Finalizado = Sí.
+  const [finalizando, setFinalizando] = useState(null);   // { c, fecha }
+  const rescindir = (c) => setFinalizando({ c, fecha: hoy() });
+  const confirmarFinalizar = (ev) => {
+    ev.preventDefault();
+    const { c, fecha } = finalizando;
+    if (!fecha) return;
+    setFinalizando(null);
+    ejecutar(() => pedir(`/propiedades/${propiedadId}/contratos/${c.id}`, { method: 'PUT', body: JSON.stringify({ estado: 'RESCINDIDO', fecha_rescision: fecha, finalizado: true }) }));
   };
-  const borrar = (c) => {
-    if (window.confirm(t('confirmar_borrar', '¿Borrar el contrato {codigo}?').replace('{codigo}', c.codigo))) {
-      ejecutar(() => pedir(`/propiedades/${propiedadId}/contratos/${c.id}`, { method: 'DELETE' }));
-    }
-  };
+  // Sin botón de borrar (05/11/2026, petición del usuario): los contratos solo se borran desde Documentos.
   const elegirTipo = (tipoId) => {
     const tipo = cat.tipos.find((x) => String(x.id) === String(tipoId));
     setForm((s) => ({ ...s, tipo_id: tipoId, fianza_importe: s.fianza_importe || (tipo?.fianza_meses_defecto && s.renta_mensual ? String(Math.round(Number(tipo.fianza_meses_defecto) * Number(s.renta_mensual) * 100) / 100) : s.fianza_importe) }));
@@ -138,16 +158,36 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
   const fc = (k) => ({ value: form?.[k] ?? '', onChange: (e) => setForm((s) => ({ ...s, [k]: e.target.value })) });
   // Columna «Qué se alquila»: el nombre del espacio (o espacios) del contrato.
   const queSeAlquila = (c) => (c.espacios.length ? c.espacios.map((e) => e.nombre || e.codigo).join(' + ') : t('entera', 'Propiedad entera'));
+  // Orden (04/11/2026, petición del usuario): primero los vigentes y luego los demás; dentro de
+  // cada grupo, por lo que se alquila (Habitación 1, Habitación 2…).
+  const contratosOrdenados = [...(contratos || [])].sort((a, b) => (enCurso(b) - enCurso(a))
+    || queSeAlquila(a).localeCompare(queSeAlquila(b), 'es', { numeric: true, sensitivity: 'base' }));
   // El campo «Espacio» solo sale si la propiedad tiene espacios alquilables (16/10/2026).
   const hayEspacios = alquilables.length > 0 || (form?.espacios.length ?? 0) > 0;
 
-  // Inquilinos por espacio (16/10/2026): los de los contratos vigentes; sin espacio, la propiedad entera.
-  const vigentes = (contratos || []).filter((c) => VIGENTES.includes(c.estado));
-  const inquilinosDe = (lista) => lista.flatMap((c) => c.partes.filter((p) => ['TITULAR', 'COTITULAR', 'OCUPANTE'].includes(p.rol)).map((p) => ({ ...p, salida: c.fecha_rescision || c.fecha_fin || '' })));
+  // Inquilinos por espacio (16/10/2026). Cambio 04/11/2026 (petición del usuario): los inquilinos de
+  // TODOS los contratos, en el mismo orden que la lista de contratos (primero los no finalizados por
+  // habitación y luego los finalizados). Cada fila lleva su espacio, en recuadro verde (no finalizado)
+  // o rojo (finalizado). Los espacios sin contrato en curso salen como «Libre» tras los no finalizados.
+  const vigentes = (contratos || []).filter(enCurso);
+  const nombreEspacio = (x) => {
+    const e = alquilables.find((a) => Number(a.id) === Number(x.espacio_id)) || x;
+    return [e.codigo, e.nombre].filter(Boolean).join(' · ');
+  };
+  const espacioDe = (c) => (c.espacios.length ? c.espacios.map(nombreEspacio).join(' + ')
+    : `${propiedadNombre ? `${propiedadNombre} · ` : ''}${t('entera', 'Propiedad entera')}`);
+  const personasDe = (c) => c.partes.filter((p) => ['TITULAR', 'COTITULAR', 'OCUPANTE'].includes(p.rol))
+    .map((p) => ({ ...p, salida: c.fecha_rescision || c.fecha_fin || '' }));
+  const filaDe = (c) => {
+    const personas = personasDe(c);
+    return (personas.length ? personas : [null]).map((p, j) => ({ clave: `${c.id}-${j}`, contrato: c, espacio: espacioDe(c), p }));
+  };
+  const libres = alquilables.filter((e) => !vigentes.some((c) => c.espacios.some((x) => Number(x.espacio_id) === Number(e.id))))
+    .map((e) => ({ clave: `libre-${e.id}`, contrato: null, espacio: `${e.codigo} · ${e.nombre}`, p: null }));
   const filasInquilinos = [
-    ...alquilables.map((e) => ({ clave: e.id, espacio: `${e.codigo} · ${e.nombre}`, personas: inquilinosDe(vigentes.filter((c) => c.espacios.some((x) => x.espacio_id === e.id))) })),
-    ...(vigentes.some((c) => !c.espacios.length) || !alquilables.length
-      ? [{ clave: 'entera', espacio: `${propiedadNombre ? `${propiedadNombre} · ` : ''}${t('entera', 'Propiedad entera')}`, personas: inquilinosDe(vigentes.filter((c) => !c.espacios.length)) }] : []),
+    ...contratosOrdenados.filter(enCurso).flatMap(filaDe),
+    ...(contratosOrdenados.length || alquilables.length ? libres : []),
+    ...contratosOrdenados.filter((c) => !enCurso(c)).flatMap(filaDe),
   ];
 
   if (!contratos) return <p className="text-xs font-bold uppercase tracking-widest">{t('cargando', 'Cargando…')}</p>;
@@ -169,12 +209,27 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
     <div className="space-y-5">
       {selectorVista}
       <AvisoError>{error}</AvisoError>
+      {finalizando && (
+        <VentanaModal titulo={`${t('finalizar', 'Finalizar')} · ${queSeAlquila(finalizando.c)}`} ancho="max-w-md" onCerrar={() => setFinalizando(null)}>
+          <form onSubmit={confirmarFinalizar} className="space-y-4 p-5">
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setFinalizando(null)}>{t('cancelar', 'Cancelar')}</Button>
+              <Button type="submit" disabled={!finalizando.fecha}>{t('finalizar', 'Finalizar')}</Button>
+            </div>
+            <Campo etiqueta={t('fecha_salida', 'Fecha salida')}>
+              <CampoFecha required autoFocus value={finalizando.fecha} onChange={(e) => setFinalizando((f) => ({ ...f, fecha: e.target.value }))} className={CLASE_INPUT} />
+            </Campo>
+            <Ayuda>{t('finalizar_ayuda', 'Fecha real en que termina el contrato. El contrato pasa a Finalizado = Sí y no se hacen recibos después de esa fecha.')}</Ayuda>
+          </form>
+        </VentanaModal>
+      )}
       <div className="flex items-center gap-3">
         {puedeEscribir && !form && <BotonAnadir texto={t('nuevo', 'Nuevo contrato')} onClick={() => nuevo()} pequeno />}
         <p className="flex-1 text-sm font-bold">{t('ayuda', 'Un contrato alquila la propiedad entera o unos espacios (una habitación, o piso + parking). Los recibos se generan en Cartera → Recibos.')}</p>
       </div>
 
       {form && (
+        <div ref={refFormulario} className="scroll-mt-4">
         <Recuadro as="form" onSubmit={guardar} className="grid gap-3 rejilla-campos">
           <h3 className="font-black tracking-tight text-on-surface2 sm:col-span-full">{form.id ? t('editar', 'Editar contrato') : t('nuevo', 'Nuevo contrato')}</h3>
           {/* Espacio: primer campo y obligatorio cuando la propiedad tiene espacios;
@@ -242,7 +297,9 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
             </select>
           </Campo>
           <Campo etiqueta={t('inicio', 'Inicio')}><CampoFecha required disabled={Boolean(form.recibos)} {...fc('fecha_inicio')} className={CLASE_INPUT} /></Campo>
-          <Campo etiqueta={t('fin', 'Fin (opcional)')}><CampoFecha {...fc('fecha_fin')} className={CLASE_INPUT} /></Campo>
+          <Campo etiqueta={t('fecha_fin_contrato', 'Fecha fin de contrato')}><CampoFecha required {...fc('fecha_fin')} className={CLASE_INPUT} /></Campo>
+          {/* Fecha salida (04/11/2026): fecha real de terminación; se rellena al finalizar. */}
+          {form.id && <Campo etiqueta={t('fecha_salida', 'Fecha salida')}><CampoFecha disabled={!form.finalizado} {...fc('fecha_rescision')} className={CLASE_INPUT} /></Campo>}
           <Campo etiqueta={t('renta', 'Renta mensual (€)')}><input required type="number" step="0.01" min="0.01" disabled={Boolean(form.recibos)} {...fc('renta_mensual')} className={`${CLASE_INPUT} font-mono`} /></Campo>
           <Campo etiqueta={t('dia_pago', 'Día de pago')}><input type="number" min="1" max="28" {...fc('dia_pago')} className={CLASE_INPUT} /></Campo>
           <Campo etiqueta={t('forma_pago', 'Forma de pago')}>
@@ -268,6 +325,8 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
               </select>
             </Campo>
           )}
+          {/* Interruptor Sí/No, como «vivienda habitual» (04/11/2026, petición del usuario). */}
+          <div className="flex items-end pb-1"><Casilla etiqueta={t('finalizado', 'Finalizado')} checked={form.finalizado} onChange={(v) => setForm((s) => ({ ...s, finalizado: v, fecha_rescision: v ? (s.fecha_rescision || hoy()) : '' }))} /></div>
           <div className="flex items-end pb-1 sm:col-span-2"><Casilla etiqueta={t('vivienda_habitual', 'Es la vivienda habitual del inquilino')} checked={form.es_vivienda_habitual_inquilino} onChange={(v) => setForm((s) => ({ ...s, es_vivienda_habitual_inquilino: v }))} /></div>
           <Ayuda className="sm:col-span-full">{t('ayuda_contrato', 'El IVA y la retención salen de la modalidad. Si el inquilino no está en la lista, créalo en Gestión → Terceros.')}</Ayuda>
           <div className="flex justify-end gap-2 sm:col-span-full">
@@ -275,22 +334,29 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
             <Button type="submit" loading={ocupado}>{t('guardar', 'Guardar')}</Button>
           </div>
         </Recuadro>
+        </div>
       )}
 
       <TablaTema columnas={[
         { texto: '' }, { texto: t('col_que', 'Qué se alquila') }, { texto: t('inquilino', 'Inquilino') }, { texto: t('modalidad', 'Modalidad') },
-        { texto: t('col_fechas', 'Fechas') }, { texto: t('renta', 'Renta mensual (€)'), derecha: true }, { texto: t('col_estado', 'Estado') }, { texto: t('col_recibos', 'Recibos'), derecha: true },
+        { texto: t('col_fechas', 'Fechas') }, { texto: t('renta', 'Renta mensual (€)'), derecha: true }, { texto: t('col_recibos', 'Recibos'), derecha: true },
       ]}>
-        {!contratos.length && <FilaVacia columnas={8}>{t('vacio', 'Esta propiedad todavía no tiene contratos.')}</FilaVacia>}
-        {contratos.map((c, i) => (
+        {!contratos.length && <FilaVacia columnas={7}>{t('vacio', 'Esta propiedad todavía no tiene contratos.')}</FilaVacia>}
+        {contratosOrdenados.map((c, i) => (
           <tr key={c.id} className={claseFila(i)}>
             <td className={`${TD} whitespace-nowrap`}>
               {puedeEscribir && <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar contrato')} onClick={() => editar(c)} />}
               <Link to={`/cartera/recibos?contrato=${c.id}`} title={t('ver_recibos', 'Ver recibos')} aria-label={t('ver_recibos', 'Ver recibos')} className="inline-flex rounded-md p-1 transition-all hover:bg-surface-hover hover:text-on-surface-hover"><Receipt size={15} /></Link>
-              {puedeEscribir && VIGENTES.includes(c.estado) && <BotonFila icono={<Ban size={15} />} titulo={t('rescindir', 'Rescindir')} onClick={() => rescindir(c)} />}
-              {puedeEscribir && !Number(c.recibos) && <BotonFila icono={<Trash2 size={15} />} titulo={t('borrar', 'Borrar')} onClick={() => borrar(c)} />}
+              {puedeEscribir && enCurso(c) && <BotonFila icono={<Ban size={15} />} titulo={`${t('finalizar', 'Finalizar')} ${queSeAlquila(c)}`} onClick={() => rescindir(c)} />}
             </td>
-            <td className={TD}><span className="font-black">{queSeAlquila(c)}</span><div className="font-mono text-xs">{c.codigo}</div></td>
+            {/* Sin columna «Estado» (04/11/2026, petición del usuario): recuadro verde si no está finalizado y
+                rojo si lo está (campo «Finalizado», colores del tema success / destructive). */}
+            <td className={TD}>
+              <div title={`${t('finalizado', 'Finalizado')}: ${enCurso(c) ? t('no', 'No') : t('si', 'Sí')}`}
+                className={`inline-block rounded-lg border-2 px-3 py-1.5 ${enCurso(c) ? 'border-success bg-success text-on-success' : 'border-destructive bg-destructive text-on-destructive'}`}>
+                <span className="font-black">{queSeAlquila(c)}</span><div className="font-mono text-xs">{c.codigo}</div>
+              </div>
+            </td>
             <td className={TD}>
               {c.partes.length ? c.partes.map((p) => (
                 <div key={p.id} className="mb-1 last:mb-0">
@@ -302,7 +368,6 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
             <td className={TD}>{t(`mod_${String(c.modalidad_codigo).toLowerCase()}`, c.modalidad_nombre)}</td>
             <td className={`${TD} font-mono`}>{fechaEs(c.fecha_inicio)} → {fechaEs(c.fecha_rescision || c.fecha_fin) || '…'}</td>
             <td className={`${TD} text-right font-mono`}>{euros(c.renta_mensual)}</td>
-            <td className={TD}>{t(`contrato_${String(c.estado).toLowerCase()}`, c.estado)}</td>
             <td className={`${TD} text-right font-mono`}>{c.recibos}</td>
           </tr>
         ))}
@@ -314,20 +379,30 @@ export default function ContratosPestana({ propiedadId, propiedadNombre = '', es
         { texto: t('espacio', 'Espacio') }, { texto: t('nombre_apellidos', 'Nombre y apellidos') },
         { texto: t('nro_doc', 'Nro doc.') }, { texto: t('telefono', 'Teléfono') }, { texto: t('email', 'Email') }, { texto: t('fin_salida', 'Fin contrato/Salida') },
       ]}>
-        {filasInquilinos.flatMap((f, i) => (f.personas.length ? f.personas : [null]).map((p, j) => (
-          <tr key={`${f.clave}-${j}`} className={claseFila(i)}>
-            <td className={`${TD} font-black`}>{j === 0 ? f.espacio : ''}</td>
-            {p ? (
-              <>
-                <td className={TD}>{p.nombre}</td>
-                <td className={`${TD} font-mono`}>{docConTipo(p) || <SinDato />}</td>
-                <td className={`${TD} font-mono`}>{p.telefono || <SinDato />}</td>
-                <td className={TD}>{p.email || <SinDato />}</td>
-                <td className={`${TD} font-mono`}>{fechaEs(p.salida) || <SinDato />}</td>
-              </>
-            ) : <td colSpan={6} className={`${TD} text-xs font-black uppercase tracking-widest`}>{t('libre', 'Libre: sin contrato vigente')}</td>}
-          </tr>
-        )))}
+        {filasInquilinos.map((f, i) => {
+          const { p, contrato: c } = f;
+          return (
+            <tr key={f.clave} className={claseFila(i)}>
+              <td className={TD}>
+                {c ? (
+                  <div title={`${t('finalizado', 'Finalizado')}: ${enCurso(c) ? t('no', 'No') : t('si', 'Sí')}`}
+                    className={`inline-block rounded-lg border-2 px-3 py-1.5 font-black ${enCurso(c) ? 'border-success bg-success text-on-success' : 'border-destructive bg-destructive text-on-destructive'}`}>
+                    {f.espacio}
+                  </div>
+                ) : <span className="font-black">{f.espacio}</span>}
+              </td>
+              {p ? (
+                <>
+                  <td className={TD}>{p.nombre}</td>
+                  <td className={`${TD} font-mono`}>{docConTipo(p) || <SinDato />}</td>
+                  <td className={`${TD} font-mono`}>{p.telefono || <SinDato />}</td>
+                  <td className={TD}>{p.email || <SinDato />}</td>
+                  <td className={`${TD} font-mono`}>{fechaEs(p.salida) || <SinDato />}</td>
+                </>
+              ) : <td colSpan={5} className={`${TD} text-xs font-black uppercase tracking-widest`}>{c ? <SinDato /> : t('libre', 'Libre: sin contrato vigente')}</td>}
+            </tr>
+          );
+        })}
       </TablaTema>
     </div>
   );

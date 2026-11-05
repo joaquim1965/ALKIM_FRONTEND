@@ -14,7 +14,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Receipt, Sparkles, Check } from 'lucide-react';
 import Button from '../../components/UI/Button';
-import { VentanaModal, AvisoError, AvisoAtencion, Ayuda, Campo, CLASE_INPUT } from '../../components/UI/TemaPagina';
+import { VentanaModal, AvisoError, AvisoAtencion, Ayuda, Campo, CLASE_INPUT, Recuadro, Rotulo, TablaTema, claseFila, TD } from '../../components/UI/TemaPagina';
+import { formatImporte } from '../../utils/format';
 import ComparadorCampos, { eleccionInicial, valoresElegidos } from '../../components/Documentos/ComparadorCampos';
 import { TIPOS_HACIENDA } from '../../components/Documentos/DocumentosObjeto';
 import { descuadreDe } from '../../components/Documentos/VisorFactura';
@@ -66,6 +67,10 @@ export default function LecturaFacturaHacienda({ propiedadId, archivo, posicion 
   const leidos = useMemo(() => deLectura(lectura?.datos), [lectura]);
   const actuales = useMemo(() => (actual ? Object.fromEntries(CAMPOS.map((f) => [f.c, actual[f.c] ?? null])) : {}), [actual, CAMPOS]);
 
+  const vacioImp = (x) => x == null || x === '';
+  const sinImportesDe = (v) => vacioImp(v.base) && vacioImp(v.iva) && vacioImp(v.total);
+  const sinImportes = Boolean(lectura) && sinImportesDe(valoresElegidos(CAMPOS, leidos, actuales, eleccion));
+
   const leer = async (modo) => {
     setOcupado(modo); setError('');
     try {
@@ -80,19 +85,42 @@ export default function LecturaFacturaHacienda({ propiedadId, archivo, posicion 
     finally { setOcupado(''); }
   };
   useEffect(() => { leer('propio'); }, [archivo.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // «No computables» (04/11/2026, petición del usuario): solo admite «No se admite»; si tenía otro, se
+  // corrige aquí y se avisa (el servidor también lo corrige al guardar).
+  const enNoComputables = archivo.categoria_codigo === 'NO_DEDUCIBLES';
+  const [corregidoNoComp, setCorregidoNoComp] = useState(false);
+  useEffect(() => {
+    if (enNoComputables && tipoHacienda && tipoHacienda !== 'NO_ADMITIDO') { setTipoHacienda('NO_ADMITIDO'); setCorregidoNoComp(true); }
+  }, [enNoComputables, tipoHacienda]);
 
   const guardar = async (igualmente = false) => {
     const v = valoresElegidos(CAMPOS, leidos, actuales, eleccion);
     // Comprobación (28/10/2026): base imponible + IVA = importe total.
     const num = (x) => (x == null || x === '' ? null : Number(String(x).replace(',', '.')));
+    // Comprobación (04/11/2026, petición del usuario): con total distinto de 0, total = base × (1 + IVA% / 100)
+    // hasta el céntimo. Si no coincide, se avisa con el total de la factura y el resultado del cálculo.
+    // Periodo y fecha (04/11/2026, petición del usuario): el ejercicio debe ser el año de la fecha.
+    if (!igualmente && v.ejercicio != null && v.fecha && String(v.ejercicio) !== String(v.fecha).slice(0, 4)) {
+      setDescuadre({ periodo: true, ejercicio: v.ejercicio, anyo: String(v.fecha).slice(0, 4) }); return;
+    }
+    const tot = num(v.total); const bas = num(v.base); const pct = num(v.tipo_iva);
+    if (!igualmente && tot != null && tot !== 0 && bas != null && pct != null) {
+      const calculo = Math.round(bas * (1 + pct / 100) * 100) / 100;
+      if (Math.round(tot * 100) !== Math.round(calculo * 100)) { setDescuadre({ porcentaje: true, total: tot, calculo, base: bas, pct }); return; }
+    }
     const dif = descuadreDe(num(v.base), num(v.iva), num(v.total));
     if (dif != null && Math.abs(dif) > 0.02 && !igualmente) { setDescuadre({ suma: num(v.base) + num(v.iva), total: num(v.total), dif }); return; }
     setDescuadre(null);
-    if (v.total == null || v.total === '') { setError(t('fh_falta_total', 'Falta el importe total: elige «Leído» u «Otro» en Importe total.')); return; }
-    if (!tipoHacienda) { setError(t('fh_falta_tipo', 'Elige el tipo para Hacienda.')); return; }
+    // Sin base, IVA ni total (04/11/2026, petición del usuario): se guarda como «No se admite»
+    // (no deducible) con importe 0 (im_invoice.total no admite vacío).
+    const sinImp = sinImportesDe(v);
+    if (sinImp) { v.total = 0; }
+    else if (v.total == null || v.total === '') { setError(t('fh_falta_total', 'Falta el importe total: elige «Leído» u «Otro» en Importe total.')); return; }
+    const tipo = sinImp ? 'NO_ADMITIDO' : tipoHacienda;
+    if (!tipo) { setError(t('fh_falta_tipo', 'Elige el tipo para Hacienda.')); return; }
     setOcupado('guardar'); setError('');
     try {
-      const cuerpo = { ...v, tipo_hacienda: tipoHacienda, leido_por: lectura?.leido_por || null };
+      const cuerpo = { ...v, tipo_hacienda: tipo, leido_por: lectura?.leido_por || null };
       for (const k of Object.keys(cuerpo)) if (cuerpo[k] === undefined) delete cuerpo[k];
       await pedir(`/propiedades/${propiedadId}/facturas/${archivo.id}`, { method: 'PUT', body: JSON.stringify(cuerpo) });
       await onGuardado?.();
@@ -128,8 +156,14 @@ export default function LecturaFacturaHacienda({ propiedadId, archivo, posicion 
         <AvisoError>{error}</AvisoError>
         {descuadre && (
           <AvisoError>
-            <span>{t('fh_descuadre', 'Base imponible + IVA ({s}) no coincide con el importe total ({t}). Diferencia: {d}.')
-              .replace('{s}', descuadre.suma.toFixed(2).replace('.', ',')).replace('{t}', descuadre.total.toFixed(2).replace('.', ',')).replace('{d}', descuadre.dif.toFixed(2).replace('.', ','))}</span>
+            <span>{descuadre.periodo
+              ? t('fh_periodo', 'El año (ejercicio) {e} no coincide con el año de la fecha de la factura ({a}).').replace('{e}', descuadre.ejercicio).replace('{a}', descuadre.anyo)
+              : descuadre.porcentaje
+              ? t('fh_descuadre_pct', 'El importe total de la factura ({t}) no coincide con base × (1 + IVA / 100) = {b} × (1 + {p} / 100) = {c}.')
+                .replace('{t}', descuadre.total.toFixed(2).replace('.', ',')).replace('{b}', descuadre.base.toFixed(2).replace('.', ','))
+                .replace('{p}', String(descuadre.pct).replace('.', ',')).replace('{c}', descuadre.calculo.toFixed(2).replace('.', ','))
+              : t('fh_descuadre', 'Base imponible + IVA ({s}) no coincide con el importe total ({t}). Diferencia: {d}.')
+                .replace('{s}', descuadre.suma.toFixed(2).replace('.', ',')).replace('{t}', descuadre.total.toFixed(2).replace('.', ',')).replace('{d}', descuadre.dif.toFixed(2).replace('.', ','))}</span>
             <span className="mt-2 flex flex-wrap gap-2">
               <button type="button" onClick={() => guardar(true)} className="rounded-lg border border-current px-3 py-1 text-xs font-black uppercase tracking-widest">{t('fh_guardar_igual', 'Guardar igualmente')}</button>
               <button type="button" onClick={() => setDescuadre(null)} className="rounded-lg border border-current px-3 py-1 text-xs font-black uppercase tracking-widest">{t('fh_revisar', 'Revisar')}</button>
@@ -137,17 +171,53 @@ export default function LecturaFacturaHacienda({ propiedadId, archivo, posicion 
           </AvisoError>
         )}
         {repetida && <AvisoError>{repetida}</AvisoError>}
+        {corregidoNoComp && <AvisoAtencion>{t('fh_no_computables', 'Está en «No computables»: el tipo para Hacienda solo puede ser «No se admite». Se ha corregido.')}</AvisoAtencion>}
+        {sinImportes && (
+          <AvisoAtencion>{t('fh_sin_importes', 'Esta factura no tiene base imponible, IVA ni importe total: se guardará automáticamente como «No se admite» (no deducible), con importe 0. Si conoces el importe, escríbelo con «Otro».')}</AvisoAtencion>
+        )}
         {lectura?.avisos?.map((a) => <AvisoAtencion key={a}>{a}</AvisoAtencion>)}
         {ocupado && !lectura && <Ayuda>{t('fh_leyendo', 'Leyendo la factura…')}</Ayuda>}
-        {lectura && <ComparadorCampos campos={CAMPOS} leidos={leidos} actuales={actuales} eleccion={eleccion} t={t}
-          onElegir={(c, cambio) => setEleccion((e) => ({ ...e, [c]: { ...e[c], ...cambio } }))} />}
-
+        {/* Botones encima de la tabla de datos (04/11/2026, petición del usuario): se ven sin bajar. */}
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="secondary" disabled={Boolean(ocupado)} onClick={onCerrar}>{t('fh_ahora_no', 'Ahora no')}</Button>
           <Button type="button" loading={ocupado === 'guardar'} disabled={Boolean(ocupado) || !lectura} leftIcon={<Check size={16} />} onClick={() => guardar()}>
             {t('fh_guardar', 'Guardar')}
           </Button>
         </div>
+        {lectura && <ComparadorCampos conFaltan campos={CAMPOS} leidos={leidos} actuales={actuales} eleccion={eleccion} t={t}
+          onElegir={(c, cambio) => setEleccion((e) => ({ ...e, [c]: { ...e[c], ...cambio } }))} />}
+        {/* Conceptos de la factura, línea a línea (04/11/2026, petición del usuario). */}
+        {lectura?.datos?.lineas?.length > 0 && (
+          <Recuadro as="section" className="space-y-2">
+            <Rotulo>{t('fh_conceptos', 'Conceptos de la factura')} ({lectura.datos.lineas.length})</Rotulo>
+            <TablaTema columnas={[{ texto: t('fh_concepto_linea', 'Concepto') }, { texto: t('fh_cantidad', 'Cantidad'), derecha: true }, { texto: t('fh_precio', 'Precio'), derecha: true }, { texto: t('fh_importe', 'Importe'), derecha: true }]}>
+              {lectura.datos.lineas.map((x, i) => (
+                <tr key={`${x.concepto}-${i}`} className={claseFila(i)}>
+                  <td className={`${TD} select-text`}>{x.concepto}</td>
+                  <td className={`${TD} text-right font-mono`}>{x.cantidad != null ? String(x.cantidad).replace('.', ',') : ''}</td>
+                  <td className={`${TD} text-right font-mono`}>{x.precio != null ? formatImporte(x.precio, '€') : ''}</td>
+                  <td className={`${TD} text-right font-mono font-black`}>{x.importe != null ? formatImporte(x.importe, '€') : ''}</td>
+                </tr>
+              ))}
+            </TablaTema>
+            <Ayuda>{t('fh_conceptos_ayuda', 'Si la factura no trae un concepto general, se guardan resumidos en «Concepto».')}</Ayuda>
+          </Recuadro>
+        )}
+        {/* Recibo de tributo (IBI, tributo metropolitano…) (04/11/2026): todos sus conceptos e importes. */}
+        {lectura?.datos?.detalle?.length > 0 && (
+          <Recuadro as="section" className="space-y-2">
+            <Rotulo>{t('fh_detalle_recibo', 'Detalle del recibo')}</Rotulo>
+            <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+              {lectura.datos.detalle.map((d) => (
+                <div key={d.campo} className="flex justify-between gap-3 border-b border-border py-1">
+                  <dt className="font-bold">{t(`fh_det_${d.campo}`, d.campo)}</dt>
+                  <dd className="select-text text-right font-mono font-black">{d.valor}</dd>
+                </div>
+              ))}
+            </dl>
+            <Ayuda>{t('fh_detalle_ayuda', 'Se guarda resumido en «Concepto».')}</Ayuda>
+          </Recuadro>
+        )}
       </div>
     </VentanaModal>
   );
