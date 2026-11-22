@@ -59,6 +59,7 @@ import ContratosPage from "./pages/Cartera/ContratosPage";
 import IaPage from "./pages/Sistema/IaPage";
 import ParametrosSistemaPage from "./pages/Sistema/ParametrosSistemaPage";
 import ElegirIa from "./components/IA/ElegirIa";
+import ErrorLecturaIa from "./components/IA/ErrorLecturaIa";
 
 /**
  * ProtectedRoute (Fase 1)
@@ -342,6 +343,8 @@ function AppContent() {
           />
         </Routes>
       </MainLayout>
+      {/* Ventana de error de lectura con IA (20/11/2026): la abre services/api.js. Dentro del Router: «Cambiar modelo» navega. */}
+      <ErrorLecturaIa />
     </Router>
     {/* Ventana «La IA está saturada» (18/10/2026): la abre services/api.js. */}
     <ElegirIa />

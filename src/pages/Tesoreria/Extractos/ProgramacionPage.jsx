@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Badge, Spinner, Toggle } from '../../../components/UI';
 import Modal from '../../../components/UI/Modal';
 import {
-  ArrowLeft, CalendarClock, CalendarOff, Clock, AlertCircle, CheckCircle, XCircle, Play, Download, Check, X, FileWarning,
+  ArrowLeft, Circle, CalendarClock, CalendarOff, Clock, AlertCircle, CheckCircle, XCircle, Play, Download, Check, X, FileWarning,
 } from 'lucide-react';
 import { abrirPantallaRemota } from './PantallaRemota';
 import { apiFetch, authHeaders } from '../../../services/api';
@@ -20,6 +20,20 @@ import {
  * y permite dar de alta o de baja cualquiera de ellas sin reiniciar el
  * backend: el planificador relee esta configuración cada minuto.
  */
+/**
+ * Círculo que gira de la tanda de descargas: mismo dibujo, grosor y colores que el ratón que gira
+ * de «Leer con IA» (utils/lecturaIa.js): fondo = --color-navbar, anillo y arco = --color-on-navbar.
+ * (22/11/2026, petición del usuario)
+ */
+const ARCO_GIRO = 'M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z';
+const CirculoGiro = ({ size = 16 }) => (
+  <svg role="status" aria-label="Descargando" width={size} height={size} viewBox="-2 -2 28 28" className="animate-spin shrink-0">
+    <circle cx="12" cy="12" r="13" style={{ fill: 'var(--color-navbar)' }} />
+    <circle cx="12" cy="12" r="10" fill="none" strokeWidth="4" opacity="0.35" style={{ stroke: 'var(--color-on-navbar)' }} />
+    <path d={ARCO_GIRO} style={{ fill: 'var(--color-on-navbar)' }} />
+  </svg>
+);
+
 const ProgramacionPage = () => {
   const { t } = useTmTr('Programacion');
   const navigate = useNavigate();
@@ -324,7 +338,7 @@ const ProgramacionPage = () => {
         <ul className="mb-4 flex flex-wrap gap-2 text-xs font-bold">
           {tanda.cuentas.map((c) => (
             <li key={c.crid} className="flex items-center gap-1 rounded-xl border border-border px-2 py-1">
-              {c.estado === 'descargando' ? <Spinner size="xs" /> : c.estado === 'ok' ? <CheckCircle size={13} className="text-success" /> : c.estado === 'error' ? <XCircle size={13} className="text-destructive-text" /> : <Clock size={13} />}
+              {c.estado === 'descargando' ? <CirculoGiro size={16} /> : c.estado === 'ok' ? <Circle size={13} className="text-success-border fill-current" aria-hidden="true" /> : c.estado === 'error' ? <Circle size={13} className="text-destructive-text fill-current" aria-hidden="true" /> : <Circle size={13} className="text-on-background fill-current" aria-hidden="true" />}
               {c.banco} · {c.alias}
             </li>
           ))}

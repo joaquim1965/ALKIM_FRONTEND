@@ -190,7 +190,7 @@ const REVISAR = ['domicilio', 'municipio', 'provincia'];
  *                      (plegable; abierto el año en curso), hay filtro de ejercicio y, al
  *                      subir sin ejercicio, se pone el año de la fecha del documento (o el actual).
  */
-export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDocumentoIdentidad, ficha = null, onDatosDocumento, onSubido, leibles = [], onLeer, grupo = null, excluirGrupo = null, avisoExcluido = '', porAnyo = false, destinos = null, tipoHacienda = false, conRaiz = false, conEnlaces = false }) {
+export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDocumentoIdentidad, ficha = null, onDatosDocumento, onSubido, leibles = [], onLeer, grupo = null, excluirGrupo = null, avisoExcluido = '', porAnyo = false, destinos = null, tipoHacienda = false, conRaiz = false, conEnlaces = true }) {
   const { t } = useTmTr('Documentos');
   const { t: tc } = useTmTr('CategoriaArchivo');
   const [datos, setDatos] = useState(null);
@@ -230,6 +230,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   // Edición rápida de un grupo de año (02/11/2026): ejercicio y sufijo de todos sus documentos.
   const [lote, setLote] = useState(null);              // { titulo, archivos, ejercicio, sufijo, quitarSufijo }
   const [vinculo, setVinculo] = useState(null);        // { archivo, entidad_id }
+  // Enlace a otro tipo (19/11/2026): { archivo, categoria_id, nombre } al crear; con enlace_id, cambiar su nombre.
+  const [enlace, setEnlace] = useState(null);
   const [entidades, setEntidades] = useState([]);
 
   const nombreCat = (c) => tc(c.codigo || c.categoria_codigo, c.nombre || c.categoria_nombre);
@@ -248,6 +250,9 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
       // conEnlaces (30/10/2026, Multimedia): también las fotos enlazadas en cada carpeta, como filas de enlace.
       const d = (await pedir(`/files/objeto/${tabla}/${id}${conEnlaces ? '?enlaces=1' : ''}`)).data;
       let categorias = ordenArbol(d.categorias || []);
+      // Enlaces a otros tipos (19/11/2026): hacen falta TODOS los tipos y enlaces, también los que esta vista no enseña.
+      const categoriasTodas = categorias;
+      const enlacesTodos = d.enlaces || [];
       let archivos = [...(d.archivos || []), ...(conEnlaces ? d.enlaces || [] : [])];
       // Solo un grupo, o todo menos un grupo (15/10/2026): mismos documentos, otra vista.
       // Varios excluidos (16/10/2026): Documentos no enseña ni FACTURAS ni CONTRATOS.
@@ -271,7 +276,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         categorias = ordenArbol(categorias.filter((c) => (grupo ? dentro(c) && (conRaiz || c.codigo !== grupo) : !dentro(c))));
         archivos = archivos.filter((a) => codigosDentro.has(a.categoria_codigo) === Boolean(grupo));
       }
-      setDatos({ ...d, categorias, archivos });
+      setDatos({ ...d, categorias, archivos, categoriasTodas, enlacesTodos });
     }
     catch (e) { setError(e.message); }
   }, [tabla, id, grupo, claveExcluidos, conRaiz, conEnlaces]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -663,9 +668,13 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
     let diferidos = 0;    // guardados en el PC porque R2 no responde (subida diferida, 01/11/2026)
     let heics = 0;        // fotos HEIC convertidas a JPG en el servidor (03/11/2026)
     const avisosServidor = [];   // p. ej. «No computables» corregido a «No se admite» (04/11/2026)
+    // Un archivo con error ya no para a los demás (19/11/2026, petición del usuario): se sube el
+    // resto y los que fallan se quedan en la ventana, con su motivo, para reintentar.
+    const fallidos = [];         // [{ i, mensaje }]
     try {
       const deCarpeta = await asegurarCarpetas(subida.detalles, baseCarpetas(subida));
       for (const [i, fichero] of subida.ficheros.entries()) {
+        try { // eslint-disable-line no-await-in-loop
         const base = subida.detalles[i] || { categoria_id: subida.categoria_id, nombreManual: false, nombre: '' };
         // De una carpeta: su tipo; si la carpeta era más honda que el máximo, lo que sobra va delante del nombre.
         const destino = base.carpeta ? deCarpeta.get(i) : null;
@@ -703,7 +712,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           if (respuesta.convertido_heic) heics += 1;
           if (respuesta.avisos?.length) avisosServidor.push(...respuesta.avisos);
         } catch (e) {
-          if (e.code === 'NETWORK') throw new Error(`«${fichero.name}»: ${e.message}`);
+          if (e.code === 'NETWORK') throw Object.assign(new Error(`«${fichero.name}»: ${e.message}`), { code: 'NETWORK' });
           if (e.code !== 'FILE_DUPLICATE') throw e;
           repetidos.push(e.message);
           continue; // eslint-disable-line no-continue
@@ -713,6 +722,15 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           await pedir(`/files/${subido.id}/vinculos`, { method: 'POST', body: JSON.stringify({ objeto_tabla: destinos.tabla, objeto_id: Number(subida.destino) }) });
         }
         if (subido) subidos.push({ ...subido, destino: destinos ? subida.destino : null });
+        } catch (e) {
+          const mensaje = String(e.message || '').includes(fichero.name) ? e.message : `«${fichero.name}»: ${e.message}`;
+          fallidos.push({ i, mensaje });
+          // Sin conexión con el servidor: no se insiste con los siguientes; se quedan todos para reintentar.
+          if (/Failed to fetch|NetworkError/i.test(mensaje) || e.code === 'NETWORK') {
+            for (let j = i + 1; j < subida.ficheros.length; j += 1) fallidos.push({ i: j, mensaje: `«${subida.ficheros[j].name}»` });
+            break;
+          }
+        }
       }
       // Datos del DNI: a la ficha abierta, que los guarda con «Guardar» (04/10/2026).
       // Sin ficha abierta (otras pantallas), se guardan ya.
@@ -732,10 +750,18 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         diferidos > 0 && t('subidos_diferidos', '{n} archivo(s) guardado(s) en el ordenador: no hay conexión con el almacenamiento y se subirán solos cuando vuelva.').replace('{n}', diferidos),
       ].filter(Boolean).join(' '));
       if (diferidos) window.dispatchEvent(new CustomEvent('subidas-pendientes-cambiadas'));
-      setSubida(null);
+      // Los que han fallado se quedan en la ventana (con su tipo y nombre); si no hay, se cierra.
+      if (fallidos.length) {
+        const quedan = new Set(fallidos.map((f) => f.i));
+        setSubida((s) => (s ? { ...s, ficheros: s.ficheros.filter((_, k) => quedan.has(k)), detalles: s.ficheros.map((_, k) => s.detalles[k] || null).filter((_, k) => quedan.has(k)) } : s));
+      } else setSubida(null);
       await cargar();
       // Después de cargar(), que borra el error.
-      if (repetidos.length) setError(`${t('repetidos_servidor', 'No se han subido porque ya estaban subidos:')} ${repetidos.join(' ')}`);
+      const errores = [
+        fallidos.length > 0 && `${t('fallidos_subida', 'No se han podido subir (siguen en la ventana para reintentar):')} ${fallidos.map((f) => f.mensaje).join(' ')}`,
+        repetidos.length > 0 && `${t('repetidos_servidor', 'No se han subido porque ya estaban subidos:')} ${repetidos.join(' ')}`,
+      ].filter(Boolean);
+      if (errores.length) setError(errores.join(' '));
       subidos.forEach((a) => onSubido?.(a));
     } catch (e) { setError(e.message); }
     finally { setOcupado(false); }
@@ -864,6 +890,9 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
         archivo: a,
         confirmar: true,
         forzar: enPlazo,
+        // Con enlaces en otros tipos (20/11/2026, petición del usuario): la confirmación sale en una
+        // ventana con la lista de enlaces que se eliminarán, y botones «Eliminar» y «Cancelar».
+        enlaces: enlacesDe(a),
         mensaje: (enPlazo
           ? `${r.data.mensaje} ${t('retencion_forzar', 'Si se subió por error, puedes eliminarlo igualmente (irá a la papelera).')}`
           : t('confirmar_papelera', '¿Mover «{nombre}» a la papelera? Se puede restaurar durante 30 días.').replace('{nombre}', a.nombre_original)) + delContrato,
@@ -899,8 +928,51 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   };
   // Enlaces de Multimedia (30/10/2026): dónde está la foto de verdad y quitar el enlace.
   const carpetaOriginal = (a) => {
+    // El original puede no estar en esta vista (una factura enlazada en Documentos): viene con el enlace.
+    if (a.origen_categoria_id) return rutaCat(a.origen_categoria_id) || nombreCat({ codigo: a.origen_categoria_codigo, nombre: a.origen_categoria_nombre });
     const o = (datos?.archivos || []).find((x) => x.id === a.id && !x.es_enlace);
     return o ? nombreCat({ codigo: o.categoria_codigo, nombre: o.categoria_nombre }) : '';
+  };
+  // ── Enlaces a otros tipos (19/11/2026, petición del usuario) ────────────────
+  // Una factura sigue en Facturas y se ve también en su electrodoméstico (o en varios),
+  // cada enlace con su nombre propio si se quiere. No se copia ni se mueve nada.
+  /** «GRUPO ▸ Subgrupo ▸ Tipo» de un tipo. */
+  const rutaCat = (catId) => {
+    const todas = datos?.categoriasTodas || [];
+    const partes = [];
+    let c = todas.find((x) => Number(x.id) === Number(catId));
+    for (let n = 0; c && n < 12; n += 1) {
+      partes.unshift(nombreCat(c));
+      const padre = c.padre_id;
+      c = padre == null ? null : todas.find((x) => Number(x.id) === Number(padre));
+    }
+    return partes.join(' ▸ ');
+  };
+  /** Enlaces de un documento (en todos los tipos, no solo los de esta vista). */
+  const enlacesDe = (a) => (datos?.enlacesTodos || []).filter((e) => e.id === a.id);
+  const esFoto = (a) => /^image\//.test(a.tipo_mime || '');
+  /** Tipos donde se puede enlazar: ni Facturas (cuentan una vez), ni el suyo, ni donde ya está enlazado. */
+  const tiposParaEnlazar = (a) => {
+    const todas = datos?.categoriasTodas || [];
+    const raiz = todas.find((c) => c.codigo === 'FACTURAS_PERIODICAS');
+    const fuera = raiz ? subarbol(todas, raiz.id) : new Set();
+    const ya = new Set(enlacesDe(a).map((e) => Number(e.categoria_id)));
+    return todas.filter((c) => c.codigo !== 'SIN_CLASIFICAR' && !fuera.has(Number(c.id)) && Number(c.id) !== Number(a.categoria_id) && !ya.has(Number(c.id)));
+  };
+  const guardarEnlace = async (ev) => {
+    ev.preventDefault();
+    if (!enlace.enlace_id && !enlace.categoria_id) return;
+    setOcupado(true); setError('');
+    try {
+      if (enlace.enlace_id) {
+        await pedir(`/files/${enlace.archivo.id}/vinculos/${enlace.enlace_id}`, { method: 'PATCH', body: JSON.stringify({ nombre: enlace.nombre.trim() }) });
+      } else {
+        await pedir(`/files/${enlace.archivo.id}/vinculos`, { method: 'POST', body: JSON.stringify({ objeto_tabla: tabla, objeto_id: Number(id), categoria_id: Number(enlace.categoria_id), ...(enlace.nombre.trim() ? { nombre: enlace.nombre.trim() } : {}) }) });
+      }
+      setEnlace(null);
+      await cargar();
+    } catch (e) { setError(e.message); }
+    finally { setOcupado(false); }
   };
   const quitarEnlace = async (a) => {
     try { await pedir(`/files/${a.id}/vinculos/${a.enlace_id}`, { method: 'DELETE' }); await cargar(); }
@@ -923,7 +995,9 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                     {a.principal && (leibles === true || leibles.includes(a.categoria_codigo)) && onLeer && (
                       <BotonFila icono={<ScanText size={15} />} titulo={tipoHacienda ? t('datos_factura', 'Datos para Hacienda') : t('leer_datos', 'Leer datos y pasarlos a la ficha')} onClick={() => onLeer(a)} />
                     )}
-                    {a.es_enlace && <BotonFila icono={<Unlink size={15} />} titulo={t('quitar_enlace', 'Quitar enlace (la foto original no se toca)')} onClick={() => quitarEnlace(a)} />}
+                    {a.es_enlace && <BotonFila icono={<Unlink size={15} />} titulo={esFoto(a) ? t('quitar_enlace', 'Quitar enlace (la foto original no se toca)') : t('quitar_enlace_doc', 'Quitar enlace (el documento original no se toca)')} onClick={() => quitarEnlace(a)} />}
+                    {a.es_enlace && <BotonFila icono={<Pencil size={15} />} titulo={t('enlace_renombrar', 'Cambiar el nombre del enlace')} onClick={() => { setError(''); setEnlace({ archivo: a, enlace_id: a.enlace_id, nombre: a.enlace_nombre || '' }); }} />}
+                    {!a.es_enlace && a.principal && <BotonFila icono={<Link2 size={15} />} titulo={t('enlazar', 'Ver también en otro tipo…')} onClick={() => { setError(''); setEnlace({ archivo: a, categoria_id: '', nombre: '' }); }} />}
                     {!a.es_enlace && <BotonFila icono={<Pencil size={15} />} titulo={t('editar', 'Editar')} onClick={() => setEdicion({ archivo: a, destino: destinoDe(a), campos: { nombre: String(a.nombre_original || '').replace(/\.[^.]+$/, ''), categoria_id: a.categoria_id, fecha_documento: fecha(a.fecha_documento), ejercicio: a.ejercicio || '', sufijo: a.sufijo || '', fecha_caducidad: fecha(a.fecha_caducidad), descripcion: a.descripcion || '', confidencial: Boolean(Number(a.confidencial)), ...(tipoHacienda ? { tipo_hacienda: a.tipo_hacienda || haciendaDe(a.categoria_id) } : {}) } })} />}
                     {a.principal && <BotonFila icono={<Trash2 size={15} />} titulo={t('papelera', 'Mover a la papelera')} onClick={() => papelera(a)} />}
                   </>}
@@ -935,15 +1009,16 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                     {Number(a.cifrado) === 1 && <KeyRound size={13} className="mr-1 inline" aria-label={t('cifrado', 'Guardado cifrado')} />}
                     {Number(a.subida_pendiente) === 1 && <span className="mr-2 rounded-full border-2 border-on-destructive bg-destructive px-2 text-[10px] uppercase tracking-widest text-on-destructive">{t('pendiente_subir', 'Pendiente de subir')}</span>}
                     {Number(a.cifrado)
-                      ? <span title={t('cifrado', 'Guardado cifrado')}>{a.nombre_original}</span>
-                      : <button type="button" onClick={() => descargar(a, 'ver')} title={t('ver', 'Ver')} className="truncate text-left underline-offset-2 hover:underline">{a.nombre_original}</button>}
+                      ? <span title={t('cifrado', 'Guardado cifrado')}>{(a.es_enlace && a.enlace_nombre) || a.nombre_original}</span>
+                      : <button type="button" onClick={() => descargar(a, 'ver')} title={t('ver', 'Ver')} className="truncate text-left underline-offset-2 hover:underline">{(a.es_enlace && a.enlace_nombre) || a.nombre_original}</button>}
                   </p>
                   <p className="text-xs font-bold">
                     {[fecha(a.fecha_documento), periodoYSufijo(a), tamano(a.tamanyo_bytes),
                       a.tipo_hacienda && `${t('hacienda_corto', 'Hacienda')}: ${nombreHacienda(a.tipo_hacienda)}`,
                       tipoHacienda && !Number(a.con_datos_factura) && t('sin_datos_factura', 'sin datos para Hacienda'),
                       a.fecha_caducidad && `${t('caduca', 'caduca')} ${fecha(a.fecha_caducidad)}`,
-                      a.es_enlace ? t('enlace_de', 'Enlace: la foto está en «{c}»').replace('{c}', carpetaOriginal(a))
+                      a.es_enlace ? (a.enlace_nombre ? t('enlace_doc_nombre', 'Enlace a «{n}», que está en «{c}»').replace('{n}', a.nombre_original)
+                        : esFoto(a) ? t('enlace_de', 'Enlace: la foto está en «{c}»') : t('enlace_doc_de', 'Enlace: el documento está en «{c}»')).replace('{c}', carpetaOriginal(a))
                         : !a.principal && t('vinculado', 'vinculado desde otro objeto'), a.descripcion].filter(Boolean).join(' · ')}
                   </p>
                   {Number(a.con_contrasena) === 1 && (
@@ -965,6 +1040,16 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                       ))}
                     </p>
                   )}
+                  {/* Dónde más se ve (19/11/2026): sus enlaces a otros tipos, con su nombre si lo tienen. */}
+                  {!a.es_enlace && enlacesDe(a).length > 0 && (
+                    <p className="select-text text-xs font-bold">
+                      {t('enlazado_en', 'Enlazado en')}: {enlacesDe(a).map((e) => (
+                        <span key={e.enlace_id} className="mr-2">{rutaCat(e.categoria_id)}{e.enlace_nombre ? ` («${e.enlace_nombre}»)` : ''}
+                          {!soloLectura && <button type="button" className="ml-1" title={t('quitar_enlace_doc', 'Quitar enlace (el documento original no se toca)')} aria-label={`${t('quitar_enlace_doc', 'Quitar enlace (el documento original no se toca)')}: ${rutaCat(e.categoria_id)}`} onClick={() => quitarEnlace(e)}><Unlink size={12} className="inline" /></button>}
+                        </span>
+                      ))}
+                    </p>
+                  )}
                 </div>
                 {/* Facturas (04/11/2026, petición del usuario): tres columnas tras el documento —
                     Total · IVA · Base—, alineadas a la derecha. Vacías si no hay datos. */}
@@ -980,7 +1065,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                     </p>
                   </div>
                 ))}
-                {retencion?.archivo.id === a.id && (
+                {retencion?.archivo.id === a.id && !a.es_enlace && !(retencion.confirmar && retencion.enlaces?.length) && (
                   <div className="basis-full">
                     <AvisoError>
                       <span>{retencion.mensaje}</span>
@@ -1150,15 +1235,17 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           {/* Primer campo: el tipo de documento (04/10/2026). Vale para los
               archivos que se añadan; cada uno se puede cambiar abajo. */}
           <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-            <select autoFocus={!destinos} value={subida.categoria_id} onChange={(e) => {
-              const c = datos.categorias.find((x) => String(x.id) === e.target.value);
+            {/* Lista propia en lugar del <select> del navegador (05/11/2026, petición del usuario):
+                la del navegador no avisa al pasar el ratón; esta lee la fila tras 1 s. */}
+            <SelectLista value={subida.categoria_id} ariaLabel={t('categoria', 'Tipo de documento')} onChange={(v) => {
+              const valor = String(v);
+              const c = datos.categorias.find((x) => String(x.id) === valor);
               setSubida((x) => ({
-                ...x, categoria_id: e.target.value, confidencial: Boolean(Number(c?.confidencial)),
-                detalles: x.detalles.map((d) => (d.categoriaManual || d.carpeta ? d : { ...d, categoria_id: e.target.value })),
+                ...x, categoria_id: valor, confidencial: Boolean(Number(c?.confidencial)),
+                detalles: x.detalles.map((d) => (d.categoriaManual || d.carpeta ? d : { ...d, categoria_id: valor })),
               }));
-            }} className={CLASE_INPUT}>
-              {datos.categorias.map((c) => <option key={c.id} value={c.id}>{sangria(c)}{nombreCat(c)}{obl(c)}</option>)}
-            </select>
+            }} className={CLASE_INPUT}
+              opciones={datos.categorias.map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}${obl(c)}` }))} />
           </Campo>
           {(() => {
             const c = categoria(subida.categoria_id);
@@ -1197,6 +1284,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
               textoSecundario={t('o_elige', 'o pulsa para elegirlos del ordenador')}
               textoQuitar={t('quitar_fichero', 'Quitar')}
               textoRepetidos={t('descartados_repetidos', 'Documentos descartados por repetidos:')}
+              textoNoLeidos={t('no_leidos', 'No se han podido leer:')}
+              textoNadaLeido={t('nada_leido', 'No se ha podido leer nada de lo soltado. Vuelve a soltarlo dentro del recuadro o pulsa para elegirlo del ordenador.')}
               textoCuenta={(n) => (n === 1 ? t('archivos_a_cargar_1', '1 archivo a cargar') : t('archivos_a_cargar', '{n} archivos a cargar').replace('{n}', n))}
             />
           </Campo>
@@ -1258,9 +1347,8 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                       </Campo>
                     ) : (
                       <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-                        <select value={det.categoria_id} onChange={(e) => cambiar({ categoria_id: e.target.value, categoriaManual: true })} className={CLASE_INPUT}>
-                          {datos.categorias.map((c) => <option key={c.id} value={c.id}>{sangria(c)}{nombreCat(c)}{obl(c)}</option>)}
-                        </select>
+                        <SelectLista value={det.categoria_id} ariaLabel={t('categoria', 'Tipo de documento')} onChange={(v) => cambiar({ categoria_id: String(v), categoriaManual: true })} className={CLASE_INPUT}
+                          opciones={datos.categorias.map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}${obl(c)}` }))} />
                       </Campo>
                     )}
                     <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
@@ -1460,19 +1548,31 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           )}
           {/* El tipo (etiqueta) es el primer campo (04/10/2026). */}
           <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-            <select autoFocus={!destinos} value={edicion.campos.categoria_id} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(e.target.value) } }))} className={CLASE_INPUT}>
-              {!datos.categorias.some((c) => c.id === Number(edicion.campos.categoria_id)) && <option value={edicion.campos.categoria_id}>{edicion.archivo.categoria_nombre}</option>}
-              {datos.categorias.map((c) => <option key={c.id} value={c.id}>{sangria(c)}{nombreCat(c)}</option>)}
-            </select>
+            <SelectLista value={edicion.campos.categoria_id} ariaLabel={t('categoria', 'Tipo de documento')} onChange={(v) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(v) } }))} className={CLASE_INPUT}
+              opciones={[
+                ...(!datos.categorias.some((c) => c.id === Number(edicion.campos.categoria_id)) ? [{ value: edicion.campos.categoria_id, label: edicion.archivo.categoria_nombre }] : []),
+                ...datos.categorias.map((c) => ({ value: c.id, label: `${sangria(c)}${nombreCat(c)}` })),
+              ]} />
           </Campo>
           <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
             <div className="flex gap-2">
               <input value={edicion.campos.nombre} maxLength={190} onChange={(e) => setEdicion((s) => ({ ...s, campos: { ...s.campos, nombre: e.target.value } }))} className={CLASE_INPUT} />
               <Extension ext={edicion.archivo.extension} nombre={edicion.archivo.nombre_original} />
-              <Button type="button" variant="secondary" size="sm"
-                onClick={() => setEdicion((s) => ({ ...s, campos: { ...s.campos, nombre: nombrePropuesto(categoria(s.campos.categoria_id)?.codigo, datos?.objeto, s.campos) || s.campos.nombre } }))}>
-                {t('nombre_propuesto', 'Nombre propuesto')}
-              </Button>
+              {/* 17/11/2026 (petición del usuario): desactivado si el tipo no tiene plantilla de nombre,
+                  y en «outline» como los demás botones de acción dentro de un campo. */}
+              {(() => {
+                const propuesto = nombrePropuesto(categoria(edicion.campos.categoria_id)?.codigo, datos?.objeto, edicion.campos);
+                return (
+                  <Tooltip texto={propuesto
+                    ? t('nombre_propuesto_ayuda', 'Pone el nombre según la plantilla del tipo de documento')
+                    : t('nombre_propuesto_sin_plantilla', 'Este tipo de documento no tiene plantilla de nombre')}>
+                    <Button type="button" variant="outline" size="sm" disabled={!propuesto}
+                      onClick={() => setEdicion((s) => ({ ...s, campos: { ...s.campos, nombre: nombrePropuesto(categoria(s.campos.categoria_id)?.codigo, datos?.objeto, s.campos) || s.campos.nombre } }))}>
+                      {t('nombre_propuesto', 'Nombre propuesto')}
+                    </Button>
+                  </Tooltip>
+                );
+              })()}
             </div>
           </Campo>
           {tipoHacienda && (
@@ -1513,6 +1613,51 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
           grupo={grupo} excluirGrupo={excluirGrupo} />
       )}
 
+      {/* Papelera de un documento con enlaces (20/11/2026): lista de los enlaces que se eliminarán. */}
+      {retencion?.confirmar && retencion.enlaces?.length > 0 && (
+        <VentanaEmergente titulo={t('papelera_enlaces_titulo', 'Mover a la papelera')} etiquetaCerrar={t('cancelar', 'Cancelar')} onCerrar={() => setRetencion(null)}>
+          <div className="space-y-4">
+            <p className="select-text text-sm font-bold">{retencion.mensaje}</p>
+            <p className="select-text text-sm font-black">{t('papelera_enlaces', 'Este documento tiene enlaces en otros tipos. Al enviarlo a la papelera se eliminarán:')}</p>
+            <ul className="space-y-1">
+              {retencion.enlaces.map((e) => (
+                <li key={e.enlace_id} className="select-text rounded-xl border border-border px-3 py-2 text-sm font-bold">
+                  {rutaCat(e.categoria_id)}{e.enlace_nombre ? ` · «${e.enlace_nombre}»` : ''}
+                </li>
+              ))}
+            </ul>
+            <p className="select-text text-xs font-bold">{t('papelera_enlaces_nota', 'Si después restauras el documento, los enlaces no vuelven: habrá que crearlos otra vez.')}</p>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setRetencion(null)}>{t('cancelar', 'Cancelar')}</Button>
+              <Button type="button" variant="destructive" autoFocus onClick={papeleraConfirmada}>{t('eliminar', 'Eliminar')}</Button>
+            </div>
+          </div>
+        </VentanaEmergente>
+      )}
+      {/* Enlace a otro tipo, o su nombre (19/11/2026). */}
+      {enlace && (
+        <VentanaEmergente
+          titulo={(enlace.enlace_id ? t('enlace_renombrar_titulo', 'Nombre del enlace a «{nombre}»') : t('enlazar_titulo', 'Que «{nombre}» se vea también en…')).replace('{nombre}', enlace.archivo.nombre_original)}
+          etiquetaCerrar={t('cerrar', 'Cerrar')} onCerrar={() => !ocupado && setEnlace(null)}>
+          <form onSubmit={guardarEnlace} className="space-y-4">
+            <AvisoError>{error}</AvisoError>
+            {!enlace.enlace_id && <p className="text-sm font-bold">{t('enlazar_ayuda', 'El documento no se copia ni se mueve: sigue donde está y aquí aparece un enlace.')}</p>}
+            {!enlace.enlace_id && (
+              <Campo etiqueta={`${t('enlace_tipo', 'Tipo donde se verá')} *`}>
+                <SelectLista value={enlace.categoria_id} ariaLabel={t('enlace_tipo', 'Tipo donde se verá')} onChange={(v) => setEnlace((s) => ({ ...s, categoria_id: String(v) }))} className={CLASE_INPUT}
+                  opciones={[{ value: '', label: t('elige_destino', '— Elige —') }, ...tiposParaEnlazar(enlace.archivo).map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}` }))]} />
+              </Campo>
+            )}
+            <Campo etiqueta={t('enlace_nombre', 'Nombre del enlace (opcional; vacío = el del documento)')}>
+              <input maxLength={190} autoFocus={Boolean(enlace.enlace_id)} value={enlace.nombre} onChange={(e) => setEnlace((s) => ({ ...s, nombre: e.target.value }))} className={CLASE_INPUT} />
+            </Campo>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setEnlace(null)} disabled={ocupado}>{t('cancelar', 'Cancelar')}</Button>
+              <Button type="submit" loading={ocupado} disabled={!enlace.enlace_id && !enlace.categoria_id}>{enlace.enlace_id ? t('guardar', 'Guardar') : t('enlazar_boton', 'Enlazar')}</Button>
+            </div>
+          </form>
+        </VentanaEmergente>
+      )}
       {vinculo && (
         <Recuadro as="form" onSubmit={vincular} className="space-y-3">
           <h3 className="font-black tracking-tight text-on-surface2">{t('vincular_titulo', 'Que «{nombre}» se vea también en…').replace('{nombre}', vinculo.archivo.nombre_original)}</h3>

@@ -97,6 +97,18 @@ export default function MovimientosPage() {
       ]);
   }, [cuentasVisibles, t]);
 
+  // Sin «Todas las cuentas» (17/11/2026, petición del usuario): siempre hay una cuenta elegida.
+  // Si no viene ninguna (o la que venía no es de la empresa activa), la primera de la lista.
+  useEffect(() => {
+    const primera = porBanco[0]?.[1]?.[0];
+    if (!primera) return;
+    if (!cuentasVisibles.some((c) => String(c.id) === String(filters.cuenta))) {
+      setFilters((f) => ({ ...f, cuenta: String(primera.id) }));
+    }
+  }, [porBanco, cuentasVisibles, filters.cuenta]);
+  const cuentaElegida = cuentasVisibles.find((c) => String(c.id) === String(filters.cuenta)) || null;
+  const ibanEspaciado = (iban) => String(iban || '').replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
+
   // Los filtros filtran de verdad.
   //
   // Hasta el 26/08/2026 esta lista solo se filtraba por empresa: `filters` se
@@ -161,13 +173,18 @@ export default function MovimientosPage() {
 
       <Card className="p-4">
         {/* Botones que estaban en el título de la página (04/10/2026). */}
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <Button variant="primary" onClick={load} leftIcon={<RefreshCw size={16} />}>{t('reload', 'Recargar')}</Button>
           <Button variant="primary" onClick={downloadCsv} disabled={!visibles.length} leftIcon={<Download size={16} />}>{t('download_csv')}</Button>
+          {/* Cuenta elegida tras los botones: nombre - IBAN (17/11/2026, petición del usuario). */}
+          {cuentaElegida && (
+            <p className="ml-2 select-text font-black text-on-surface1">
+              {cuentaElegida.alias}{cuentaElegida.iban ? <> - <span className="font-mono">{ibanEspaciado(cuentaElegida.iban)}</span></> : null}
+            </p>
+          )}
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <select className="input-base" name="cuenta" value={filters.cuenta} onChange={update} aria-label={t('filter_account')}>
-            <option value="">{t('all_accounts')}</option>
             {porBanco.map(([banco, cuentas]) => (
               <optgroup key={banco} label={banco}>
                 {cuentas.map((account) => (

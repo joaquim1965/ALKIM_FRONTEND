@@ -17,6 +17,8 @@
  * es una sesión terminada: se limpia y se manda al login.
  */
 
+import { esLecturaIa, empezarLecturaIa, terminarLecturaIa } from '../utils/lecturaIa';
+
 // URL base de la API segun el entorno
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -95,12 +97,39 @@ async function iaElegidaTrasSaturacion(respuesta) {
   return window.__elegirIa({ mensaje: cuerpo.message, proveedor: cuerpo.proveedor || null });
 }
 
+// Lectura con IA (20/11/2026): mientras dura, el ratón es el icono del botón «Leer» y al acabar bien suena un ding.
+// Va por cada petición real (no por apiFetch entero): si la IA está saturada y se abre la ventana de elegir otra,
+// el ratón vuelve a la normalidad mientras se decide.
+const baseConAvisoIa = async (endpoint, options) => {
+  if (!esLecturaIa(endpoint)) return apiFetchBase(endpoint, options);
+  empezarLecturaIa();
+  let ok = false;
+  try { const r = await apiFetchBase(endpoint, options); ok = r.ok; return r; }
+  catch (e) { avisarErrorLecturaIa(e?.message || 'Sin conexión con el servidor'); throw e; }
+  finally { terminarLecturaIa(ok); }
+};
+
+// Error en una lectura con IA (20/11/2026): ventana components/IA/ErrorLecturaIa.jsx con el error,
+// «Cerrar» y «Cambiar modelo». No sale si la IA estaba saturada y se canceló ElegirIa, ni si la
+// sesión ha caducado (401: ya se manda al login).
+const avisarErrorLecturaIa = (mensaje) => {
+  if (typeof window !== 'undefined' && window.__errorLecturaIa) window.__errorLecturaIa({ mensaje });
+};
+async function revisarErrorLecturaIa(endpoint, respuesta) {
+  if (!esLecturaIa(endpoint) || respuesta.ok || respuesta.status === 401) return;
+  const b = await respuesta.clone().json().catch(() => ({}));
+  if (b?.code === IA_SATURADA) return;
+  const e = b?.errors?.[0];
+  avisarErrorLecturaIa(e ? `${e.field ? `${e.field}: ` : ''}${e.message}` : (b?.message || `Error ${respuesta.status}`));
+}
+
 export const apiFetch = async (endpoint, options = {}) => {
-  let respuesta = await apiFetchBase(endpoint, options);
+  let respuesta = await baseConAvisoIa(endpoint, options);
   // Mientras la IA esté saturada y el usuario elija una, se repite con esa.
   for (let elegida = await iaElegidaTrasSaturacion(respuesta); elegida; elegida = await iaElegidaTrasSaturacion(respuesta)) {
-    respuesta = await apiFetchBase(endpoint, { ...options, headers: { ...options.headers, 'X-IA-Proveedor': String(elegida) } });
+    respuesta = await baseConAvisoIa(endpoint, { ...options, headers: { ...options.headers, 'X-IA-Proveedor': String(elegida) } });
   }
+  await revisarErrorLecturaIa(endpoint, respuesta);
   // Semáforo de subidas (01/11/2026): al borrar, mandar a la papelera o restaurar un archivo desde
   // cualquier pantalla, el círculo rojo y su lista se actualizan al momento.
   if (respuesta.ok && /^\/files\/\d+(\/(restaurar|definitivo))?(\?|$)/.test(String(endpoint))

@@ -18,6 +18,10 @@
  * también los de sus subcarpetas. Cada archivo lleva su ruta relativa
  * («FOTOS ACTUALES/COCINA/foto.jpg»): `rutaArchivo(f)`. Se saltan los archivos
  * de sistema (desktop.ini, Thumbs.db, .DS_Store, ~$…).
+ *
+ * No leídos (19/11/2026, petición del usuario): si algo de lo soltado o elegido no se
+ * puede leer, ya no se calla: sale un aviso como el de repetidos, «No se han podido
+ * leer: …»; y si no se ha podido leer nada, se dice también.
  */
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -34,21 +38,22 @@ export const conRuta = (nuevo, viejo) => { if (nuevo !== viejo && viejo?._ruta) 
 const ES_DE_SISTEMA = /^(desktop\.ini|thumbs\.db|\.ds_store)$|^~\$|^\./i;
 
 /** Todos los archivos de una entrada soltada (archivo o carpeta, recorriendo subcarpetas). */
-async function leerEntrada(entrada, ruta = '') {
+// `fallos` recoge las rutas de lo que no se ha podido leer (19/11/2026).
+async function leerEntrada(entrada, ruta = '', fallos = []) {
   if (entrada.isFile) {
-    return new Promise((ok) => entrada.file((f) => { f._ruta = `${ruta}${f.name}`; ok(ES_DE_SISTEMA.test(f.name) ? [] : [f]); }, () => ok([])));
+    return new Promise((ok) => entrada.file((f) => { f._ruta = `${ruta}${f.name}`; ok(ES_DE_SISTEMA.test(f.name) ? [] : [f]); }, () => { fallos.push(`${ruta}${entrada.name}`); ok([]); }));
   }
   if (!entrada.isDirectory) return [];
   const lector = entrada.createReader();
   const hijas = [];
   // readEntries devuelve las entradas a tandas (100 en Chrome): se pide hasta que no quede ninguna.
   for (;;) {
-    const tanda = await new Promise((ok) => lector.readEntries(ok, () => ok([]))); // eslint-disable-line no-await-in-loop
+    const tanda = await new Promise((ok) => lector.readEntries(ok, () => { fallos.push(`${ruta}${entrada.name}/`); ok([]); })); // eslint-disable-line no-await-in-loop
     if (!tanda.length) break;
     hijas.push(...tanda);
   }
   const salida = [];
-  for (const h of hijas) salida.push(...await leerEntrada(h, `${ruta}${entrada.name}/`)); // eslint-disable-line no-await-in-loop
+  for (const h of hijas) salida.push(...await leerEntrada(h, `${ruta}${entrada.name}/`, fallos)); // eslint-disable-line no-await-in-loop
   return salida;
 }
 
@@ -57,6 +62,8 @@ export default function ZonaArchivos({
   textoCarpeta = 'Elegir carpeta', textoAyudaCarpeta = '',
   textoPrincipal = 'Arrastra aquí los archivos', textoSecundario = 'o pulsa para elegirlos del ordenador',
   textoQuitar = 'Quitar', textoRepetidos = 'Documentos descartados por repetidos:',
+  textoNoLeidos = 'No se han podido leer:',
+  textoNadaLeido = 'No se ha podido leer nada de lo soltado. Vuelve a soltarlo dentro del recuadro o pulsa para elegirlo del ordenador.',
   textoCuenta = (n) => `${n} ${n === 1 ? 'archivo' : 'archivos'} a cargar`,
 }) {
   const entrada = useRef(null);
@@ -64,6 +71,8 @@ export default function ZonaArchivos({
   const [encima, setEncima] = useState(false);
 
   const [repetidos, setRepetidos] = useState([]);
+  // Lo que no se ha podido leer (19/11/2026): nombres, o `true` si no se ha leído nada.
+  const [noLeidos, setNoLeidos] = useState([]);
 
   /** ¿Es igual que otro? Nombre y tamaño primero (rápido); si coinciden, el MD5. */
   // Con carpetas, solo son repetidos si además están en la misma carpeta.
@@ -71,25 +80,33 @@ export default function ZonaArchivos({
     && (await md5Archivo(a)) === (await md5Archivo(b));
   /** Lo soltado: con `carpetas`, se recorren las carpetas; si no, solo los archivos. */
   const soltar = async (dt) => {
-    const entradas = carpetas ? [...(dt.items || [])].map((it) => it.webkitGetAsEntry?.()).filter(Boolean) : [];
-    if (!entradas.length) return anadir(dt.files);
-    const todos = [];
-    for (const e of entradas) todos.push(...await leerEntrada(e)); // eslint-disable-line no-await-in-loop
-    return anadir(todos);
+    const sueltos = [...(dt.files || [])];   // se copian ya: tras un `await` el navegador vacía `dt`
+    const fallos = [];
+    try {
+      const entradas = carpetas ? [...(dt.items || [])].map((it) => it.webkitGetAsEntry?.()).filter(Boolean) : [];
+      if (!entradas.length) return await anadir(sueltos, fallos, true);
+      const todos = [];
+      for (const e of entradas) todos.push(...await leerEntrada(e, '', fallos)); // eslint-disable-line no-await-in-loop
+      return await anadir(todos, fallos, true);
+    } catch { setRepetidos([]); setNoLeidos(fallos.length ? fallos : true); return undefined; }
   };
 
-  const anadir = async (lista) => {
+  // `fallos`: lo que ya no se pudo leer antes de llegar aquí; `avisarVacio`: si no llega nada, se dice.
+  const anadir = async (lista, fallos = [], avisarVacio = false) => {
     const nuevos = [...lista];
-    if (!nuevos.length) return;
-    if (!multiple) { setRepetidos([]); onCambio(nuevos.slice(0, 1)); return; }
+    if (!nuevos.length) { setRepetidos([]); setNoLeidos(fallos.length ? fallos : avisarVacio); return; }
+    if (!multiple) { setRepetidos([]); setNoLeidos(fallos); onCambio(nuevos.slice(0, 1)); return; }
     const aceptados = [...ficheros];
     const fuera = [];
     for (const f of nuevos) {
       let repetido = false;
-      for (const g of aceptados) { if (await igual(f, g)) { repetido = true; break; } } // eslint-disable-line no-await-in-loop
+      try {
+        for (const g of aceptados) { if (await igual(f, g)) { repetido = true; break; } } // eslint-disable-line no-await-in-loop
+      } catch { fallos.push(rutaArchivo(f)); continue; } // eslint-disable-line no-continue
       if (repetido) fuera.push(f.name); else aceptados.push(f);
     }
     setRepetidos(fuera);
+    setNoLeidos(fallos);
     if (aceptados.length !== ficheros.length) onCambio(aceptados);
   };
 
@@ -130,6 +147,11 @@ export default function ZonaArchivos({
       {repetidos.length > 0 && (
         <div role="alert" className="rounded-2xl border border-warning-border bg-warning px-4 py-3 text-sm font-bold text-on-warning">
           {textoRepetidos} {repetidos.join(', ')}
+        </div>
+      )}
+      {(noLeidos === true || noLeidos.length > 0) && (
+        <div role="alert" className="rounded-2xl border border-warning-border bg-warning px-4 py-3 text-sm font-bold text-on-warning">
+          {noLeidos === true ? textoNadaLeido : `${textoNoLeidos} ${noLeidos.join(', ')}`}
         </div>
       )}
       {ficheros.length > 0 && (

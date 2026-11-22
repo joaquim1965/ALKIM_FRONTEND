@@ -24,7 +24,7 @@ async function pedir(url, opciones = {}) {
 }
 
 const PROVEEDORES = [['ANTHROPIC', 'Anthropic (Claude)'], ['OPENAI', 'OpenAI (GPT)'], ['GOOGLE', 'Google (Gemini)']];
-const VACIO = { nombre: '', proveedor: 'GOOGLE', modelo: 'gemini-3.6-flash', url_claves: 'https://aistudio.google.com/apikey', clave: '', activo: true, por_defecto: false, precio_entrada: '', precio_salida: '' };
+const VACIO = { nombre: '', proveedor: 'GOOGLE', modelo: 'gemini-3.8-flash', url_claves: 'https://aistudio.google.com/apikey', clave: '', activo: true, por_defecto: false, precio_entrada: '', precio_salida: '' };
 const precioTxt = (v) => (v == null || v === '' ? '' : String(Number(v)).replace('.', ','));
 const fechaHora = (v) => (v ? new Date(v).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : null);
 
@@ -161,7 +161,11 @@ export default function IaPage() {
                   <BotonFila icono={<PlugZap size={15} />} titulo={ocupado === `probar${p.id}` ? t('probando', 'Probando…') : t('probar', 'Probar')} onClick={() => probar(p)} disabled={Boolean(ocupado)} />
                   <BotonFila icono={<Trash2 size={15} />} titulo={t('borrar', 'Borrar')} onClick={() => borrar(p)} />
                 </td>
-                <td className={TD}><span className="font-black">{p.nombre}</span>{Number(p.por_defecto) ? ` · ${t('por_defecto', 'Por defecto')}` : ''}</td>
+                <td className={TD}>
+                  {/* Punto verde delante del predeterminado (20/11/2026, petición del usuario). */}
+                  {Number(p.por_defecto) === 1 && <span aria-hidden="true" title={t('por_defecto', 'Por defecto')} className="mr-2 inline-block h-3 w-3 rounded-full bg-success-border align-middle" />}
+                  <span className="font-black">{p.nombre}</span>{Number(p.por_defecto) ? ` · ${t('por_defecto', 'Por defecto')}` : ''}
+                </td>
                 <td className={TD}>{(PROVEEDORES.find(([v]) => v === p.proveedor) || [null, p.proveedor])[1]}</td>
                 <td className={`${TD} font-mono text-xs`}>{p.modelo}</td>
                 <td className={`${TD} whitespace-nowrap text-right font-mono`}>{p.precio_entrada == null && p.precio_salida == null ? <SinDato /> : `${precioTxt(p.precio_entrada) || '—'} / ${precioTxt(p.precio_salida) || '—'}`}</td>
