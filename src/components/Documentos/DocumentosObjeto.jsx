@@ -1245,7 +1245,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                 detalles: x.detalles.map((d) => (d.categoriaManual || d.carpeta ? d : { ...d, categoria_id: valor })),
               }));
             }} className={CLASE_INPUT}
-              opciones={datos.categorias.map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}${obl(c)}` }))} />
+              opciones={datos.categorias.map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}${obl(c)}`, resumen: rutaTipo(c) }))} />
           </Campo>
           {(() => {
             const c = categoria(subida.categoria_id);
@@ -1348,7 +1348,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                     ) : (
                       <Campo etiqueta={t('categoria', 'Tipo de documento')}>
                         <SelectLista value={det.categoria_id} ariaLabel={t('categoria', 'Tipo de documento')} onChange={(v) => cambiar({ categoria_id: String(v), categoriaManual: true })} className={CLASE_INPUT}
-                          opciones={datos.categorias.map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}${obl(c)}` }))} />
+                          opciones={datos.categorias.map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}${obl(c)}`, resumen: rutaTipo(c) }))} />
                       </Campo>
                     )}
                     <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
@@ -1551,7 +1551,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             <SelectLista value={edicion.campos.categoria_id} ariaLabel={t('categoria', 'Tipo de documento')} onChange={(v) => setEdicion((s) => ({ ...s, campos: { ...s.campos, categoria_id: Number(v) } }))} className={CLASE_INPUT}
               opciones={[
                 ...(!datos.categorias.some((c) => c.id === Number(edicion.campos.categoria_id)) ? [{ value: edicion.campos.categoria_id, label: edicion.archivo.categoria_nombre }] : []),
-                ...datos.categorias.map((c) => ({ value: c.id, label: `${sangria(c)}${nombreCat(c)}` })),
+                ...datos.categorias.map((c) => ({ value: c.id, label: `${sangria(c)}${nombreCat(c)}`, resumen: rutaTipo(c) })),
               ]} />
           </Campo>
           <Campo etiqueta={t('nombre_archivo', 'Nombre del archivo')}>
@@ -1645,7 +1645,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
             {!enlace.enlace_id && (
               <Campo etiqueta={`${t('enlace_tipo', 'Tipo donde se verá')} *`}>
                 <SelectLista value={enlace.categoria_id} ariaLabel={t('enlace_tipo', 'Tipo donde se verá')} onChange={(v) => setEnlace((s) => ({ ...s, categoria_id: String(v) }))} className={CLASE_INPUT}
-                  opciones={[{ value: '', label: t('elige_destino', '— Elige —') }, ...tiposParaEnlazar(enlace.archivo).map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}` }))]} />
+                  opciones={[{ value: '', label: t('elige_destino', '— Elige —') }, ...tiposParaEnlazar(enlace.archivo).map((c) => ({ value: String(c.id), label: `${sangria(c)}${nombreCat(c)}`, resumen: rutaTipo(c) }))]} />
               </Campo>
             )}
             <Campo etiqueta={t('enlace_nombre', 'Nombre del enlace (opcional; vacío = el del documento)')}>

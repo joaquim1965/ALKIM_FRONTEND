@@ -25,6 +25,8 @@ import {
   CabeceraPagina, Panel, Campo, AvisoError, Ayuda, SinDato, CLASE_INPUT, TablaTema, claseFila, TD, FilaVacia, BotonFila, MICRO,
 } from '../../components/UI/TemaPagina';
 import CampoFecha from '../../components/UI/CampoFecha';
+import SelectLista from '../../components/UI/SelectLista';
+import { ordenArbol } from '../../components/Documentos/ordenTipos';
 import TiposDocumento from '../../components/Documentos/TiposDocumento';
 
 const PESTANAS = ['catalogo', 'carpetas', 'mantenimiento', 'plantillas'];
@@ -129,6 +131,23 @@ export default function ExploradorArchivosPage() {
   };
 
   const f = (k) => ({ value: filtros[k], onChange: (e) => setFiltros((s) => ({ ...s, [k]: e.target.value })) });
+  // Filtro «Tipo de documento» en árbol (22/11/2026): la lista con sangría y, cerrado, la ruta entera
+  // («Contrato de alquiler › Plantillas»), porque un mismo nombre puede estar bajo varias etiquetas.
+  const rutaTipo = (c) => {
+    const nombres = [];
+    let x = c;
+    for (let n = 0; x && n < 12; n += 1) {
+      nombres.unshift(nombreCat(x.codigo, x.nombre));
+      x = x.padre_id != null ? categorias.find((y) => Number(y.id) === Number(x.padre_id)) : null;
+    }
+    return nombres.join(' › ');
+  };
+  const opcionesTipo = [
+    { value: '', label: t('todos', 'Todos') },
+    ...ordenArbol(categorias).map((c) => ({
+      value: String(c.id), label: `${c.nivel ? `${'\u00A0\u00A0\u00A0'.repeat(c.nivel)}↳ ` : ''}${nombreCat(c.codigo, c.nombre)}`, resumen: rutaTipo(c),
+    })),
+  ];
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -153,10 +172,7 @@ export default function ExploradorArchivosPage() {
               </select>
             </Campo>
             <Campo etiqueta={t('categoria', 'Tipo de documento')}>
-              <select {...f('categoria_id')} className={CLASE_INPUT}>
-                <option value="">{t('todos', 'Todos')}</option>
-                {categorias.map((c) => <option key={c.id} value={c.id}>{nombreCat(c.codigo, c.nombre)}</option>)}
-              </select>
+              <SelectLista value={String(filtros.categoria_id ?? '')} ariaLabel={t('categoria', 'Tipo de documento')} onChange={(v) => setFiltros((st) => ({ ...st, categoria_id: String(v) }))} className={CLASE_INPUT} opciones={opcionesTipo} />
             </Campo>
             <Campo etiqueta={t('ejercicio', 'Ejercicio')}><input type="number" min="1990" max="2100" {...f('ejercicio')} className={CLASE_INPUT} /></Campo>
             <Campo etiqueta={t('caduca_antes', 'Caducan antes de')}><CampoFecha {...f('caduca_antes')} className={CLASE_INPUT} /></Campo>

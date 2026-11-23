@@ -20,6 +20,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pencil, Trash2, Check, X, GripVertical, CornerDownRight, Download } from 'lucide-react';
 import Button from '../UI/Button';
+import SelectLista from '../UI/SelectLista';
 import { apiFetch, authHeaders } from '../../services/api';
 import { Campo, AvisoError, CLASE_INPUT, BotonFila, BotonAnadir } from '../UI/TemaPagina';
 import { VentanaEmergente } from '../UI/ZonaArchivos';
@@ -109,6 +110,17 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
   };
   // Nivel que se pinta: con `grupo`, uno menos (la raíz no se ve).
   const nivelDe = (c) => Math.max(0, (c.nivel || 0) - (grupo ? 1 : 0));
+  /** «Contrato de alquiler › Plantillas»: el tipo y los que tiene encima (con `grupo`, sin la raíz). (22/11/2026) */
+  const rutaDe = (c) => {
+    const nombres = [];
+    let x = c;
+    for (let n = 0; x && n < 12; n += 1) {
+      if (grupo && x.codigo === grupo) break;
+      nombres.unshift(nombreCat(x));
+      x = x.padre_id != null ? tipos.find((y) => Number(y.id) === Number(x.padre_id)) : null;
+    }
+    return nombres.join(' › ');
+  };
   const visibles = visiblesDe(tipos);
   /**
    * Movimiento permitido (15/10/2026): el tipo arrastrado tiene que seguir viéndose en
@@ -338,12 +350,11 @@ export default function TiposDocumento({ tabla, t, nombreCat, onCerrar, onCambio
             {/* A qué etiqueta pertenece (16/10/2026): se puede cambiar aquí, sin arrastrar. */}
             <div className="sm:col-span-2">
               <Campo etiqueta={t('pertenece_a', 'Pertenece a')}>
-                <select value={form.padreId || ''} onChange={(e) => setForm((f) => ({ ...f, padreId: e.target.value }))} className={CLASE_INPUT}>
-                  <option value="">{t('etiqueta_principal', '— Ninguna: es una etiqueta principal —')}</option>
-                  {padresPosibles().map((c) => (
-                    <option key={c.id} value={String(c.id)}>{`${'\u00A0\u00A0\u00A0'.repeat(nivelDe(c))}${nivelDe(c) ? '↳ ' : ''}${nombreCat(c)}`}</option>
-                  ))}
-                </select>
+                <SelectLista value={form.padreId || ''} ariaLabel={t('pertenece_a', 'Pertenece a')} onChange={(v) => setForm((f) => ({ ...f, padreId: String(v) }))} className={CLASE_INPUT}
+                  opciones={[
+                    { value: '', label: t('etiqueta_principal', '— Ninguna: es una etiqueta principal —') },
+                    ...padresPosibles().map((c) => ({ value: String(c.id), label: `${'\u00A0\u00A0\u00A0'.repeat(nivelDe(c))}${nivelDe(c) ? '↳ ' : ''}${nombreCat(c)}`, resumen: rutaDe(c) })),
+                  ]} />
               </Campo>
             </div>
             <div className="sm:col-span-2">

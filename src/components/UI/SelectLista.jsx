@@ -10,6 +10,9 @@
  * Esc para cerrar, y escribir letras salta a la opción que empieza así.
  *
  *   <SelectLista id="x" value={v} onChange={setV} opciones={[{ value: '', label: 'Todos' }, ...]} />
+ *
+ * Una opción puede llevar `resumen`: es lo que se ve con el desplegable CERRADO (p. ej. la ruta
+ * entera «Contrato de alquiler › Plantillas»); la lista abierta sigue enseñando `label` (22/11/2026).
  */
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -112,7 +115,7 @@ export default function SelectLista({ id, value, onChange, opciones = [], classN
         className={`flex items-center gap-3 text-left ${className}`}
       >
         <ChevronDown size={16} strokeWidth={2.5} className={`shrink-0 transition-transform ${abierta ? 'rotate-180' : ''}`} aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate">{opciones[elegida]?.label}</span>
+        <span className="min-w-0 flex-1 truncate">{opciones[elegida]?.resumen ?? opciones[elegida]?.label}</span>
       </button>
       {abierta && pos && createPortal(
         <ul
