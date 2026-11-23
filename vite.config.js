@@ -15,11 +15,14 @@ const iconoSoloEnProduccion = {
     .replace(/\s*<link rel="apple-touch-icon"[^>]*>/, ''),
 };
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   // Carga las variables de entorno
   const env = loadEnv(mode, process.cwd());
 
-  const isHttps = env.VITE_HTTPS === 'true';
+  // Los certificados solo existen en el PC y solo los necesita el servidor de
+  // desarrollo (`serve`). En `vite build` (Vercel) no se leen: antes fallaba con
+  // ENOENT './certificates/localhost.key' al tener VITE_HTTPS=true (23/11/2026).
+  const isHttps = env.VITE_HTTPS === 'true' && command === 'serve';
   const host = env.VITE_HOST;
   const port = env.VITE_PORT;
 
