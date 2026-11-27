@@ -5,7 +5,8 @@
  * Implementa la estructura de pestañas laterales con el nuevo diseño solicitado.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
+import { updateUserSecurity } from '../../services/userService';
 import { 
     User, Key, Settings, Shield, Globe, Clock, Save, Hash, Lock, 
     CheckCircle, AlertTriangle, Users, Zap, Mail, Phone, Calendar, Monitor,
@@ -180,6 +181,83 @@ const AccountSection = ({ sections, onSave, t, label, loading, user, getEnumLabe
         </div>
     </SectionWrapper>
         );
+};
+
+// --- SECCIÓN: SEGURIDAD (solo en la ventana del admin mirando a OTRO usuario, 27/11/2026) ---
+// Restablecer la contraseña o cambiar el email del usuario sin pedirle nada.
+// El backend (PUT /api/users/:id/security) solo lo acepta de superadmin/sysadmin.
+const AdminSeguridadSection = ({ user, t, label }) => {
+    const uid = user?.uid || user?.id;
+    const [pwd, setPwd] = useState({ nueva: '', confirmar: '' });
+    const [mail, setMail] = useState({ nuevo: '', confirmar: '' });
+    const [estado, setEstado] = useState({ pwd: {}, mail: {} });
+    const [cargando, setCargando] = useState(null);
+
+    const aviso = (bloque, success, error) => {
+        setEstado(e => ({ ...e, [bloque]: { success, error } }));
+        setTimeout(() => setEstado(e => ({ ...e, [bloque]: {} })), 6000);
+    };
+
+    const guardarPwd = async () => {
+        if (pwd.nueva.length < 8) return aviso('pwd', null, t('PasswordMin8', 'La nueva contraseña debe tener al menos 8 caracteres'));
+        if (pwd.nueva !== pwd.confirmar) return aviso('pwd', null, t('PasswordsDontMatch', 'Las contraseñas no coinciden'));
+        setCargando('pwd');
+        try {
+            await updateUserSecurity(uid, { newPassword: pwd.nueva });
+            setPwd({ nueva: '', confirmar: '' });
+            aviso('pwd', t('PasswordReset', 'Contraseña restablecida; se han cerrado sus sesiones'), null);
+        } catch (err) { aviso('pwd', null, err.message); }
+        finally { setCargando(null); }
+    };
+
+    const guardarMail = async () => {
+        const nuevo = mail.nuevo.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nuevo)) return aviso('mail', null, t('EmailInvalid', 'El email no es válido'));
+        if (nuevo.toLowerCase() !== mail.confirmar.trim().toLowerCase()) return aviso('mail', null, t('EmailsDontMatch', 'Los emails no coinciden'));
+        setCargando('mail');
+        try {
+            await updateUserSecurity(uid, { newEmail: nuevo });
+            setMail({ nuevo: '', confirmar: '' });
+            aviso('mail', t('EmailChangedAdmin', 'Email cambiado'), null);
+        } catch (err) { aviso('mail', null, err.message); }
+        finally { setCargando(null); }
+    };
+
+    return (
+        <SectionWrapper title={t('SecurityTabAdmin', 'Seguridad')} icon={<Lock />}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl">
+                {/* Restablecer contraseña */}
+                <div className="space-y-4 bg-surface2 p-5 rounded-3xl border border-border shadow-sm flex flex-col">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Lock className="text-primary" size={18} />
+                        <h3 className="text-lg font-black tracking-tight">{t('ResetPassword', 'Restablecer contraseña')}</h3>
+                    </div>
+                    <p className="text-sm font-bold text-on-surface2">{t('AdminResetNotice', 'No hace falta la contraseña actual del usuario. Al guardar se cierran todas sus sesiones y se desbloquea la cuenta.')}</p>
+                    <PasswordInput label={`${label('NewPassword')} *`} value={pwd.nueva} onChange={(e) => setPwd(p => ({ ...p, nueva: e.target.value }))} showStrength size="md" />
+                    <PasswordInput label={`${label('ConfirmPassword')} *`} value={pwd.confirmar} onChange={(e) => setPwd(p => ({ ...p, confirmar: e.target.value }))} size="md" />
+                    <div className="pt-4 mt-auto flex items-center gap-4">
+                        <Feedback success={estado.pwd.success} error={estado.pwd.error} />
+                        <Button variant="primary" fullWidth onClick={guardarPwd} loading={cargando === 'pwd'} leftIcon={<Save size={18} />}>{label('Save')}</Button>
+                    </div>
+                </div>
+
+                {/* Cambiar email */}
+                <div className="space-y-4 bg-surface2 p-5 rounded-3xl border border-border shadow-sm flex flex-col">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Mail className="text-accent" size={18} />
+                        <h3 className="text-lg font-black tracking-tight">{label('ChangeEmail')}</h3>
+                    </div>
+                    <p className="text-sm font-bold text-on-surface2">{t('CurrentEmail', 'Email actual')}: {user?.email || '—'}</p>
+                    <Input label={`${t('NewEmail', 'Nuevo email')} *`} value={mail.nuevo} onChange={(e) => setMail(m => ({ ...m, nuevo: e.target.value }))} leftIcon={<Mail size={16} />} size="md" />
+                    <Input label={`${label('ConfirmNewEmail')} *`} value={mail.confirmar} onChange={(e) => setMail(m => ({ ...m, confirmar: e.target.value }))} leftIcon={<Mail size={16} />} size="md" />
+                    <div className="pt-4 mt-auto flex items-center gap-4">
+                        <Feedback success={estado.mail.success} error={estado.mail.error} />
+                        <Button variant="primary" fullWidth onClick={guardarMail} loading={cargando === 'mail'} leftIcon={<Save size={18} />}>{label('Save')}</Button>
+                    </div>
+                </div>
+            </div>
+        </SectionWrapper>
+    );
 };
 
 // --- SECCIÓN: CONTRASEÑA, EMAIL ---
@@ -470,6 +548,7 @@ const SessionSection = ({ sections, t, label, user, getEnumLabel, enums }) => (
 
 const UserSettingsStyled = ({
     user,
+    adminMode = false,
     sections,
     activeTab,
     onTabChange,
@@ -503,7 +582,14 @@ const UserSettingsStyled = ({
             icon: <User size={20} />, 
             content: <AccountSection sections={sections} onSave={onSave} t={t} label={label} loading={loading} user={user} getEnumLabel={getEnumLabel} enums={enums} countriesList={countriesList} success={success} error={error} /> 
         },
-        { 
+        // En la ventana del admin (mirando a OTRO usuario) va «Seguridad» en lugar de «Contraseña y Email»:
+        // esa pestaña cambia la contraseña/email del usuario CONECTADO, no del que se está mirando (27/11/2026).
+        adminMode ? {
+            id: 'seguridad',
+            label: t('SecurityTabAdmin', 'Seguridad'),
+            icon: <Lock size={20} />,
+            content: <AdminSeguridadSection user={user} t={t} label={label} />
+        } : { 
             id: 'auth', 
             label: label('AuthTab'), 
             icon: <Key size={20} />, 
