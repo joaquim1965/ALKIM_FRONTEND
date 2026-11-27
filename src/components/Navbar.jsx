@@ -13,7 +13,6 @@ import SemaforoSubidas from "./Documentos/SemaforoSubidas";
 import UserMenu from "./UserMenu";
 import CompanyDropdown from "./CompanyDropdown";
 import SoundToggle from "./SoundToggle";
-import { Database } from "lucide-react";
 
 const Navbar = () => {
   const { isAuthenticated } = useStore();
@@ -40,22 +39,9 @@ const Navbar = () => {
       <div className="flex items-center space-x-4 ml-2">
         <Link to="/" className={linkClasses}></Link>
 
-        <Link to="/tests" className={linkClasses}>
-          {tr.Tests}
-        </Link>
-
-        <Link to="/Muestra" className={linkClasses}>
-          Muestra
-        </Link>
-
-        <Link to="/colorslist" className={linkClasses}>
-          📋 {tr.ColorsList}
-        </Link>
-
-        <Link to="/sql-console" className={linkClasses}>
-          <Database size={18} className="mr-1" />
-          SQL
-        </Link>
+        {/* SEGURIDAD (27/11/2026): se quitaron de aquí los enlaces públicos a /tests,
+            /Muestra, /colorslist y /sql-console. La Consola SQL sigue accesible para
+            superadmin/sysadmin desde el menú de usuario (UserMenu). */}
 
       </div>
 

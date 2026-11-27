@@ -68,10 +68,18 @@ import ErrorLecturaIa from "./components/IA/ErrorLecturaIa";
  *   (None < Read < Write < Full). Si el usuario navega por URL directa a un
  *   módulo sin permiso, se le redirige a la home.
  */
-const ProtectedRoute = ({ children, table = null, level = 'Read' }) => {
-  const { isAuthenticated, permissionsLoaded, can } = useStore();
+const ProtectedRoute = ({ children, table = null, level = 'Read', sysadmin = false }) => {
+  const { isAuthenticated, permissionsLoaded, can, user } = useStore();
 
   if (!isAuthenticated) return <Navigate to="/login" />;
+
+  // SEGURIDAD (27/11/2026): con `sysadmin` solo entran superadmin (3) o sysadmin (4).
+  // Es la misma regla que aplica el backend en /api/sql/*; aquí solo evita mostrar la página.
+  if (sysadmin) {
+    if (!user) return null; // esperar a fetchMe() al recargar la página
+    const rol = parseInt(user?.rol ?? user?.role, 10);
+    if (!(rol >= 3)) return <Navigate to="/" replace />;
+  }
 
   if (table) {
     // Esperar a que la matriz de permisos esté cargada (evita falsos rechazos al recargar)
@@ -106,10 +114,16 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<HomePage />} />
 
-          <Route path="/muestra" element={<Muestra />} />
-          <Route path="/mockup-user" element={<MockupUserView />} />
-          <Route path="/colorslist" element={<ColorsList />} />
-          <Route path="/cssvars" element={<CssVarsDemo />} />
+          {/* SEGURIDAD (27/11/2026): páginas de prueba/maquetas solo en desarrollo (npm run dev);
+              en producción (build de Vite) estas rutas no existen. */}
+          {import.meta.env.DEV && (
+            <>
+              <Route path="/muestra" element={<Muestra />} />
+              <Route path="/mockup-user" element={<MockupUserView />} />
+              <Route path="/colorslist" element={<ColorsList />} />
+              <Route path="/cssvars" element={<CssVarsDemo />} />
+            </>
+          )}
 
           {/* Contabilidad / Bancos */}
           <Route
@@ -224,9 +238,11 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-          <Route path="/coloreditor" element={<ThemeEditor />} />
-          <Route path="/sql-console" element={<SQLConsole />} />
-          <Route path="/sistema/tareas" element={<TareasPage />} />
+          {/* SEGURIDAD (27/11/2026): Consola SQL solo con sesión y rol superadmin/sysadmin */}
+          <Route path="/sql-console" element={<ProtectedRoute sysadmin><SQLConsole /></ProtectedRoute>} />
+          <Route path="/sistema/tareas" element={<ProtectedRoute sysadmin><TareasPage /></ProtectedRoute>} />
+          {/* Editor de temas: requiere sesión (27/11/2026) */}
+          <Route path="/coloreditor" element={<ProtectedRoute><ThemeEditor /></ProtectedRoute>} />
           {/* Auxiliares → Claves de IA (05/10/2026) */}
           <Route path="/aux/ia" element={<IaPage />} />
           {/* Auxiliares → Parámetros del sistema (01/11/2026) */}

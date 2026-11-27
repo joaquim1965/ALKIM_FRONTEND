@@ -42,7 +42,7 @@ const HeroSection = () => {
             Empezar Ahora
           </Button>
         </Link>
-        <Link to="/muestra">
+        <Link to="/login">
           <Button variant="ghost" size="xl" rounded="full">
             Ver Demo
           </Button>
