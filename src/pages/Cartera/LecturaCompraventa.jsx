@@ -22,6 +22,7 @@ import { CAMPOS_FICHA } from './LecturaNotaSimple';
 import { apiFetch, authHeaders } from '../../services/api';
 import { useTmTr } from '../../contexts/TmTrContext';
 import CampoFecha from '../../components/UI/CampoFecha';
+import { formatImporte } from '../../utils/format';
 
 async function pedir(url, opciones = {}) {
   const r = await apiFetch(url, { ...opciones, headers: { ...authHeaders(), 'Content-Type': 'application/json' } });
@@ -30,7 +31,14 @@ async function pedir(url, opciones = {}) {
   return b;
 }
 
-const CAMPOS = [{ c: 'precio_compra', nombre: 'Precio pagado al vendedor', tipo: 'importe' }, ...CAMPOS_FICHA];
+const CAMPOS = [
+  { c: 'precio_compra', nombre: 'Precio pagado al vendedor', tipo: 'importe' },
+  // Catastro (27/11/2026): sirven para el % de construcción y la amortización del resumen de la compra.
+  { c: 'valor_catastral', nombre: 'Valor catastral', tipo: 'importe' },
+  { c: 'valor_catastral_construccion', nombre: 'Valor catastral de la construcción', tipo: 'importe' },
+  { c: 'anyo_valor_catastral', nombre: 'Año del valor catastral', tipo: 'numero' },
+  ...CAMPOS_FICHA,
+];
 const fechaEs = (f) => (f ? String(f).slice(0, 10).split('-').reverse().join('/') : '—');
 
 export default function LecturaCompraventa({ propiedadId, archivo, posicion, onCerrar, onAplicado }) {
@@ -57,7 +65,7 @@ export default function LecturaCompraventa({ propiedadId, archivo, posicion, onC
     } catch (e) { setError(e.message); }
     finally { setOcupado(''); }
   };
-  useEffect(() => { leer('propio'); }, [archivo.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { leer('auto'); }, [archivo.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cambios = lectura ? cambiosElegidos(CAMPOS, lectura.leidos, lectura.actuales, eleccion) : {};
   const nuevos = (lectura?.compradores || []).filter((c) => c.entidad_id && altas[c.nif]?.marcado);
@@ -95,9 +103,14 @@ export default function LecturaCompraventa({ propiedadId, archivo, posicion, onC
             {archivo.nombre_original || archivo.nombre}
             {lectura?.leido_por ? ` · ${t('leido_por', 'Leído con')} ${lectura.leido_por}` : ''}
           </Ayuda>
-          <Button type="button" variant="secondary" size="sm" loading={ocupado === 'ia'} disabled={Boolean(ocupado)} leftIcon={<Sparkles size={16} />} onClick={() => leer('ia')}>
-            {t('leer_ia', 'Leer con IA')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => leer('propio')}>
+              {t('leer_sin_ia', 'Leer sin IA')}
+            </Button>
+            <Button type="button" variant="secondary" size="sm" loading={ocupado === 'ia'} disabled={Boolean(ocupado)} leftIcon={<Sparkles size={16} />} onClick={() => leer('ia')}>
+              {t('leer_ia', 'Leer con IA')}
+            </Button>
+          </div>
         </div>
         {lectura && (
           <Ayuda>
@@ -109,7 +122,30 @@ export default function LecturaCompraventa({ propiedadId, archivo, posicion, onC
         )}
         <AvisoError>{error}</AvisoError>
         {lectura?.avisos?.map((a) => <AvisoAtencion key={a}>{a}</AvisoAtencion>)}
-        {ocupado === 'propio' && !lectura && <Ayuda>{t('leyendo', 'Leyendo el documento…')}</Ayuda>}
+        {(lectura?.extra?.valor_referencia || lectura?.extra?.pagos?.length > 0) && (
+          <section className="space-y-2">
+            <h3 className="text-[11px] font-black uppercase tracking-widest">{t('cv_otros', 'Otros datos de la escritura (solo informativos)')}</h3>
+            {lectura.extra.valor_referencia ? (
+              <Ayuda>
+                {t('cv_vref', 'Valor de referencia')}: {formatImporte(lectura.extra.valor_referencia, '€')}
+                {lectura.extra.fecha_valor_referencia ? ` · ${fechaEs(lectura.extra.fecha_valor_referencia)}` : ''}
+              </Ayuda>
+            ) : null}
+            {lectura.extra.pagos?.length > 0 && (
+              <TablaTema columnas={[{ texto: t('cv_pago_fecha', 'Fecha') }, { texto: t('cv_pago_concepto', 'Concepto') }, { texto: t('cv_pago_a', 'A quién') }, { texto: t('cv_pago_importe', 'Importe'), derecha: true }]}>
+                {lectura.extra.pagos.map((p, i) => (
+                  <tr key={`${p.fecha}-${p.importe}-${i}`} className={claseFila(i)}>
+                    <td className={TD}>{fechaEs(p.fecha)}</td>
+                    <td className={TD}>{p.concepto || '—'}</td>
+                    <td className={TD}>{p.a_quien === 'intermediario' ? t('cv_a_inter', 'Intermediario') : p.a_quien === 'retenido' ? t('cv_a_ret', 'Retenido por los compradores') : t('cv_a_vend', 'Vendedor')}</td>
+                    <td className={`${TD} text-right font-mono`}>{formatImporte(p.importe, '€')}</td>
+                  </tr>
+                ))}
+              </TablaTema>
+            )}
+          </section>
+        )}
+        {(ocupado === 'propio' || ocupado === 'auto') && !lectura && <Ayuda>{t('leyendo', 'Leyendo el documento…')}</Ayuda>}
 
         {lectura?.compradores?.length > 0 && (
           <section className="space-y-2">

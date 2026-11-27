@@ -118,11 +118,14 @@ export default function PropiedadesPage() {
   const [porLeer, setPorLeer] = useState({ cola: [], hechos: 0 });
   // Documentos que se leen al subirlos (o con el botón «Leer datos» de su fila): docs_IA/NORMAS_DESARROLLO.md §12.
   // CONTRATO_ARRENDAMIENTO (16/10/2026): Contratos → Documentos → pasa a Contratos → Datos.
-  const LEIBLES = ['NOTA_SIMPLE', 'ESCRITURA_COMPRA', 'ESCRITURA_HIPOTECA', 'CONTRATO_ARRENDAMIENTO', ...Object.keys(DESTINO_DE_CATEGORIA)];
-  const encolar = (a) => {
-    if (!LEIBLES.includes(a.categoria_codigo)) return;
-    setPorLeer((x) => ({ cola: [...x.cola, a], hechos: x.cola.length ? x.hechos : 0 }));
-  };
+  // 27/11/2026: tipos creados a mano con otro código (Escritura de Compra, Hipoteca/Préstamo) se leen como los estándar.
+  // «Hipoteca/Préstamo» agrupa FEIN, simulaciones, seguros…: solo con el botón de la fila, no al subirlos.
+  const ALIAS_CATEGORIA = { ESCRITURA_DE_COMPRA: 'ESCRITURA_COMPRA', HIPOTECA_PRESTAMO: 'ESCRITURA_HIPOTECA' };
+  const LEIBLES = ['NOTA_SIMPLE', 'ESCRITURA_COMPRA', 'ESCRITURA_DE_COMPRA', 'ESCRITURA_HIPOTECA', 'CONTRATO_ARRENDAMIENTO', ...Object.keys(DESTINO_DE_CATEGORIA)];
+  const LEIBLES_FILA = [...LEIBLES, 'HIPOTECA_PRESTAMO'];
+  const poner = (a) => setPorLeer((x) => ({ cola: [...x.cola, { ...a, categoria_codigo: ALIAS_CATEGORIA[a.categoria_codigo] || a.categoria_codigo }], hechos: x.cola.length ? x.hechos : 0 }));
+  const encolar = (a) => { if (LEIBLES.includes(a.categoria_codigo)) poner(a); };
+  const encolarFila = (a) => { if (LEIBLES_FILA.includes(a.categoria_codigo)) poner(a); };
   // Facturas (27/10/2026): TODA factura de la pestaña Facturas se lee para Hacienda al subirla
   // (y con «Datos para Hacienda» en su fila): LecturaFacturaHacienda → im_invoice.
   const [versionFacturas, setVersionFacturas] = useState(0);
@@ -331,10 +334,13 @@ export default function PropiedadesPage() {
   const admiteEspacios = Number(tipos.propiedad.find((x) => String(x.id) === String(form.tipo_id))?.admite_espacios ?? 1) === 1;
 
   const columnas = [
-    { id: 'codigo', label: t('col_codigo', 'Código'), sortField: 'codigo', render: (x) => <span className="font-mono text-xs font-black">{x.codigo}</span> },
+    // Orden (24/11/2026, petición del usuario): Nombre · Código · Dirección · C. postal · Población (Provincia). Sin «Tipo».
     { id: 'nombre', label: t('col_nombre', 'Nombre'), sortField: 'nombre', render: (x) => <span className="text-sm font-black tracking-tight">{x.nombre}{x.es_de_tercero ? ` · ${t('de_tercero', 'de un cliente')}` : ''}</span> },
-    { id: 'tipo', label: t('col_tipo', 'Tipo'), sortField: 'tipo_nombre', render: (x) => nombreTipoP(x.tipo_codigo, x.tipo_nombre) },
-    { id: 'direccion', label: t('col_direccion', 'Dirección'), render: (x) => [direccionCorta(x), x.municipio].filter(Boolean).join(' · ') || <SinDato /> },
+    { id: 'codigo', label: t('col_codigo', 'Código'), sortField: 'codigo', render: (x) => <span className="font-mono text-xs font-black">{x.codigo}</span> },
+    { id: 'direccion', label: t('col_direccion', 'Dirección'), render: (x) => direccionCorta(x) || <SinDato /> },
+    { id: 'codigo_postal', label: t('col_cp', 'C. postal'), sortField: 'codigo_postal', render: (x) => (x.codigo_postal ? <span className="font-mono">{x.codigo_postal}</span> : <SinDato />) },
+    { id: 'poblacion', label: t('col_poblacion', 'Población (Provincia)'), sortField: 'municipio',
+      render: (x) => (x.municipio ? `${x.municipio}${x.provincia ? ` (${x.provincia})` : ''}` : (x.provincia ? `(${x.provincia})` : <SinDato />)) },
     { id: 'entidad', label: t('col_entidad', 'Entidad'), sortField: 'entidad_nombre', render: (x) => x.entidad_nombre },
     { id: 'estado', label: t('col_estado', 'Estado'), sortField: 'estado', render: (x) => t(`estado_${x.estado.toLowerCase()}`, x.estado) },
     { id: 'titulares', label: t('col_titulares', 'Titulares'), render: (x) => x.titulares || <SinDato /> },
@@ -391,7 +397,7 @@ export default function PropiedadesPage() {
           <input maxLength={150} {...f('direccion_corta')} placeholder={abreviarDireccion(form)} className={CLASE_INPUT} disabled={!puedeEscribir}
             title={t('direccion_corta_ayuda', 'Para contratos y documentos. Si la dejas vacía se usa la automática.')} />
         </Campo>
-        <Campo etiqueta={t('direccion_completa', 'Dirección completa')} ancho="sm:col-span-2">
+        <Campo etiqueta={t('direccion_completa', 'Dirección completa')} ancho="sm:col-span-full">
           <div className="flex gap-2">
             <input readOnly value={direccionCompleta(form)} className={`${CLASE_INPUT} flex-1`} aria-readonly="true" />
             <BotonFila icono={<Copy size={15} />} titulo={copiada ? t('copiada', 'Copiada') : t('copiar', 'Copiar')}
@@ -544,8 +550,8 @@ export default function PropiedadesPage() {
           : (
             <div className="p-3">
               <DataTable
-                columns={columnas} data={propiedades} keyField="id" rowsPerPage={15}
-                searchFn={(x, q) => `${x.codigo} ${x.nombre} ${x.via || ''} ${x.municipio || ''} ${x.ref_catastral || ''}`.toLowerCase().includes(q)}
+                columns={columnas} data={propiedades} keyField="id" rowsPerPage={15} tableId="propiedades" defaultSort={{ field: 'nombre', dir: 'asc' }}
+                searchFn={(x, q) => `${x.codigo} ${x.nombre} ${x.via || ''} ${x.codigo_postal || ''} ${x.municipio || ''} ${x.provincia || ''} ${x.ref_catastral || ''}`.toLowerCase().includes(q)}
                 onEdit={(x) => abrir(x)}
                 onDelete={(x) => (puedeEscribir && Number(x.activo) ? baja(x) : null)}
                 emptyMessage={t('vacio', 'Todavía no hay propiedades.')}
@@ -578,10 +584,10 @@ export default function PropiedadesPage() {
             ...(veClaves ? [{ id: 'claves', etiqueta: t('pestana_claves', 'Claves'), requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ClavesPestana propiedadId={ficha.id} puedeEscribir={puedeClaves} /> }] : []),
             // Al final y en este orden (04/11/2026, petición del usuario): Documentos, Contratos, Facturas y
             // Multimedia, cada una con el total de documentos que tiene.
-            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), contador: conteoDocs.documentos, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} excluirGrupo={[GRUPO_FACTURAS, GRUPO_CONTRATOS, GRUPO_MULTIMEDIA]} avisoExcluido={`${td('facturas_en_pestana', 'Las facturas están en la pestaña «Facturas».')} ${td('contratos_en_pestana', 'Los contratos están en la pestaña «Contratos» → Documentos.')} ${td('fotos_en_pestana', 'Las fotos y vídeos están en la pestaña «Multimedia».')}`} /> },
+            { id: 'documentos', etiqueta: t('pestana_documentos', 'Documentos'), contador: conteoDocs.documentos, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES_FILA} onLeer={encolarFila} excluirGrupo={[GRUPO_FACTURAS, GRUPO_CONTRATOS, GRUPO_MULTIMEDIA]} avisoExcluido={`${td('facturas_en_pestana', 'Las facturas están en la pestaña «Facturas».')} ${td('contratos_en_pestana', 'Los contratos están en la pestaña «Contratos» → Documentos.')} ${td('fotos_en_pestana', 'Las fotos y vídeos están en la pestaña «Multimedia».')}`} /> },
             ...(veContratos ? [{ id: 'contratos', etiqueta: t('pestana_contratos', 'Contratos'), contador: contratosFicha.filter((c) => Number(c.finalizado) !== 1).length || null,   /* contratos vigentes = no finalizados (04/11/2026, petición del usuario) */ requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <ContratosPestana propiedadId={ficha.id} propiedadNombre={ficha.datos?.nombre} espacios={plano} puedeEscribir={puedeContratos} preseleccion={alquilar} onPreseleccionUsada={() => setAlquilar(null)} onCambio={() => { cargarContratos(ficha.id); cargar(); }}
               version={versionContratos}
-              documentos={<DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES} onLeer={encolar} grupo={GRUPO_CONTRATOS} porAnyo destinos={destinosContratos} />} /> }] : []),
+              documentos={<DocumentosObjeto tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolar} leibles={LEIBLES_FILA} onLeer={encolarFila} grupo={GRUPO_CONTRATOS} porAnyo destinos={destinosContratos} />} /> }] : []),
             // Facturas (15/10/2026): los documentos del grupo FACTURAS, por años. En
             // Documentos ese grupo no sale (mismos archivos, otra vista).
             { id: 'facturas', etiqueta: t('pestana_facturas', 'Facturas'), contador: conteoDocs.facturas, requiereGuardado: true, ayudaDesactivada: t('guarda_primero', 'Guarda primero la propiedad'), contenido: ficha.id && <DocumentosObjeto key={`facturas-${versionFacturas}`} tabla="im_property" id={ficha.id} soloLectura={!puedeEscribir} onSubido={encolarFactura} leibles onLeer={encolarFactura} grupo={GRUPO_FACTURAS} porAnyo tipoHacienda /> },

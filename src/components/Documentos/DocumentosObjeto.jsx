@@ -435,6 +435,15 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
   // Valor de un archivo de la subida: el elegido a mano o el propuesto por su tipo (o el de la carpeta base).
   const haciendaDeDetalle = (det, sub) => (det?.haciendaManual ? det.tipo_hacienda
     : haciendaDe(det?.carpeta ? baseCarpetas(sub)?.id : (det?.categoria_id ?? sub.categoria_id))) || '';
+  /** ¿El tipo `id` es `ancestro` o cuelga de él (en cualquier nivel)? (24/11/2026) */
+  const estaDentroDe = (id, ancestro) => {
+    let c = categoria(id);
+    for (let n = 0; c && n < 12; n += 1) {
+      if (String(c.id) === String(ancestro)) return true;
+      c = c.padre_id != null ? categoria(c.padre_id) : null;
+    }
+    return false;
+  };
   const idDeCodigo = (codigo) => datos?.categorias.find((x) => x.codigo === codigo)?.id;
   const nombreDe = (d, s) => (d.nombreManual ? d.nombre.trim() : nombrePropuesto(categoria(d.categoria_id)?.codigo, datos?.objeto, s));
   /** Tipo que parece por el nombre del archivo (solo se propone): «Nota simple…» → Nota simple; «Factura…», «Fra…», «Tasación…» → Valor de adquisición. */
@@ -1330,7 +1339,7 @@ export default function DocumentosObjeto({ tabla, id, soloLectura = false, onDoc
                         </span>
                       )}
                     </p>
-                    {det.sugerida && String(det.sugerida) !== String(det.categoria_id) && !det.sugerenciaVista && (
+                    {det.sugerida && !estaDentroDe(det.categoria_id, det.sugerida) && !det.sugerenciaVista && (
                       <div role="group" aria-label={t('cambiar_grupo', 'Cambiar de grupo')}
                         className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning-border bg-warning px-4 py-3 text-sm font-bold text-on-warning sm:col-span-2">
                         <span className="min-w-0 flex-1">{t('cambiar_a_grupo', '¿Cambia a grupo {grupo}?').replace('{grupo}', nombreCat(categoria(det.sugerida) || {}))}</span>

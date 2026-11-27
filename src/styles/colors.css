@@ -99,6 +99,8 @@
   --color-table-header: #78350f;
   /* Texto Cabecera */
   --color-on-table-header: #ffffff;
+  /* Texto Cabecera de la columna ordenada (resaltado legible sobre la cabecera) */
+  --color-on-table-header-active: #fde68a;
   /* Fila Normal */
   --color-table-row: #ffffff;
   /* Texto Fila Normal */
@@ -262,6 +264,8 @@
   --color-table-header: #1e40af;
   /* Texto Cabecera */
   --color-on-table-header: #ffffff;
+  /* Texto Cabecera de la columna ordenada (resaltado legible sobre la cabecera) */
+  --color-on-table-header-active: #fcd34d;
   /* Fila Normal */
   --color-table-row: #cbd5e1;
   /* Texto Fila Normal */
@@ -425,6 +429,8 @@
   --color-table-header: #450a0a;
   /* Texto Cabecera */
   --color-on-table-header: #ffffff;
+  /* Texto Cabecera de la columna ordenada (resaltado legible sobre la cabecera) */
+  --color-on-table-header-active: #ffff00;
   /* Fila Normal */
   --color-table-row: #d4d4d8;
   /* Texto Fila Normal */

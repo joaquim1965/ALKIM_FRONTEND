@@ -12,7 +12,8 @@
  *   'personas': el valor es una lista de ids (p. ej. hipotecantes); se elige Actual o Leído, sin «Otro».
  *
  * `conFaltan` (04/11/2026, petición del usuario): debajo de los datos leídos salen también los
- * campos que NO se han leído (p. ej. el importe total), con «Otro» para escribirlos a mano.
+ * campos que NO se han leído (p. ej. el importe total), con «Otro» para escribirlos a mano
+ * (también en las listas cuando no hay valor actual: 24/11/2026, contrato sin renta leída).
  */
 import React from 'react';
 import { TablaTema, claseFila, TD, CLASE_INPUT, SinDato } from '../UI/TemaPagina';
@@ -131,7 +132,7 @@ export default function ComparadorCampos({ campos, leidos, actuales, eleccion, o
       {faltan.map((f, i) => {
         const actual = actuales[f.c];
         const e = eleccion[f.c] || { opcion: 'actual', propio: '' };
-        const opciones = [...(vacio(actual) ? [] : [['actual', tr('opcion_actual', 'Actual')]]), ...(f.sinOtro ? [] : [['propio', tr('opcion_propio', 'Otro')]])];
+        const opciones = [...(vacio(actual) ? [] : [['actual', tr('opcion_actual', 'Actual')]]), ...(f.sinOtro && !vacio(actual) ? [] : [['propio', tr('opcion_propio', 'Otro')]])];
         return (
           <tr key={`falta-${f.c}`} className={claseFila(filas.length + i)}>
             <td className={TD}>{tr(`campo_${f.c}`, f.nombre)}</td>

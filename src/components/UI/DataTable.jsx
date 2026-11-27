@@ -317,6 +317,12 @@ const FilterModal = ({ filterFields = [], filters, onApply, onClose }) => {
  * @param {string}   emptyMessage  - Texto cuando no hay resultados
  * @param {boolean}  sinBarra      - true = sin la fila de buscador y contador (04/10/2026)
  * @param {Function} nombreFila    - (row) => texto que dice la voz tras «Ver/Editar/Eliminar» (03/11/2026)
+ * @param {string}   tableId       - nombre con el que se guarda el ancho de las columnas (24/11/2026); si falta, sale de los ids de las columnas
+ * @param {Object}   defaultSort   - { field, dir: 'asc'|'desc' } orden con el que se abre la tabla (24/11/2026)
+ *
+ * Ancho de columnas (24/11/2026, petición del usuario): se arrastra el borde derecho de la
+ * cabecera; el ancho queda guardado en este navegador (localStorage) y se recupera al volver a
+ * entrar. Doble clic en el borde = volver al ancho automático.
  */
 export function DataTable({
     columns       = [],
@@ -337,23 +343,38 @@ export function DataTable({
     selectedId    = null,
     sinBarra      = false,
     nombreFila,
+    tableId,
+    defaultSort,
 }) {
     const decir = (accion, row) => speakMenuLabel(`${accion} ${legible((nombreFila || nombrePorDefecto)(row))}`.trim());
     // ── Estado ────────────────────────────────────────────
     const [searchInput, setSearchInput] = useState('');
-    const [sortField,   setSortField]   = useState(null);
-    const [sortDir,     setSortDir]     = useState(null);
+    const [sortField,   setSortField]   = useState(defaultSort?.field ?? null);
+    const [sortDir,     setSortDir]     = useState(defaultSort?.field ? (defaultSort.dir || 'asc') : null);
     const [page,        setPage]        = useState(1);
     const [advFilters,  setAdvFilters]  = useState({});
     const [showFilter,  setShowFilter]  = useState(false);
     const [confirmDel,  setConfirmDel]  = useState(null);   // { row, pos }
     const [colOrder,    setColOrder]    = useState(columns.map(c => c.id));
 
+    // ── Ancho de columnas guardado (24/11/2026) ──────────
+    const claveAnchos = `alkim.tabla.anchos.${tableId || columns.map(c => c.id).join('|')}`;
+    const [anchos, setAnchos] = useState(() => {
+        try { return JSON.parse(localStorage.getItem(claveAnchos)) || {}; } catch { return {}; }
+    });
+    const thRefs = useRef({});
+
     // Sincronizar colOrder si columns cambia desde fuera
     const orderedCols = useMemo(() => {
         const map = Object.fromEntries(columns.map(c => [c.id, c]));
         return colOrder.map(id => map[id]).filter(Boolean);
     }, [colOrder, columns]);
+
+    const tieneAcciones = Boolean(onView || onEdit || onDelete || extraActions);
+    const ANCHO_ACCIONES = 48;
+    // Solo se usan los anchos guardados si hay uno para CADA columna (si cambian las columnas, vuelve el ancho automático).
+    const anchoFijo = orderedCols.length > 0 && orderedCols.every(c => Number(anchos[c.id]) > 0);
+    const anchoTotal = (tieneAcciones ? ANCHO_ACCIONES : 0) + orderedCols.reduce((a, c) => a + Number(anchos[c.id] || 0), 0);
 
     // ── Drag-and-drop de columnas ─────────────────────────
     const dragId  = useRef(null);
@@ -370,6 +391,30 @@ export function DataTable({
         next.splice(to, 0, next.splice(from, 1)[0]);
         setColOrder(next);
         dragId.current = null;
+    };
+
+    const guardarAnchos = (valor) => {
+        setAnchos(valor);
+        try {
+            if (Object.keys(valor).length) localStorage.setItem(claveAnchos, JSON.stringify(valor));
+            else localStorage.removeItem(claveAnchos);
+        } catch { /* sin almacenamiento: el ancho vale solo para esta visita */ }
+    };
+    const iniciarAjuste = (e, id) => {
+        e.preventDefault(); e.stopPropagation();
+        // Al primer ajuste se fijan TODAS las columnas con su ancho actual: el resto no se mueve.
+        const base = {};
+        orderedCols.forEach(c => { base[c.id] = anchos[c.id] ?? Math.round(thRefs.current[c.id]?.getBoundingClientRect().width || 120); });
+        const x0 = e.clientX; const w0 = base[id];
+        const calcula = (ev) => ({ ...base, [id]: Math.max(50, Math.round(w0 + ev.clientX - x0)) });
+        const mover = (ev) => setAnchos(calcula(ev));
+        const soltar = (ev) => {
+            window.removeEventListener('mousemove', mover);
+            window.removeEventListener('mouseup', soltar);
+            guardarAnchos(calcula(ev));
+        };
+        window.addEventListener('mousemove', mover);
+        window.addEventListener('mouseup', soltar);
     };
 
     // ── Sort tri-estado ───────────────────────────────────
@@ -464,7 +509,14 @@ export function DataTable({
             {/* Tabla */}
             <div className="bg-surface1 border border-border rounded-lg shadow-sm overflow-hidden">
                 <div className="overflow-x-auto custom-scrollbar relative">
-                    <table className="w-full min-w-max table-auto">
+                    <table className={anchoFijo ? '' : 'w-full min-w-max table-auto'}
+                        style={anchoFijo ? { tableLayout: 'fixed', width: anchoTotal } : undefined}>
+                        {anchoFijo && (
+                            <colgroup>
+                                {tieneAcciones && <col style={{ width: ANCHO_ACCIONES }} />}
+                                {orderedCols.map(c => <col key={c.id} style={{ width: anchos[c.id] }} />)}
+                            </colgroup>
+                        )}
                         <thead>
                             <tr className="uppercase tracking-wider border-b border-border font-bold"
                                 style={{ backgroundColor: 'var(--color-table-header)', color: 'var(--color-on-table-header)' }}>
@@ -481,17 +533,18 @@ export function DataTable({
                                 {/* Cabeceras arrastrables */}
                                 {orderedCols.map((col, idx) => (
                                     <th key={col.id}
+                                        ref={(el) => { thRefs.current[col.id] = el; }}
                                         draggable
                                         onDragStart={() => onDragStart(col.id)}
                                         onDragOver={e => { e.preventDefault(); onDragOver(col.id); }}
                                         onDrop={onDrop}
                                         onClick={() => handleSort(col.sortField)}
-                                        className={`px-4 py-2 font-bold whitespace-nowrap border-b border-border
+                                        className={`relative px-4 py-2 font-bold whitespace-nowrap border-b border-border ${anchoFijo ? 'overflow-hidden' : ''}
                                             outline-none select-none transition-colors
                                             ${col.sortField ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}
                                             ${idx < orderedCols.length - 1 ? 'border-r' : ''}
                                             group`}
-                                        style={{ color: sortField === col.sortField ? 'var(--color-primary)' : 'var(--color-on-table-header)' }}>
+                                        style={{ color: sortField === col.sortField ? 'var(--color-on-table-header-active)' : 'var(--color-on-table-header)' }}>
                                         <span className="inline-flex items-center gap-2">
                                             <GripVertical size={10} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"/>
                                             {col.label}
@@ -499,6 +552,10 @@ export function DataTable({
                                                 <SortIcon state={sortField === col.sortField ? sortDir : null}/>
                                             )}
                                         </span>
+                                        <span draggable={false} onMouseDown={(e) => iniciarAjuste(e, col.id)} onClick={(e) => e.stopPropagation()}
+                                            onDoubleClick={(e) => { e.stopPropagation(); guardarAnchos({}); }}
+                                            title="Arrastra para cambiar el ancho. Doble clic: ancho automático."
+                                            className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize hover:bg-white/30" />
                                     </th>
                                 ))}
                             </tr>
@@ -584,7 +641,7 @@ export function DataTable({
 
                                         {/* Celdas de datos */}
                                         {orderedCols.map((col, cidx) => (
-                                            <td key={col.id} className={`px-4 py-1.5 ${cidx < orderedCols.length - 1 ? 'border-r' : ''} border-border`}>
+                                            <td key={col.id} className={`px-4 py-1.5 ${cidx < orderedCols.length - 1 ? 'border-r' : ''} border-border ${anchoFijo ? 'overflow-hidden text-ellipsis' : ''}`}>
                                                 {col.render ? col.render(row) : (row[col.id] ?? '')}
                                             </td>
                                         ))}

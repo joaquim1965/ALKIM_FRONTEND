@@ -105,7 +105,7 @@ export default function LecturaPrestamo({ propiedadId, archivo, posicion, onCerr
     } catch (e) { setError(e.message); }
     finally { setOcupado(''); }
   };
-  useEffect(() => { leer('propio'); }, [archivo.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { leer('auto'); }, [archivo.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cambiarPrestamo = (id) => {
     setPrestamoId(id);
@@ -166,9 +166,14 @@ export default function LecturaPrestamo({ propiedadId, archivo, posicion, onCerr
             {lectura?.leido_por ? ` · ${t('leido_por', 'Leído con')} ${lectura.leido_por}` : ''}
             {lectura?.banco ? ` · ${t('banco', 'Banco')}: ${lectura.banco}` : ''}
           </Ayuda>
-          <Button type="button" variant="secondary" size="sm" loading={ocupado === 'ia'} disabled={Boolean(ocupado)} leftIcon={<Sparkles size={16} />} onClick={() => leer('ia')}>
-            {t('leer_ia', 'Leer con IA')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" size="sm" disabled={Boolean(ocupado)} onClick={() => leer('propio')}>
+              {t('leer_sin_ia', 'Leer sin IA')}
+            </Button>
+            <Button type="button" variant="secondary" size="sm" loading={ocupado === 'ia'} disabled={Boolean(ocupado)} leftIcon={<Sparkles size={16} />} onClick={() => leer('ia')}>
+              {t('leer_ia', 'Leer con IA')}
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -191,7 +196,7 @@ export default function LecturaPrestamo({ propiedadId, archivo, posicion, onCerr
 
         <AvisoError>{error}</AvisoError>
         {lectura?.avisos?.map((a) => <AvisoAtencion key={a}>{a}</AvisoAtencion>)}
-        {ocupado === 'propio' && !lectura && <Ayuda>{t('leyendo', 'Leyendo el documento…')}</Ayuda>}
+        {(ocupado === 'propio' || ocupado === 'auto') && !lectura && <Ayuda>{t('leyendo', 'Leyendo el documento…')}</Ayuda>}
         {/* Botones encima de la tabla de datos (04/11/2026, petición del usuario): se ven sin bajar. */}
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="secondary" disabled={Boolean(ocupado)} onClick={onCerrar}>{t('no_pasar', 'No pasar a ningún formulario')}</Button>

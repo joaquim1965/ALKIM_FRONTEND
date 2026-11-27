@@ -16,6 +16,7 @@
  *      GET /recibos/catalogos
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FileSignature, Sparkles, Check } from 'lucide-react';
 import Button from '../../components/UI/Button';
 import Toggle from '../../components/UI/Toggle';
@@ -35,6 +36,9 @@ async function pedir(url, opciones = {}) {
 const hoy = () => new Date().toISOString().slice(0, 10);
 const fechaEs = (f) => (f ? f.split('-').reverse().join('/') : '');
 const sinAcentos = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+// Misma regla que el servidor (Zod): así se avisa ANTES de enviar y se dice qué falla (24/11/2026).
+const EMAIL_VALIDO = /^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/;
+const emailValido = (v) => !String(v || '').trim() || EMAIL_VALIDO.test(String(v).trim());
 const str = (v) => (v == null || v === '' ? null : String(v));
 
 /** Contrato existente → valores con los nombres de los campos del comparador. */
@@ -79,6 +83,9 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
   // pasa al tipo «Anexo contrato» (inventario con fotos, Word…). { antes: tipo que tenía }.
   const [anexo, setAnexo] = useState(null);
   const [error, setError] = useState('');
+  // Doble clic en un inquilino (24/11/2026): ventana con un campo por fila, con su etiqueta, para verlos y editarlos bien.
+  const [editando, setEditando] = useState(null);   // índice del inquilino
+  const [borrador, setBorrador] = useState({});
 
   const alquilables = useMemo(() => espacios.filter((e) => !Number(e.es_comun) && Number(e.activo ?? 1)), [espacios]);
   const contrato = contratos.find((c) => String(c.id) === String(contratoId)) || null;
@@ -198,8 +205,16 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
   const n = Object.keys(cambios).length + (cambiaEspacio ? 1 : 0) + (cambianInquilinos ? 1 : 0);
   const cambiarInquilino = (i, k, v) => setInquilinos((l) => l.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
 
+  const avisoEmail = (x) => `${t('email_no_valido', 'El email no es válido')}: «${x.email}» (${[x.nombre, x.apellidos].filter(Boolean).join(' ')}). ${t('email_no_valido_ayuda', 'Escríbelo como nombre@dominio.com: sin espacios, sin tildes ni ñ, sin puntos seguidos ni al final. Si no tiene, déjalo vacío.')}`;
+  const abrirInquilino = (i) => { setBorrador({ ...inquilinos[i] }); setEditando(i); };
+  const guardarInquilino = () => {
+    setInquilinos((l) => l.map((x, j) => (j === editando ? { ...x, ...borrador, nif: String(borrador.nif || '').toUpperCase() } : x)));
+    setEditando(null);
+  };
   const aplicar = async () => {
     if (!n) return onCerrar();
+    const malo = conNif.find((x) => !emailValido(x.email));
+    if (malo) { setError(avisoEmail(malo)); return; }
     const v = valoresElegidos(CAMPOS, leidos, actuales, eleccion);
     setOcupado('aplicar'); setError('');
     try {
@@ -244,8 +259,12 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
       }
       await onAplicado?.();
       onCerrar();
-    } catch (e) { setError(e.message); }
-    finally { setOcupado(''); }
+    } catch (e) {
+      // «inquilinos.0.email: Invalid email address» (24/11/2026): se dice QUÉ inquilino y QUÉ email, y por qué.
+      const m = /inquilinos\.(\d+)\.email/.exec(e.message || '');
+      const x = m ? conNif[Number(m[1])] : null;
+      setError(x ? avisoEmail(x) : e.message);
+    } finally { setOcupado(''); }
   };
 
   const conRecibos = contrato && Number(contrato.recibos) > 0 && ('renta_mensual' in cambios || 'fecha_inicio' in cambios);
@@ -312,7 +331,7 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
               { texto: t('telefono', 'Teléfono') }, { texto: t('email', 'Email') }, { texto: t('en_terceros', 'En Terceros') },
             ]}>
               {inquilinos.map((x, i) => (
-                <tr key={i} className={claseFila(i)}>
+                <tr key={i} className={`${claseFila(i)} cursor-pointer`} onDoubleClick={() => abrirInquilino(i)} title={t('doble_clic_inquilino', 'Doble clic: ver y editar este inquilino')}>
                   {['nombre', 'apellidos', 'tipo_documento', 'nif', 'telefono', 'email'].map((k) => (
                     <td key={k} className={TD}>
                       {k === 'tipo_documento' ? (
@@ -331,6 +350,7 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
                 </tr>
               ))}
             </TablaTema>
+            <Ayuda>{t('doble_clic_ayuda', 'Haz doble clic en un inquilino para verlo y editarlo con letra grande.')}</Ayuda>
             <Ayuda>{!nuevo && anadirInquilinos
               ? t('ayuda_inquilinos_anadir', 'Al aplicar, los inquilinos se dan de alta en Terceros (o se actualizan sus datos) y se añaden al final del contrato como cotitulares; los que ya tenía se quedan.')
               : t('ayuda_inquilinos', 'Al aplicar, los inquilinos se dan de alta en Terceros o, si ya están, se sustituyen sus datos por estos. El primero queda como titular del contrato.')}{titularesActuales ? ` ${t('titulares_antes', 'Ahora en el contrato')}: ${titularesActuales}.` : ''}</Ayuda>
@@ -347,8 +367,37 @@ export default function LecturaContrato({ propiedadId, archivo, posicion, espaci
             </Button>
           </>)}
         </div>
-        {lectura && !anexo && <ComparadorCampos campos={CAMPOS} leidos={leidos} actuales={actuales} eleccion={eleccion} t={t}
+        {lectura && !anexo && <ComparadorCampos campos={CAMPOS} leidos={leidos} actuales={actuales} eleccion={eleccion} t={t} conFaltan
           onElegir={(c, cambio) => setEleccion((e) => ({ ...e, [c]: { ...e[c], ...cambio } }))} />}
+
+        {editando != null && inquilinos[editando] && createPortal(
+          <div className="fixed inset-0 z-[60]">
+            <VentanaModal titulo={`${t('inquilino', 'Inquilino')} ${editando + 1} · ${[borrador.nombre, borrador.apellidos].filter(Boolean).join(' ')}`}
+              onCerrar={() => setEditando(null)} ancho="max-w-xl">
+              <form className="space-y-4" onSubmit={(ev) => { ev.preventDefault(); guardarInquilino(); }}>
+                {[['nombre', t('nombre', 'Nombre')], ['apellidos', t('apellidos', 'Apellidos')], ['tipo_documento', t('tipo_doc', 'Tipo de documento')],
+                  ['nif', t('nro_doc', 'Número de documento')], ['telefono', t('telefono', 'Teléfono')], ['email', t('email', 'Email')]].map(([k, et]) => (
+                  <Campo key={k} etiqueta={et}>
+                    {k === 'tipo_documento' ? (
+                      <select value={borrador.tipo_documento || ''} onChange={(ev) => setBorrador((b) => ({ ...b, tipo_documento: ev.target.value }))} className={`${CLASE_INPUT} text-base`}>
+                        {['DNI', 'NIE', 'PASAPORTE', 'CIF', 'OTRO'].map((o) => <option key={o} value={o}>{o === 'PASAPORTE' ? t('pasaporte', 'Pasaporte') : o}</option>)}
+                      </select>
+                    ) : (
+                      <input value={borrador[k] || ''} onChange={(ev) => setBorrador((b) => ({ ...b, [k]: ev.target.value }))}
+                        className={`${CLASE_INPUT} text-base ${k === 'nif' || k === 'telefono' ? 'font-mono' : ''}`} autoFocus={k === 'nombre'} />
+                    )}
+                    {k === 'email' && !emailValido(borrador.email) && (
+                      <span className="ml-1 mt-1 block text-sm font-bold text-destructive-text">{t('email_no_valido_corto', 'Este email no es válido: sin espacios, tildes ni ñ, y con dominio (nombre@dominio.com).')}</span>
+                    )}
+                  </Campo>
+                ))}
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
+                  <Button type="button" variant="secondary" onClick={() => setEditando(null)}>{t('cerrar', 'Cerrar')}</Button>
+                  <Button type="submit" leftIcon={<Check size={16} />}>{t('guardar', 'Guardar')}</Button>
+                </div>
+              </form>
+            </VentanaModal>
+          </div>, document.body)}
       </div>
     </VentanaModal>
   );
